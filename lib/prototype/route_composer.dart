@@ -5,15 +5,20 @@ import 'package:flutter/material.dart';
 
 import 'route_geometry.dart';
 
-/// 지도 스냅샷 위에 동선(곡선, 화살표, 장소 이름)과 제목을 그린다.
+/// 지도 스냅샷 위에 동선(곡선, 화살표, 장소 이름), 사진 썸네일, 제목을 그린다.
 ///
 /// [points]는 스냅샷 이미지의 픽셀 좌표, [scale]은 논리 픽셀 1개당 이미지 픽셀 수다.
+/// [photos]는 [points]와 순서가 같고, 사진이 없는 장소는 null이다.
+/// [logoRect]는 네이버 로고 영역(이미지 픽셀)이다. 로고는 가리면 안 되므로
+/// 다 그린 뒤 이 영역을 스냅샷 원본으로 다시 덮는다.
 Future<ui.Image> composeRoute({
   required ui.Image base,
   required List<Offset> points,
   required List<String> names,
   required String title,
   required double scale,
+  List<ui.Image?> photos = const [],
+  Rect? logoRect,
   double curvature = 0.2,
 }) async {
   final width = base.width.toDouble();
@@ -60,7 +65,16 @@ Future<ui.Image> composeRoute({
     _drawLabel(canvas, '${i + 1}. ${names[i]}', points[i], scale);
   }
 
+  for (var i = 0; i < photos.length && i < points.length; i++) {
+    final photo = photos[i];
+    if (photo != null) _drawPhoto(canvas, photo, points[i], scale);
+  }
+
   _drawTitle(canvas, title, width, scale);
+
+  if (logoRect != null) {
+    canvas.drawImageRect(base, logoRect, logoRect, Paint());
+  }
 
   final picture = recorder.endRecording();
   return picture.toImage(base.width, base.height);
@@ -84,6 +98,37 @@ void _drawArrow(
       ..lineTo(-size, size * 0.8)
       ..close(),
     paint,
+  );
+  canvas.restore();
+}
+
+/// 장소 위쪽에 둥근 모서리로 자른 정사각형 썸네일을 그린다. 사진은 가운데를 잘라 쓴다.
+void _drawPhoto(Canvas canvas, ui.Image photo, Offset point, double scale) {
+  final size = 56 * scale;
+  final border = 2 * scale;
+  final rect = Rect.fromCenter(
+    center: point - Offset(0, 12 * scale + size / 2),
+    width: size,
+    height: size,
+  );
+  final radius = Radius.circular(10 * scale);
+  final outer = RRect.fromRectAndRadius(rect.inflate(border), radius);
+
+  canvas.drawShadow(Path()..addRRect(outer), Colors.black, 3 * scale, false);
+  canvas.drawRRect(outer, Paint()..color = Colors.white);
+
+  final pw = photo.width.toDouble();
+  final ph = photo.height.toDouble();
+  final side = math.min(pw, ph);
+  final src = Rect.fromLTWH((pw - side) / 2, (ph - side) / 2, side, side);
+
+  canvas.save();
+  canvas.clipRRect(RRect.fromRectAndRadius(rect, radius));
+  canvas.drawImageRect(
+    photo,
+    src,
+    rect,
+    Paint()..filterQuality = FilterQuality.high,
   );
   canvas.restore();
 }
