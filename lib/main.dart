@@ -3,6 +3,8 @@ import 'dart:developer';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
+import 'package:image_picker_android/image_picker_android.dart';
+import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 
 import 'config/env.dart';
 import 'prototype/snapshot_lab_screen.dart';
@@ -15,6 +17,11 @@ bool get isMapSupported =>
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Android 10에서는 시스템 사진 선택기를 쓴다.
+  final imagePicker = ImagePickerPlatform.instance;
+  if (imagePicker is ImagePickerAndroid) {
+    imagePicker.useAndroidPhotoPicker = true;
+  }
   if (isMapSupported && Env.naverMapClientId.isNotEmpty) {
     await FlutterNaverMap().init(
       clientId: Env.naverMapClientId,

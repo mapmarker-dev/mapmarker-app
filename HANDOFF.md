@@ -1,6 +1,6 @@
 # HANDOFF
 
-> 최종 갱신: 2026-10-14 · 브랜치: test
+> 최종 갱신: 2026-10-15 · 브랜치: test
 
 ## 지금 하는 일
 
@@ -13,7 +13,7 @@
 ## 현재 상태
 
 - 앱을 실행하면 0단계 검증 화면(`SnapshotLabScreen`)이 바로 뜬다. 정식 화면은 아직 없다.
-- 실기기 확인은 Android만 했다. iOS는 맥이 없어서 확인하지 않았다.
+- 실기기 확인은 Android 14 태블릿과 Android 10 휴대폰에서 했다. iOS는 맥이 없어서 확인하지 않았다.
 - 프로토타입은 `test` 브랜치에만 있다. `main`과 `dev`에는 아직 없다.
 - 정리 후보
   - `lib/main.dart`의 `UnsupportedPlatformScreen`, `MapScreen`: 웹·데스크톱 폴더를 지운 뒤로 쓰이지 않는다.
@@ -32,4 +32,5 @@
 
 - Dart 패키지 이름은 `mapmarker_app`이다 (`pubspec.yaml`, `package:mapmarker_app/...`).
 - 파일 대부분이 CRLF 줄바꿈으로 커밋돼 있다. 편집기나 스크립트가 줄바꿈을 바꾸면 diff 전체가 바뀌니, 커밋 전에 `git diff --stat`을 확인한다.
+- 사진은 Android 사진 선택기로 고른다. 시스템 사진 선택기가 없는 기기(주로 Android 10 이하)는 Google Play 서비스의 사진 선택기 모듈로 열리는데, 이 모듈도 없으면 파일 앱으로 넘어가 다시 한 장만 선택된다. 앱 설치 때 모듈을 받게 하는 `AndroidManifest.xml` 항목(`ModuleDependencies`)을 넣을지는 1-3단계(사진)에서 정한다.
 - `gradlew`를 직접 돌릴 때 JAVA_HOME이 없으면 실패한다. Android Studio의 `jbr` 폴더를 JAVA_HOME으로 지정한다. `flutter run`과 `flutter build`는 그대로 된다.
