@@ -1,4 +1,4 @@
-# mapmarker_app
+# mapmarker-app
 
 A new Flutter project.
 
