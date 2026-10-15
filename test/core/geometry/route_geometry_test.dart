@@ -1,7 +1,5 @@
-import 'dart:typed_data';
-
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mapmarker_app/prototype/route_geometry.dart';
+import 'package:mapmarker_app/core/geometry/route_geometry.dart';
 
 void main() {
   group('quadraticControlPoint', () {
@@ -36,34 +34,5 @@ void main() {
     );
     expect(t.dx, greaterThan(0));
     expect(t.dy, 0);
-  });
-
-  group('detectImageFormat', () {
-    test('PNG', () {
-      expect(
-        detectImageFormat(Uint8List.fromList([0x89, 0x50, 0x4E, 0x47, 0x0D])),
-        'PNG',
-      );
-    });
-
-    test('JPEG', () {
-      expect(
-        detectImageFormat(Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0])),
-        'JPEG',
-      );
-    });
-
-    test('WebP', () {
-      expect(
-        detectImageFormat(
-          Uint8List.fromList('RIFF\x00\x00\x00\x00WEBP'.codeUnits),
-        ),
-        'WebP',
-      );
-    });
-
-    test('unknown', () {
-      expect(detectImageFormat(Uint8List.fromList([1, 2])), 'unknown');
-    });
   });
 }

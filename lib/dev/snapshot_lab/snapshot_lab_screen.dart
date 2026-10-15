@@ -6,9 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'export_ratio.dart';
-import 'route_composer.dart';
-import 'route_geometry.dart';
+import '../../features/export/export_ratio.dart';
+import '../../features/export/route_composer.dart';
+import 'image_format.dart';
 import 'sample_route.dart';
 
 /// 네이버 로고 위치. 로고는 가리면 안 되므로 위치를 고정하고 합성할 때 이 영역을 지킨다.
@@ -20,7 +20,8 @@ const _logoReserve = Size(112, 48);
 /// 동선을 화면에 맞출 때의 여백 (논리 px). 위는 제목과 사진, 아래는 로고 자리다.
 const _routePadding = EdgeInsets.fromLTRB(48, 150, 64, 72);
 
-/// 0단계 이미지 내보내기 검증 화면.
+/// 0단계 이미지 내보내기 검증 화면. Flutter나 지도 SDK를 올린 뒤 실기기에서 다시 확인하는 데 쓰고,
+/// 1-5단계 미리보기 화면이 생기면 지운다.
 ///
 /// - 비율: 지도 위젯을 결과 이미지 크기(가로 1080px)로 띄우고, 화면에는 축소해서 보여 준다.
 /// - 스냅샷: 지도 스냅샷만 찍어 형식과 해상도를 본다.

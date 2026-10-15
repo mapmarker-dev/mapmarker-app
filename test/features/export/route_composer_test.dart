@@ -2,8 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mapmarker_app/prototype/route_composer.dart';
-import 'package:mapmarker_app/prototype/route_geometry.dart';
+import 'package:mapmarker_app/features/export/route_composer.dart';
 
 Future<ui.Image> _solidImage(int width, int height, Color color) {
   final recorder = ui.PictureRecorder();
@@ -44,7 +43,7 @@ void main() {
 
       expect(composed.width, 300);
       expect(composed.height, 500);
-      expect(detectImageFormat(png), 'PNG');
+      expect(png.sublist(0, 4), [0x89, 0x50, 0x4E, 0x47]);
     });
   });
 

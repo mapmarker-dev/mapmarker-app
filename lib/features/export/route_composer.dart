@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import 'route_geometry.dart';
+import '../../core/geometry/route_geometry.dart';
 
 /// 지도 스냅샷 위에 동선(곡선, 화살표, 장소 이름), 사진 썸네일, 제목을 그린다.
 ///

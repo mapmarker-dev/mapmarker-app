@@ -1,7 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mapmarker_app/prototype/export_ratio.dart';
+import 'package:mapmarker_app/features/export/export_ratio.dart';
 
 void main() {
   test('pixel sizes are 1080 wide', () {
