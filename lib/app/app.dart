@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/env.dart';
+import '../l10n/l10n.dart';
 import 'missing_env_screen.dart';
 import 'router.dart';
 
@@ -16,10 +16,10 @@ class MapMarkerApp extends ConsumerWidget {
     }
     return MaterialApp.router(
       title: 'MapMarker',
-      // 한국어만 지원한다. 날짜 선택기 같은 Material 위젯도 한국어로 나온다.
-      locale: const Locale('ko'),
-      supportedLocales: const [Locale('ko')],
-      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      // 날짜 선택기 같은 Material 위젯도 앱과 같은 언어로 나온다.
+      locale: appLocale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
       routerConfig: ref.watch(routerProvider),
     );
   }

@@ -2,6 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/core/time/local_date.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
 import 'package:mapmarker_app/dev/sample_trips.dart';
+import 'package:mapmarker_app/l10n/l10n.dart';
+
+final _l10n = lookupAppLocalizations(appLocale);
 
 void main() {
   test('shows one trip for each phase today', () {
@@ -13,6 +16,7 @@ void main() {
       final trips = sampleTrips(
         today: today,
         now: DateTime(today.year, today.month, today.day, 9),
+        l10n: _l10n,
       );
 
       expect(
@@ -27,10 +31,11 @@ void main() {
     final trips = sampleTrips(
       today: LocalDate(2026, 10, 15),
       now: DateTime(2026, 10, 15, 9),
+      l10n: _l10n,
     );
 
     expect(trips.map((trip) => trip.title), [
-      for (final trip in trips) trip.defaultTitle,
+      for (final trip in trips) _l10n.defaultTitleOf(trip),
     ]);
     expect(trips.map((trip) => trip.id).toSet(), hasLength(trips.length));
   });

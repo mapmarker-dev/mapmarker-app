@@ -23,6 +23,9 @@ class LocalDate implements Comparable<LocalDate> {
   /// 날짜 계산용. UTC에는 서머타임이 없어서 하루가 항상 24시간이다.
   DateTime get _utc => DateTime.utc(year, month, day);
 
+  /// 기기 시간대의 그날 0시. 날짜 선택기나 날짜 표기에 넘길 때 쓴다.
+  DateTime toDateTime() => DateTime(year, month, day);
+
   LocalDate addDays(int days) => LocalDate(year, month, day + days);
 
   /// [other]까지 며칠인지. [other]가 앞이면 음수다.

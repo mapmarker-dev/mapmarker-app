@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/time/local_date.dart';
 import '../../../data/models/trip.dart';
+import '../../../l10n/l10n.dart';
 import 'trip_phase_menu.dart';
 
 /// 여행 목록의 한 줄. 제목, 기간과 일정, 상태가 보인다.
@@ -25,9 +26,7 @@ class TripTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       title: Text(trip.title),
-      subtitle: Text(
-        '${trip.dates?.label ?? '날짜 미정'} · ${formatNights(trip.nights)}',
-      ),
+      subtitle: Text(context.l10n.tripSummaryOf(trip)),
       trailing: TripPhaseMenu(
         phase: trip.phaseOn(today),
         autoPhase: trip.autoPhaseOn(today),

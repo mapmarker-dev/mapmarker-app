@@ -43,6 +43,8 @@ dependencies:
   flutter_riverpod: ^3.4.3
   go_router: ^17.5.0
   uuid: ^4.6.0
+  # gen-l10n이 만든 코드가 쓴다. 버전은 flutter_localizations가 정한다.
+  intl: any
 
 dev_dependencies:
   flutter_test:
@@ -65,6 +67,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # 다국어: l10n.yaml 설정으로 lib/l10n/*.arb에서 코드를 만든다.
+  generate: true
 
   # To add assets to your application, add an assets section, like this:
   # assets:

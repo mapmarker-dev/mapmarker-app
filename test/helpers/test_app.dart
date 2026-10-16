@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/app/router.dart';
@@ -7,9 +6,21 @@ import 'package:mapmarker_app/core/time/today.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
 import 'package:mapmarker_app/data/trips/memory_trip_repository.dart';
 import 'package:mapmarker_app/data/trips/trip_repository.dart';
+import 'package:mapmarker_app/l10n/l10n.dart';
 
 /// 테스트의 지금. 오늘은 2026-10-15다.
 final testNow = DateTime(2026, 10, 15, 12);
+
+/// 앱과 같은 언어의 글자.
+final testL10n = lookupAppLocalizations(appLocale);
+
+/// 앱과 같은 언어 설정의 [MaterialApp.router].
+Widget testMaterialApp(RouterConfig<Object> routerConfig) => MaterialApp.router(
+  locale: appLocale,
+  supportedLocales: AppLocalizations.supportedLocales,
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  routerConfig: routerConfig,
+);
 
 /// 기본 제목을 단 여행. 기간이 있으면 일정과 계절을 기간에 맞춘다.
 Trip testTrip({
@@ -26,7 +37,7 @@ Trip testTrip({
   final at = updatedAt ?? testNow.toUtc();
   return Trip(
     id: id,
-    title: defaultTripTitle(
+    title: testL10n.defaultTripTitle(
       region: region,
       nights: tripNights,
       season: tripSeason,
@@ -65,12 +76,7 @@ Future<ProviderContainer> pumpTestApp(
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: MaterialApp.router(
-        locale: const Locale('ko'),
-        supportedLocales: const [Locale('ko')],
-        localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        routerConfig: router,
-      ),
+      child: testMaterialApp(router),
     ),
   );
   await tester.pumpAndSettle();

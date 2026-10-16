@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/trip.dart';
 import '../../data/trips/trip_repository.dart';
+import '../../l10n/l10n.dart';
 
 /// 여행 화면에 보여 줄 여행. 없는 여행이면 null이다.
 final tripDetailProvider = StreamNotifierProvider.autoDispose
@@ -20,10 +21,11 @@ class TripDetailController extends StreamNotifier<Trip?> {
     final trip = state.value;
     if (trip == null) return;
     final trimmed = title.trim();
+    final defaultTitle = ref.read(l10nProvider).defaultTitleOf(trip);
     await ref
         .read(tripRepositoryProvider)
         .updateTrip(
-          trip.copyWith(title: trimmed.isEmpty ? trip.defaultTitle : trimmed),
+          trip.copyWith(title: trimmed.isEmpty ? defaultTitle : trimmed),
         );
   }
 }

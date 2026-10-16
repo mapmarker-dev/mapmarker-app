@@ -5,6 +5,7 @@ import '../../core/time/today.dart';
 import '../../data/models/new_id.dart';
 import '../../data/models/trip.dart';
 import '../../data/trips/trip_repository.dart';
+import '../../l10n/l10n.dart';
 
 /// 만들고 있는 여행.
 @immutable
@@ -34,9 +35,6 @@ class TripDraft {
 
   /// 사용자가 제목을 직접 고쳤는지. 고치기 전에는 제목이 입력을 따라 바뀐다.
   final bool titleEdited;
-
-  String get defaultTitle =>
-      defaultTripTitle(region: region, nights: nights, season: season);
 
   bool get canCreate => region.trim().isNotEmpty && season != null;
 
@@ -68,7 +66,11 @@ class TripCreateController extends Notifier<TripDraft> {
   static const maxNights = 30;
 
   @override
-  TripDraft build() => _followTitle(const TripDraft());
+  TripDraft build() {
+    // 언어가 바뀌면 기본 제목도 바뀌므로 처음부터 다시 만든다.
+    ref.watch(l10nProvider);
+    return _followTitle(const TripDraft());
+  }
 
   void setRegion(String region) => _update(state.copyWith(region: region));
 
@@ -112,7 +114,7 @@ class TripCreateController extends Notifier<TripDraft> {
         .createTrip(
           Trip(
             id: newId(),
-            title: title.isEmpty ? draft.defaultTitle : title,
+            title: title.isEmpty ? _defaultTitle(draft) : title,
             region: draft.region.trim(),
             nights: draft.nights,
             season: season,
@@ -126,5 +128,13 @@ class TripCreateController extends Notifier<TripDraft> {
   void _update(TripDraft draft) => state = _followTitle(draft);
 
   TripDraft _followTitle(TripDraft draft) =>
-      draft.titleEdited ? draft : draft.copyWith(title: draft.defaultTitle);
+      draft.titleEdited ? draft : draft.copyWith(title: _defaultTitle(draft));
+
+  String _defaultTitle(TripDraft draft) => ref
+      .read(l10nProvider)
+      .defaultTripTitle(
+        region: draft.region,
+        nights: draft.nights,
+        season: draft.season,
+      );
 }

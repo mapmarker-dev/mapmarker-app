@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/routes.dart';
 import '../../core/time/today.dart';
+import '../../l10n/l10n.dart';
 import 'trip_list_controller.dart';
 import 'widgets/trip_tile.dart';
 
@@ -15,6 +16,7 @@ class TripListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final today = ref.watch(todayProvider);
+    final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
         title: const Text('MapMarker'),
@@ -28,11 +30,8 @@ class TripListScreen extends ConsumerWidget {
         ],
       ),
       body: switch (ref.watch(tripListProvider)) {
-        AsyncData(value: final trips) when trips.isEmpty => const Center(
-          child: Text(
-            '아직 여행이 없습니다.\n+ 버튼으로 첫 여행을 만들어 보세요.',
-            textAlign: TextAlign.center,
-          ),
+        AsyncData(value: final trips) when trips.isEmpty => Center(
+          child: Text(l10n.tripListEmpty, textAlign: TextAlign.center),
         ),
         AsyncData(value: final trips) => ListView.builder(
           // 마지막 여행이 + 버튼에 가리지 않게 한다.
@@ -49,11 +48,11 @@ class TripListScreen extends ConsumerWidget {
             );
           },
         ),
-        AsyncError() => const Center(child: Text('여행 목록을 불러오지 못했습니다.')),
+        AsyncError() => Center(child: Text(l10n.tripListLoadFailed)),
         AsyncLoading() => const Center(child: CircularProgressIndicator()),
       },
       floatingActionButton: FloatingActionButton(
-        tooltip: '여행 만들기',
+        tooltip: l10n.createTripTooltip,
         onPressed: () => context.go(Routes.tripCreate),
         child: const Icon(Icons.add),
       ),

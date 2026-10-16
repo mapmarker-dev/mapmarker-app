@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/models/trip.dart';
+import '../../../l10n/l10n.dart';
 
 /// 상태 칩. 누르면 상태를 직접 고르거나 자동으로 되돌리는 메뉴가 열린다.
 class TripPhaseMenu extends StatelessWidget {
@@ -26,21 +27,22 @@ class TripPhaseMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return PopupMenuButton<({TripPhase? phase})>(
-      tooltip: '상태 바꾸기',
+      tooltip: l10n.changePhaseTooltip,
       onSelected: (choice) => onChanged(choice.phase),
       itemBuilder: (context) => [
         for (final item in TripPhase.values)
           CheckedPopupMenuItem(
             value: (phase: item),
             checked: item == phase,
-            child: Text(item.label),
+            child: Text(l10n.tripPhaseName(item)),
           ),
         const PopupMenuDivider(),
         PopupMenuItem(
           value: (phase: null),
           enabled: isManual,
-          child: Text('자동으로 되돌리기 (자동: ${autoPhase.label})'),
+          child: Text(l10n.revertPhaseToAuto(l10n.tripPhaseName(autoPhase))),
         ),
       ],
       child: _PhaseChip(phase: phase, isManual: isManual),
@@ -56,6 +58,8 @@ class _PhaseChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final name = l10n.tripPhaseName(phase);
     final colors = Theme.of(context).colorScheme;
     final (background, foreground) = switch (phase) {
       TripPhase.before => (
@@ -79,7 +83,7 @@ class _PhaseChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              isManual ? '${phase.label} · 직접' : phase.label,
+              isManual ? l10n.phaseManual(name) : name,
               style: Theme.of(
                 context,
               ).textTheme.labelLarge?.copyWith(color: foreground),

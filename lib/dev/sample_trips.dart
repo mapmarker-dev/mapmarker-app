@@ -1,11 +1,17 @@
 import '../core/time/local_date.dart';
 import '../data/models/new_id.dart';
 import '../data/models/trip.dart';
+import '../l10n/l10n.dart';
 
 /// 디버그 빌드에서 미리 넣는 여행. [today] 기준으로 전/중/후가 하나씩 보인다.
 ///
 /// 서버가 생기기 전에는 메모리 저장소라서, 실기기로 확인할 때마다 다시 입력하지 않게 한다.
-List<Trip> sampleTrips({required LocalDate today, required DateTime now}) {
+/// 제목은 [l10n]의 기본 제목이다.
+List<Trip> sampleTrips({
+  required LocalDate today,
+  required DateTime now,
+  required AppLocalizations l10n,
+}) {
   Trip trip(
     String region, {
     required Duration age,
@@ -18,7 +24,7 @@ List<Trip> sampleTrips({required LocalDate today, required DateTime now}) {
     final at = now.toUtc().subtract(age);
     return Trip(
       id: newId(),
-      title: defaultTripTitle(
+      title: l10n.defaultTripTitle(
         region: region,
         nights: tripNights,
         season: tripSeason,

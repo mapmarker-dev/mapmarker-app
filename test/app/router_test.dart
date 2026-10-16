@@ -5,10 +5,11 @@ import 'package:mapmarker_app/app/router.dart';
 import 'package:mapmarker_app/app/routes.dart';
 import 'package:mapmarker_app/features/trips/trip_list_screen.dart';
 
+import '../helpers/test_app.dart';
+
 Widget _app() => ProviderScope(
   child: Consumer(
-    builder: (context, ref, _) =>
-        MaterialApp.router(routerConfig: ref.watch(routerProvider)),
+    builder: (context, ref, _) => testMaterialApp(ref.watch(routerProvider)),
   ),
 );
 

@@ -3,26 +3,16 @@ import 'package:flutter/foundation.dart';
 import '../../core/time/local_date.dart';
 import 'map_provider_type.dart';
 
-/// 여행 상태. 기간으로 자동 판단하고, 사용자가 직접 바꿀 수 있다.
-enum TripPhase {
-  before('여행 전'),
-  during('여행 중'),
-  after('여행 후');
-
-  const TripPhase(this.label);
-
-  final String label;
-}
+/// 여행 상태(전/중/후). 기간으로 자동 판단하고, 사용자가 직접 바꿀 수 있다.
+///
+/// 화면 글자는 `l10n/model_texts.dart`에 있다. 모델에는 글자를 두지 않는다.
+enum TripPhase { before, during, after }
 
 enum Season {
-  spring('봄'),
-  summer('여름'),
-  autumn('가을'),
-  winter('겨울');
-
-  const Season(this.label);
-
-  final String label;
+  spring,
+  summer,
+  autumn,
+  winter;
 
   /// 기상청 구분: 3–5월 봄, 6–8월 여름, 9–11월 가을, 12–2월 겨울.
   static Season ofMonth(int month) => switch (month) {
@@ -36,24 +26,6 @@ enum Season {
 
 /// 여행을 만든 방법.
 enum TripOrigin { manual, ai, copy }
-
-/// 일정 표기. 0박은 "당일치기", n박은 "n박 n+1일".
-String formatNights(int nights) =>
-    nights == 0 ? '당일치기' : '$nights박 ${nights + 1}일';
-
-/// 기본 제목: "{지역} {일정} {계절} 여행". 예: "부산 2박 3일 봄 여행", "경주 당일치기 가을 여행".
-///
-/// 여행을 만드는 중이라 지역이나 계절이 비어 있으면 그 부분을 빼고 만든다.
-String defaultTripTitle({
-  required String region,
-  required int nights,
-  Season? season,
-}) => [
-  region.trim(),
-  formatNights(nights),
-  if (season != null) season.label,
-  '여행',
-].where((part) => part.isNotEmpty).join(' ');
 
 /// 여행 기간. 시작일과 종료일 모두 여행에 들어간다.
 @immutable
@@ -80,15 +52,6 @@ class TripDates {
     return TripPhase.during;
   }
 
-  /// 예: `2026.10.14 – 10.17`, `2026.12.30 – 2027.01.02`. 당일치기는 `2026.10.14`.
-  String get label {
-    final from =
-        '${start.year}.${_twoDigits(start.month)}.${_twoDigits(start.day)}';
-    if (start == end) return from;
-    final to = '${_twoDigits(end.month)}.${_twoDigits(end.day)}';
-    return end.year == start.year ? '$from – $to' : '$from – ${end.year}.$to';
-  }
-
   @override
   bool operator ==(Object other) =>
       other is TripDates && other.start == start && other.end == end;
@@ -99,8 +62,6 @@ class TripDates {
   @override
   String toString() => 'TripDates($start, $end)';
 }
-
-String _twoDigits(int value) => value.toString().padLeft(2, '0');
 
 /// 여행. 장소·구간·사진(`Stop`·`Segment`·`Photo`)은 여행 ID로 이 여행을 가리킨다.
 @immutable
@@ -157,9 +118,6 @@ class Trip {
   /// 저장소가 정한다 (UTC).
   final DateTime createdAt;
   final DateTime updatedAt;
-
-  String get defaultTitle =>
-      defaultTripTitle(region: region, nights: nights, season: season);
 
   /// 직접 바꾼 상태를 빼고 기간으로만 판단한 상태. 기간이 없으면 "전"이다.
   TripPhase autoPhaseOn(LocalDate today) =>

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/l10n.dart';
+
 /// 제목을 바꾸는 창. 저장하면 입력한 제목을, 취소하면 null을 돌려준다.
 class RenameTripDialog extends StatefulWidget {
   const RenameTripDialog({
@@ -28,8 +30,11 @@ class _RenameTripDialogState extends State<RenameTripDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    // 취소·저장은 Material이 언어별로 준다.
+    final material = MaterialLocalizations.of(context);
     return AlertDialog(
-      title: const Text('제목 바꾸기'),
+      title: Text(l10n.renameTrip),
       content: TextField(
         controller: _controller,
         autofocus: true,
@@ -37,15 +42,15 @@ class _RenameTripDialogState extends State<RenameTripDialog> {
         onSubmitted: (_) => _save(),
         decoration: InputDecoration(
           hintText: widget.defaultTitle,
-          helperText: '비우면 기본 제목으로 돌아갑니다.',
+          helperText: l10n.renameTripHelper,
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('취소'),
+          child: Text(material.cancelButtonLabel),
         ),
-        TextButton(onPressed: _save, child: const Text('저장')),
+        TextButton(onPressed: _save, child: Text(material.saveButtonLabel)),
       ],
     );
   }

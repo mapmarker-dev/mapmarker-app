@@ -6,6 +6,7 @@ import '../../app/routes.dart';
 import '../../core/time/local_date.dart';
 import '../../core/time/today.dart';
 import '../../data/models/trip.dart';
+import '../../l10n/l10n.dart';
 import 'trip_create_controller.dart';
 
 /// 여행 만들기. 지역은 꼭 넣고, 기간은 넣지 않아도 된다.
@@ -36,12 +37,12 @@ class _TripCreateScreenState extends ConsumerState<TripCreateScreen> {
       // 지난 여행도 기록할 수 있게 과거 날짜를 고를 수 있다.
       firstDate: DateTime(today.year - 10),
       lastDate: DateTime(today.year + 5, 12, 31),
-      currentDate: _toDateTime(today),
+      currentDate: today.toDateTime(),
       initialDateRange: dates == null
           ? null
           : DateTimeRange(
-              start: _toDateTime(dates.start),
-              end: _toDateTime(dates.end),
+              start: dates.start.toDateTime(),
+              end: dates.end.toDateTime(),
             ),
     );
     if (range == null || !mounted) return;
@@ -67,6 +68,7 @@ class _TripCreateScreenState extends ConsumerState<TripCreateScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final draft = ref.watch(tripCreateProvider);
     final controller = ref.read(tripCreateProvider.notifier);
     final today = ref.watch(todayProvider);
@@ -77,30 +79,32 @@ class _TripCreateScreenState extends ConsumerState<TripCreateScreen> {
 
     final dates = draft.dates;
     return Scaffold(
-      appBar: AppBar(title: const Text('새 여행')),
+      appBar: AppBar(title: Text(l10n.createTripScreenTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           TextField(
             autofocus: true,
             textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(
-              labelText: '지역',
-              hintText: '예: 부산',
+            decoration: InputDecoration(
+              labelText: l10n.regionLabel,
+              hintText: l10n.regionHint,
             ),
             onChanged: controller.setRegion,
           ),
-          const _SectionTitle('기간 (선택)'),
+          _SectionTitle(l10n.datesSectionTitle),
           Row(
             children: [
               OutlinedButton.icon(
                 icon: const Icon(Icons.calendar_today_outlined),
-                label: Text(dates?.label ?? '날짜 고르기'),
+                label: Text(
+                  dates == null ? l10n.pickDates : l10n.tripDatesText(dates),
+                ),
                 onPressed: _pickDates,
               ),
               if (dates != null)
                 IconButton(
-                  tooltip: '날짜 지우기',
+                  tooltip: l10n.clearDates,
                   icon: const Icon(Icons.close),
                   onPressed: controller.clearDates,
                 ),
@@ -109,26 +113,28 @@ class _TripCreateScreenState extends ConsumerState<TripCreateScreen> {
           const SizedBox(height: 8),
           Text(
             dates == null
-                ? '상태: ${TripPhase.before.label} (날짜 미정)'
-                : '상태: ${dates.phaseOn(today).label} (기간으로 자동)',
+                ? l10n.phasePreviewUndated(l10n.tripPhaseName(TripPhase.before))
+                : l10n.phasePreviewFromDates(
+                    l10n.tripPhaseName(dates.phaseOn(today)),
+                  ),
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          const _SectionTitle('일정'),
+          _SectionTitle(l10n.lengthSectionTitle),
           if (dates != null)
-            Text(formatNights(draft.nights))
+            Text(l10n.nightsText(draft.nights))
           else
             Row(
               children: [
                 IconButton(
-                  tooltip: '1박 줄이기',
+                  tooltip: l10n.removeNight,
                   icon: const Icon(Icons.remove),
                   onPressed: draft.nights > 0
                       ? () => controller.setNights(draft.nights - 1)
                       : null,
                 ),
-                Text(formatNights(draft.nights)),
+                Text(l10n.nightsText(draft.nights)),
                 IconButton(
-                  tooltip: '1박 늘리기',
+                  tooltip: l10n.addNight,
                   icon: const Icon(Icons.add),
                   onPressed: draft.nights < TripCreateController.maxNights
                       ? () => controller.setNights(draft.nights + 1)
@@ -136,13 +142,13 @@ class _TripCreateScreenState extends ConsumerState<TripCreateScreen> {
                 ),
               ],
             ),
-          const _SectionTitle('계절'),
+          _SectionTitle(l10n.seasonSectionTitle),
           Wrap(
             spacing: 8,
             children: [
               for (final season in Season.values)
                 ChoiceChip(
-                  label: Text(season.label),
+                  label: Text(l10n.seasonName(season)),
                   selected: draft.season == season,
                   onSelected: (_) => controller.setSeason(season),
                 ),
@@ -152,25 +158,26 @@ class _TripCreateScreenState extends ConsumerState<TripCreateScreen> {
           TextField(
             controller: _title,
             decoration: InputDecoration(
-              labelText: '제목',
-              hintText: draft.defaultTitle,
-              helperText: '비우면 기본 제목으로 만듭니다.',
+              labelText: l10n.titleLabel,
+              hintText: l10n.defaultTripTitle(
+                region: draft.region,
+                nights: draft.nights,
+                season: draft.season,
+              ),
+              helperText: l10n.titleHelperOnCreate,
             ),
             onChanged: controller.editTitle,
           ),
           const SizedBox(height: 32),
           FilledButton(
             onPressed: draft.canCreate && !_saving ? _create : null,
-            child: const Text('만들기'),
+            child: Text(l10n.createTripButton),
           ),
         ],
       ),
     );
   }
 }
-
-DateTime _toDateTime(LocalDate date) =>
-    DateTime(date.year, date.month, date.day);
 
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.text);

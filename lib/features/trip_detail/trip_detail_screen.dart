@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/trip.dart';
+import '../../l10n/l10n.dart';
 import 'trip_detail_controller.dart';
 import 'widgets/rename_trip_dialog.dart';
 
@@ -14,8 +15,10 @@ class TripDetailScreen extends ConsumerWidget {
   Future<void> _rename(BuildContext context, WidgetRef ref, Trip trip) async {
     final title = await showDialog<String>(
       context: context,
-      builder: (context) =>
-          RenameTripDialog(title: trip.title, defaultTitle: trip.defaultTitle),
+      builder: (context) => RenameTripDialog(
+        title: trip.title,
+        defaultTitle: context.l10n.defaultTitleOf(trip),
+      ),
     );
     if (title == null || !context.mounted) return;
     await ref.read(tripDetailProvider(tripId).notifier).rename(title);
@@ -23,13 +26,14 @@ class TripDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     return switch (ref.watch(tripDetailProvider(tripId))) {
       AsyncData(value: final trip?) => Scaffold(
         appBar: AppBar(
           title: Text(trip.title),
           actions: [
             IconButton(
-              tooltip: '제목 바꾸기',
+              tooltip: l10n.renameTrip,
               icon: const Icon(Icons.edit_outlined),
               onPressed: () => _rename(context, ref, trip),
             ),
@@ -37,8 +41,8 @@ class TripDetailScreen extends ConsumerWidget {
         ),
         body: const SizedBox.shrink(),
       ),
-      AsyncData() => const _Message('여행을 찾을 수 없습니다.'),
-      AsyncError() => const _Message('여행을 불러오지 못했습니다.'),
+      AsyncData() => _Message(l10n.tripNotFound),
+      AsyncError() => _Message(l10n.tripLoadFailed),
       AsyncLoading() => Scaffold(
         appBar: AppBar(),
         body: const Center(child: CircularProgressIndicator()),

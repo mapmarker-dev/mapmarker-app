@@ -18,17 +18,8 @@ Trip _trip({TripDates? dates, int nights = 2, TripPhase? phaseOverride}) {
 }
 
 void main() {
+  // 일정·제목·기간의 화면 글자는 test/l10n/model_texts_test.dart에서 본다.
   group('일정', () {
-    test('writes a day trip as 당일치기', () {
-      expect(formatNights(0), '당일치기');
-    });
-
-    test('writes n nights as n박 n+1일', () {
-      expect(formatNights(1), '1박 2일');
-      expect(formatNights(2), '2박 3일');
-      expect(formatNights(10), '10박 11일');
-    });
-
     test('counts nights from the dates', () {
       final date = LocalDate(2026, 10, 15);
 
@@ -65,35 +56,6 @@ void main() {
       final dates = TripDates(LocalDate(2026, 11, 29), LocalDate(2026, 12, 2));
 
       expect(dates.season, Season.autumn);
-    });
-  });
-
-  group('제목', () {
-    test('defaults to region, length, season and 여행', () {
-      expect(
-        defaultTripTitle(region: '부산', nights: 2, season: Season.spring),
-        '부산 2박 3일 봄 여행',
-      );
-      expect(
-        defaultTripTitle(region: '경주', nights: 0, season: Season.autumn),
-        '경주 당일치기 가을 여행',
-      );
-    });
-
-    test('trims the region', () {
-      expect(
-        defaultTripTitle(region: '  제주 ', nights: 3, season: Season.summer),
-        '제주 3박 4일 여름 여행',
-      );
-    });
-
-    test('leaves out parts not chosen yet', () {
-      expect(defaultTripTitle(region: '', nights: 1), '1박 2일 여행');
-      expect(defaultTripTitle(region: '강릉', nights: 1), '강릉 1박 2일 여행');
-    });
-
-    test('builds the default title of a trip', () {
-      expect(_trip().defaultTitle, '부산 2박 3일 봄 여행');
     });
   });
 
@@ -147,21 +109,6 @@ void main() {
 
       expect(dates.dateOfDay(1), LocalDate(2026, 10, 30));
       expect(dates.dateOfDay(4), LocalDate(2026, 11, 2));
-    });
-
-    test('labels the dates for the list', () {
-      expect(
-        TripDates(LocalDate(2026, 10, 4), LocalDate(2026, 10, 7)).label,
-        '2026.10.04 – 10.07',
-      );
-      expect(
-        TripDates(LocalDate(2026, 12, 30), LocalDate(2027, 1, 2)).label,
-        '2026.12.30 – 2027.01.02',
-      );
-      expect(
-        TripDates(LocalDate(2026, 10, 4), LocalDate(2026, 10, 4)).label,
-        '2026.10.04',
-      );
     });
   });
 }

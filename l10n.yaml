@@ -1,0 +1,9 @@
+# 다국어 설정. ARB 파일은 lib/l10n/에 두고, 한국어(app_ko.arb)가 기준이다.
+# 만든 코드는 lib/l10n/generated/에 생기고 커밋하지 않는다 (flutter pub get 때 다시 만든다).
+arb-dir: lib/l10n
+template-arb-file: app_ko.arb
+output-dir: lib/l10n/generated
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false
+format: true

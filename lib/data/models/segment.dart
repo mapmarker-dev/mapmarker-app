@@ -1,20 +1,9 @@
 import 'package:flutter/foundation.dart';
 
-enum TransportMode {
-  walk('도보'),
-  subway('지하철'),
-  bus('버스'),
-  train('기차'),
-  car('차'),
-  flight('비행기'),
-  ferry('배');
+/// 이동 수단. 화면 글자는 `l10n/model_texts.dart`에 있다.
+enum TransportMode { walk, subway, bus, train, car, flight, ferry }
 
-  const TransportMode(this.label);
-
-  final String label;
-}
-
-/// 이동 한 토막. 예: "지하철 4정류장", "도보 20분", "비행기 3시간 20분".
+/// 이동 한 토막. 예: 지하철 4정류장, 도보 20분, 비행기 3시간 20분.
 @immutable
 class TransportLeg {
   const TransportLeg(this.mode, {this.stopCount, this.duration});
@@ -27,12 +16,6 @@ class TransportLeg {
   /// 걸리는 시간.
   final Duration? duration;
 
-  String get label => [
-    mode.label,
-    if (stopCount case final count?) '$count정류장',
-    if (duration case final duration?) _formatDuration(duration),
-  ].join(' ');
-
   @override
   bool operator ==(Object other) =>
       other is TransportLeg &&
@@ -44,16 +27,7 @@ class TransportLeg {
   int get hashCode => Object.hash(mode, stopCount, duration);
 
   @override
-  String toString() => 'TransportLeg($label)';
-}
-
-/// 예: "20분", "2시간", "3시간 20분".
-String _formatDuration(Duration duration) {
-  final hours = duration.inHours;
-  final minutes = duration.inMinutes % 60;
-  if (hours == 0) return '$minutes분';
-  if (minutes == 0) return '$hours시간';
-  return '$hours시간 $minutes분';
+  String toString() => 'TransportLeg($mode, $stopCount, $duration)';
 }
 
 /// 구간 종류. 직선과 곡선은 [Segment.curvature]로 나뉘고, 그리는 방식이 다른 GPS 트랙만 따로 둔다.
@@ -85,7 +59,4 @@ class Segment {
   final double curvature;
 
   final SegmentType type;
-
-  /// 예: "지하철 2정류장 + 도보".
-  String get transportLabel => legs.map((leg) => leg.label).join(' + ');
 }

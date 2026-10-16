@@ -13,6 +13,7 @@ import 'core/time/local_date.dart';
 import 'data/trips/memory_trip_repository.dart';
 import 'data/trips/trip_repository.dart';
 import 'dev/sample_trips.dart';
+import 'l10n/l10n.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,7 +36,11 @@ Future<void> main() async {
         if (kDebugMode)
           tripRepositoryProvider.overrideWithValue(
             MemoryTripRepository(
-              seed: sampleTrips(today: LocalDate.fromDateTime(now), now: now),
+              seed: sampleTrips(
+                today: LocalDate.fromDateTime(now),
+                now: now,
+                l10n: lookupAppLocalizations(appLocale),
+              ),
             ),
           ),
       ],
