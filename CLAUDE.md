@@ -34,7 +34,7 @@ lib/
 ├─ app/             MaterialApp, 경로 표(router.dart), 경로 상수(routes.dart)
 ├─ config/          환경 변수(Env)
 ├─ data/            모델, 저장소, 서버 API. 여러 기능이 함께 쓴다
-├─ core/            기능에 속하지 않는 공용 코드 (곡선 계산, 지도 인터페이스 등)
+├─ core/            기능에 속하지 않는 공용 코드 (디자인 토큰·테마, 곡선 계산, 지도 인터페이스 등)
 ├─ features/<기능>/  화면과 상태(Riverpod). 예: trips, trip_detail, export
 ├─ l10n/            다국어 글자(app_ko.arb)와 모델 글자 변환
 └─ dev/             개발용 화면. 경로는 디버그 빌드에서만 등록한다
@@ -51,6 +51,13 @@ lib/
 - 화면 글자는 `lib/l10n/app_ko.arb`에 두고 `context.l10n`(컨트롤러는 `l10nProvider`)으로 읽는다. 모델(`data/`)에는 글자를 두지 않는다.
 - 문장은 조각을 이어 붙이지 않고 자리 표시자가 있는 문장 하나로 둔다. 언어마다 어순이 다르기 때문이다.
 - 개발자만 보는 글자(오류·로그, 디버그 전용 화면)는 옮기지 않는다.
+
+## 디자인
+
+- 색·여백·모서리는 값을 직접 쓰지 않고 `lib/core/theme/`의 토큰으로 읽는다. 색은 `colorScheme`이나 `context.appColors`, 여백은 `AppSpace`, 모서리는 `AppRadius`다.
+- `colorScheme`에 없는 색이 필요하면 `AppColors`에 이름을 붙여 추가한다. 다크 모드 때 값만 바꾸기 위해서다.
+- 스크롤 여백을 직접 정하면 `MediaQuery.paddingOf(context)`를 더한다. 화면 전체를 `SafeArea`로 감싸지는 않는다. 내용은 시스템 막대 뒤로 지나가되 끝까지 보이게 하기 위해서다(Android 15 이상은 화면 끝까지 그린다).
+- 글꼴 파일(`assets/fonts/`)은 원본 그대로 둔다. 고치면 OFL 예약 이름 때문에 글꼴 이름을 바꿔야 한다.
 
 ## 코딩 규칙
 

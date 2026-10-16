@@ -127,4 +127,19 @@ void main() {
 
     expect(_titleText(tester), '부산 1박 2일 겨울 여행');
   });
+
+  testWidgets('keeps the create button above the navigation bar', (
+    tester,
+  ) async {
+    showNavigationBar(tester);
+    await _openCreate(tester);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -1000));
+    await tester.pumpAndSettle();
+
+    final screenHeight =
+        tester.view.physicalSize.height / tester.view.devicePixelRatio;
+    final button = tester.getRect(find.widgetWithText(FilledButton, '만들기'));
+    expect(button.bottom, lessThanOrEqualTo(screenHeight - 48));
+  });
 }

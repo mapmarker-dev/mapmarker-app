@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/app/router.dart';
+import 'package:mapmarker_app/core/theme/app_theme.dart';
 import 'package:mapmarker_app/core/time/today.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
 import 'package:mapmarker_app/data/trips/memory_trip_repository.dart';
@@ -14,8 +15,9 @@ final testNow = DateTime(2026, 10, 15, 12);
 /// 앱과 같은 언어의 글자.
 final testL10n = lookupAppLocalizations(appLocale);
 
-/// 앱과 같은 언어 설정의 [MaterialApp.router].
+/// 앱과 같은 테마와 언어 설정의 [MaterialApp.router].
 Widget testMaterialApp(RouterConfig<Object> routerConfig) => MaterialApp.router(
+  theme: AppTheme.light(),
   locale: appLocale,
   supportedLocales: AppLocalizations.supportedLocales,
   localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -50,6 +52,16 @@ Trip testTrip({
     createdAt: at,
     updatedAt: at,
   );
+}
+
+/// 아래에 시스템 내비게이션 막대(3버튼, [height] 논리 px)가 화면을 가리는 기기로 만든다.
+void showNavigationBar(WidgetTester tester, {double height = 48}) {
+  final padding = FakeViewPadding(
+    bottom: height * tester.view.devicePixelRatio,
+  );
+  tester.view.padding = padding;
+  tester.view.viewPadding = padding;
+  addTearDown(tester.view.reset);
 }
 
 /// 시각을 [testNow]로 고정한 메모리 저장소.

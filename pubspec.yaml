@@ -71,6 +71,20 @@ flutter:
   # 다국어: l10n.yaml 설정으로 lib/l10n/*.arb에서 코드를 만든다.
   generate: true
 
+  # 글꼴 라이선스(OFL). main.dart에서 라이선스 화면에 등록한다.
+  assets:
+    - assets/fonts/OFL.txt
+
+  # 나눔스퀘어라운드(네이버, OFL). 원본 그대로 넣고, 쓰는 굵기만 넣는다.
+  fonts:
+    - family: NanumSquareRound
+      fonts:
+        - asset: assets/fonts/NanumSquareRoundR.ttf
+        - asset: assets/fonts/NanumSquareRoundB.ttf
+          weight: 700
+        - asset: assets/fonts/NanumSquareRoundEB.ttf
+          weight: 800
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

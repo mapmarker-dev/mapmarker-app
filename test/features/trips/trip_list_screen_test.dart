@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mapmarker_app/core/theme/app_tokens.dart';
 import 'package:mapmarker_app/core/time/local_date.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
 import 'package:mapmarker_app/features/trip_detail/trip_detail_screen.dart';
 import 'package:mapmarker_app/features/trips/trip_create_screen.dart';
 import 'package:mapmarker_app/features/trips/trip_list_controller.dart';
 import 'package:mapmarker_app/features/trips/trip_list_screen.dart';
+import 'package:mapmarker_app/features/trips/widgets/trip_card.dart';
 
 import '../../helpers/test_app.dart';
 
@@ -59,10 +61,10 @@ void main() {
     expect(find.text('2026.09.05 – 09.07 · 2박 3일'), findsOneWidget);
     expect(find.text('여행 후'), findsOneWidget);
 
-    // 최근에 고친 여행이 위에 있다.
+    // 최근에 고친 여행이 앞에 있다.
     final titles = tester
-        .widgetList<ListTile>(find.byType(ListTile))
-        .map((tile) => (tile.title! as Text).data);
+        .widgetList<TripCard>(find.byType(TripCard))
+        .map((card) => card.trip.title);
     expect(titles, ['제주 3박 4일 가을 여행', '강릉 1박 2일 겨울 여행', '부산 2박 3일 가을 여행']);
   });
 
@@ -136,5 +138,73 @@ void main() {
       _menuItem('자동으로 되돌리기 (자동: 여행 전)'),
     );
     expect(revert.enabled, isFalse);
+  });
+
+  group('격자', () {
+    test('puts 2 cards in a row on phones and 3 or 4 on tablets', () {
+      expect(tripGridColumns(360), 2);
+      expect(tripGridColumns(599), 2);
+      expect(tripGridColumns(600), 3);
+      expect(tripGridColumns(899), 3);
+      expect(tripGridColumns(900), 4);
+      expect(tripGridColumns(1280), 4);
+    });
+
+    testWidgets('shows square cards two in a row on a phone', (tester) async {
+      // 휴대폰 화면: 1080×2340 px, 픽셀 비율 2.625 → 약 411×891 논리 px.
+      tester.view.physicalSize = const Size(1080, 2340);
+      tester.view.devicePixelRatio = 2.625;
+      addTearDown(tester.view.reset);
+      await pumpTestApp(
+        tester,
+        repository: testRepository([
+          testTrip(id: 'a'),
+          testTrip(id: 'b', region: '제주'),
+          testTrip(id: 'c', region: '강릉'),
+        ]),
+      );
+
+      final cards = [
+        for (var i = 0; i < 3; i++) tester.getRect(find.byType(TripCard).at(i)),
+      ];
+      expect(cards[1].top, cards[0].top);
+      expect(cards[2].top, greaterThan(cards[0].bottom));
+      expect(cards[0].width, moreOrLessEquals(cards[0].height));
+    });
+
+    testWidgets('keeps the last cards above the + button and navigation bar', (
+      tester,
+    ) async {
+      showNavigationBar(tester);
+      await pumpTestApp(
+        tester,
+        repository: testRepository([
+          for (var i = 0; i < 9; i++) testTrip(id: 'trip-$i'),
+        ]),
+      );
+
+      await tester.drag(find.byType(GridView), const Offset(0, -2000));
+      await tester.pumpAndSettle();
+
+      final fab = tester.getRect(find.byType(FloatingActionButton));
+      final lastCard = tester.getRect(find.byType(TripCard).last);
+      expect(lastCard.bottom, lessThanOrEqualTo(fab.top));
+    });
+
+    testWidgets('outlines the trip going on now', (tester) async {
+      await pumpTestApp(
+        tester,
+        repository: testRepository([
+          testTrip(
+            id: 'jeju',
+            dates: TripDates(LocalDate(2026, 10, 14), LocalDate(2026, 10, 17)),
+          ),
+        ]),
+      );
+
+      final card = tester.widget<Card>(find.byType(Card));
+      final shape = card.shape! as RoundedRectangleBorder;
+      expect(shape.side.color, AppPalette.coral);
+    });
   });
 }

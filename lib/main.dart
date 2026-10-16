@@ -1,6 +1,7 @@
 import 'dart:developer';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +18,7 @@ import 'l10n/l10n.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _registerFontLicense();
   // Android 10에서는 시스템 사진 선택기를 쓴다.
   final imagePicker = ImagePickerPlatform.instance;
   if (imagePicker is ImagePickerAndroid) {
@@ -47,4 +49,12 @@ Future<void> main() async {
       child: const MapMarkerApp(),
     ),
   );
+}
+
+/// 글꼴 라이선스(OFL)는 글꼴과 함께 보여 줘야 한다. 앱의 라이선스 화면에 나온다.
+void _registerFontLicense() {
+  LicenseRegistry.addLicense(() async* {
+    final license = await rootBundle.loadString('assets/fonts/OFL.txt');
+    yield LicenseEntryWithLineBreaks(const ['NanumSquareRound'], license);
+  });
 }

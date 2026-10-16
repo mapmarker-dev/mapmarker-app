@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../data/models/trip.dart';
 import '../../../l10n/l10n.dart';
 
@@ -60,25 +62,24 @@ class _PhaseChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final name = l10n.tripPhaseName(phase);
-    final colors = Theme.of(context).colorScheme;
-    final (background, foreground) = switch (phase) {
-      TripPhase.before => (
-        colors.secondaryContainer,
-        colors.onSecondaryContainer,
-      ),
-      TripPhase.during => (colors.primaryContainer, colors.onPrimaryContainer),
-      TripPhase.after => (
-        colors.surfaceContainerHighest,
-        colors.onSurfaceVariant,
-      ),
+    final appColors = context.appColors;
+    final colors = switch (phase) {
+      TripPhase.before => appColors.phaseBefore,
+      TripPhase.during => appColors.phaseDuring,
+      TripPhase.after => appColors.phaseAfter,
     };
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(16),
+      decoration: ShapeDecoration(
+        color: colors.background,
+        shape: const StadiumBorder(),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpace.md,
+          AppSpace.xs,
+          AppSpace.xs,
+          AppSpace.xs,
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -86,9 +87,9 @@ class _PhaseChip extends StatelessWidget {
               isManual ? l10n.phaseManual(name) : name,
               style: Theme.of(
                 context,
-              ).textTheme.labelLarge?.copyWith(color: foreground),
+              ).textTheme.labelMedium?.copyWith(color: colors.foreground),
             ),
-            Icon(Icons.arrow_drop_down, size: 18, color: foreground),
+            Icon(Icons.arrow_drop_down, size: 18, color: colors.foreground),
           ],
         ),
       ),

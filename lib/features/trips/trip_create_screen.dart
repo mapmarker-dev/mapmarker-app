@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/routes.dart';
+import '../../core/theme/app_tokens.dart';
 import '../../core/time/local_date.dart';
 import '../../core/time/today.dart';
 import '../../data/models/trip.dart';
@@ -81,7 +82,9 @@ class _TripCreateScreenState extends ConsumerState<TripCreateScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.createTripScreenTitle)),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        // 시스템 막대만큼 더 띄워서 맨 아래 만들기 버튼이 가리지 않게 한다.
+        padding:
+            const EdgeInsets.all(AppSpace.lg) + MediaQuery.paddingOf(context),
         children: [
           TextField(
             autofocus: true,
@@ -110,7 +113,7 @@ class _TripCreateScreenState extends ConsumerState<TripCreateScreen> {
                 ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpace.sm),
           Text(
             dates == null
                 ? l10n.phasePreviewUndated(l10n.tripPhaseName(TripPhase.before))
@@ -154,7 +157,7 @@ class _TripCreateScreenState extends ConsumerState<TripCreateScreen> {
                 ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpace.xl),
           TextField(
             controller: _title,
             decoration: InputDecoration(
@@ -168,7 +171,7 @@ class _TripCreateScreenState extends ConsumerState<TripCreateScreen> {
             ),
             onChanged: controller.editTitle,
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: AppSpace.xxl),
           FilledButton(
             onPressed: draft.canCreate && !_saving ? _create : null,
             child: Text(l10n.createTripButton),
@@ -187,7 +190,7 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 24, bottom: 8),
+      padding: const EdgeInsets.only(top: AppSpace.xl, bottom: AppSpace.sm),
       child: Text(text, style: Theme.of(context).textTheme.titleSmall),
     );
   }
