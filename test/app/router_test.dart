@@ -42,4 +42,24 @@ void main() {
       Routes.snapshotLab,
     ]);
   });
+
+  test('trip creation and trip pages sit under the trip list', () {
+    final container = ProviderContainer.test();
+    final router = container.read(routerProvider);
+
+    final create = router.configuration.findMatch(Uri.parse(Routes.tripCreate));
+    final trip = router.configuration.findMatch(Uri.parse(Routes.trip('abc')));
+
+    expect(create.matches.map((m) => m.matchedLocation), [
+      Routes.tripList,
+      Routes.tripCreate,
+    ]);
+    // `new`를 여행 ID로 읽지 않는다.
+    expect(create.pathParameters, isEmpty);
+    expect(trip.matches.map((m) => m.matchedLocation), [
+      Routes.tripList,
+      '/trips/abc',
+    ]);
+    expect(trip.pathParameters['tripId'], 'abc');
+  });
 }

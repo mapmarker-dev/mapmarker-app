@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../dev/snapshot_lab/snapshot_lab_screen.dart';
+import '../features/trip_detail/trip_detail_screen.dart';
+import '../features/trips/trip_create_screen.dart';
 import '../features/trips/trip_list_screen.dart';
 import 'routes.dart';
 
@@ -17,7 +19,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.tripList,
         builder: (context, state) => const TripListScreen(),
         routes: [
-          // 0단계 검증 화면은 디버그 빌드에만 둔다.
+          GoRoute(
+            path: 'trips/new',
+            builder: (context, state) => const TripCreateScreen(),
+          ),
+          GoRoute(
+            path: 'trips/:tripId',
+            builder: (context, state) =>
+                TripDetailScreen(tripId: state.pathParameters['tripId']!),
+          ),
           if (kDebugMode)
             GoRoute(
               path: 'dev/snapshot-lab',

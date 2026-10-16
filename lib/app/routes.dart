@@ -1,5 +1,7 @@
-/// 화면 이동에 쓰는 경로. 경로 표는 `router.dart`에 있다.
+/// 화면 이동에 쓰는 경로.
 abstract final class Routes {
   static const tripList = '/';
+  static const tripCreate = '/trips/new';
+  static String trip(String tripId) => '/trips/$tripId';
   static const snapshotLab = '/dev/snapshot-lab';
 }
