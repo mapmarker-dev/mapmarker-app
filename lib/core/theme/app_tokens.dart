@@ -12,6 +12,21 @@ abstract final class AppPalette {
 
   static const sand100 = Color(0xFFEFE9E6);
   static const sand800 = Color(0xFF5C504C);
+
+  // 동선 일차 색. 지도 위에서 잘 보이는 중간 밝기(400)에, 번호는 같은 계열의 진한 색(900)이다.
+  // 파랑(현재 위치)과 초록(공원)은 지도에서 다른 뜻이라 쓰지 않는다.
+  static const coral900 = Color(0xFF4A1510);
+  static const violet400 = Color(0xFF9B7BFF);
+  static const violet900 = Color(0xFF24124F);
+  static const amber400 = Color(0xFFF5B02E);
+  static const amber900 = Color(0xFF4A2E00);
+  static const teal400 = Color(0xFF2BB3A3);
+  static const teal900 = Color(0xFF003D36);
+  static const magenta400 = Color(0xFFE55BB0);
+  static const magenta900 = Color(0xFF3D0A2C);
+
+  /// 숙소 마커. 숙소는 이틀에 걸쳐 쓰여서 일차 색과 겹치지 않는 진한 색을 쓴다.
+  static const ink700 = Color(0xFF3A3550);
 }
 
 /// 1단계 기본 값: 간격. 4의 배수로 둔다.

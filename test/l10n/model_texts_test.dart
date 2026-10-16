@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:mapmarker_app/core/time/local_date.dart';
 import 'package:mapmarker_app/data/models/segment.dart';
+import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
 import 'package:mapmarker_app/l10n/l10n.dart';
 
@@ -45,6 +46,10 @@ void main() {
     test('names each season', () {
       expect(Season.values.map(l10n.seasonName), ['봄', '여름', '가을', '겨울']);
     });
+  });
+
+  test('names each kind of stop', () {
+    expect(StopKind.values.map(l10n.stopKindName), ['숙소', '음식', '관광', '기타']);
   });
 
   group('일정', () {

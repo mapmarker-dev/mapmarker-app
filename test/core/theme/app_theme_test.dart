@@ -49,6 +49,14 @@ void main() {
         appColors.phaseAfter.background,
         appColors.phaseAfter.foreground,
       ),
+      for (final (i, day) in appColors.routeDays.indexed)
+        'route day ${i + 1} number': (day.background, day.foreground),
+      for (final (i, day) in appColors.routeDays.indexed)
+        'route day ${i + 1} badge': (appColors.routeHalo, day.foreground),
+      'route lodging icon': (
+        appColors.routeLodging.background,
+        appColors.routeLodging.foreground,
+      ),
     };
 
     for (final MapEntry(key: name, value: (background, foreground))
@@ -59,6 +67,15 @@ void main() {
         reason: name,
       );
     }
+  });
+
+  test('starts the route with coral and cycles the day colors', () {
+    final days = appColors.routeDays;
+
+    expect(appColors.routeDay(1).background, AppPalette.coral);
+    expect(appColors.routeDay(days.length + 1), same(days.first));
+    expect(appColors.routeDay(days.length), same(days.last));
+    expect({for (final day in days) day.background}, hasLength(days.length));
   });
 
   test('blends app colors for theme animations', () {

@@ -31,19 +31,18 @@ Future<void> main() async {
     );
   }
   final now = DateTime.now();
+  final samples = sampleTrips(
+    today: LocalDate.fromDateTime(now),
+    now: now,
+    l10n: lookupAppLocalizations(appLocale),
+  );
   runApp(
     ProviderScope(
       overrides: [
         // 서버가 생기기 전에는 디버그 빌드에서 샘플 여행을 미리 넣는다.
         if (kDebugMode)
           tripRepositoryProvider.overrideWithValue(
-            MemoryTripRepository(
-              seed: sampleTrips(
-                today: LocalDate.fromDateTime(now),
-                now: now,
-                l10n: lookupAppLocalizations(appLocale),
-              ),
-            ),
+            MemoryTripRepository(seed: samples.trips, seedStops: samples.stops),
           ),
       ],
       child: const MapMarkerApp(),

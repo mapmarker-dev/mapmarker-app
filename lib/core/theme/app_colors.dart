@@ -27,6 +27,9 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.phaseAfter,
     required this.cardBorder,
     required this.cardHighlight,
+    required this.routeDays,
+    required this.routeLodging,
+    required this.routeHalo,
   });
 
   factory AppColors.light(ColorScheme scheme) => AppColors(
@@ -35,6 +38,15 @@ class AppColors extends ThemeExtension<AppColors> {
     phaseAfter: const ChipColors(AppPalette.sand100, AppPalette.sand800),
     cardBorder: scheme.outlineVariant,
     cardHighlight: scheme.primaryContainer,
+    routeDays: const [
+      ChipColors(AppPalette.coral, AppPalette.coral900),
+      ChipColors(AppPalette.violet400, AppPalette.violet900),
+      ChipColors(AppPalette.amber400, AppPalette.amber900),
+      ChipColors(AppPalette.teal400, AppPalette.teal900),
+      ChipColors(AppPalette.magenta400, AppPalette.magenta900),
+    ],
+    routeLodging: ChipColors(AppPalette.ink700, scheme.surfaceContainerLowest),
+    routeHalo: scheme.surfaceContainerLowest,
   );
 
   /// 상태 칩: 여행 전(민트), 여행 중(코랄), 여행 후(모래).
@@ -46,6 +58,20 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color cardBorder;
   final Color cardHighlight;
 
+  /// 동선 일차 색. 바탕은 마커와 선, 글자는 마커 번호다. [routeDay]로 읽는다.
+  ///
+  /// 일차는 색으로, 이동 수단은 선 모양과 아이콘으로 구분한다.
+  final List<ChipColors> routeDays;
+
+  /// 숙소 마커. 바탕은 마커, 글자는 침대 아이콘이다.
+  final ChipColors routeLodging;
+
+  /// 마커 테두리, 선 테두리, 마커 배지 바탕. 지도 위에서 동선이 묻히지 않게 한다.
+  final Color routeHalo;
+
+  /// [day]일차의 색. 일차가 색 수보다 많으면 처음 색부터 다시 쓴다.
+  ChipColors routeDay(int day) => routeDays[(day - 1) % routeDays.length];
+
   @override
   AppColors copyWith({
     ChipColors? phaseBefore,
@@ -53,12 +79,18 @@ class AppColors extends ThemeExtension<AppColors> {
     ChipColors? phaseAfter,
     Color? cardBorder,
     Color? cardHighlight,
+    List<ChipColors>? routeDays,
+    ChipColors? routeLodging,
+    Color? routeHalo,
   }) => AppColors(
     phaseBefore: phaseBefore ?? this.phaseBefore,
     phaseDuring: phaseDuring ?? this.phaseDuring,
     phaseAfter: phaseAfter ?? this.phaseAfter,
     cardBorder: cardBorder ?? this.cardBorder,
     cardHighlight: cardHighlight ?? this.cardHighlight,
+    routeDays: routeDays ?? this.routeDays,
+    routeLodging: routeLodging ?? this.routeLodging,
+    routeHalo: routeHalo ?? this.routeHalo,
   );
 
   @override
@@ -70,6 +102,12 @@ class AppColors extends ThemeExtension<AppColors> {
       phaseAfter: ChipColors.lerp(phaseAfter, other.phaseAfter, t),
       cardBorder: Color.lerp(cardBorder, other.cardBorder, t)!,
       cardHighlight: Color.lerp(cardHighlight, other.cardHighlight, t)!,
+      routeDays: [
+        for (final (i, day) in routeDays.indexed)
+          ChipColors.lerp(day, other.routeDays[i], t),
+      ],
+      routeLodging: ChipColors.lerp(routeLodging, other.routeLodging, t),
+      routeHalo: Color.lerp(routeHalo, other.routeHalo, t)!,
     );
   }
 }

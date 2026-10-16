@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/app/router.dart';
+import 'package:mapmarker_app/core/map/map_registry.dart';
 import 'package:mapmarker_app/core/theme/app_theme.dart';
 import 'package:mapmarker_app/core/time/today.dart';
+import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
 import 'package:mapmarker_app/data/trips/memory_trip_repository.dart';
 import 'package:mapmarker_app/data/trips/trip_repository.dart';
 import 'package:mapmarker_app/l10n/l10n.dart';
+
+import 'fake_map.dart';
 
 /// 테스트의 지금. 오늘은 2026-10-15다.
 final testNow = DateTime(2026, 10, 15, 12);
@@ -64,14 +68,21 @@ void showNavigationBar(WidgetTester tester, {double height = 48}) {
   addTearDown(tester.view.reset);
 }
 
-/// 시각을 [testNow]로 고정한 메모리 저장소.
-MemoryTripRepository testRepository([List<Trip> trips = const []]) {
-  final repository = MemoryTripRepository(clock: () => testNow, seed: trips);
+/// 시각을 [testNow]로 고정한 메모리 저장소. 구간은 [stops] 사이에 저장소가 잇는다.
+MemoryTripRepository testRepository([
+  List<Trip> trips = const [],
+  List<Stop> stops = const [],
+]) {
+  final repository = MemoryTripRepository(
+    clock: () => testNow,
+    seed: trips,
+    seedStops: stops,
+  );
   addTearDown(repository.dispose);
   return repository;
 }
 
-/// 앱과 같은 경로 표와 로캘로 띄운다. 시각은 [testNow]로 고정한다.
+/// 앱과 같은 경로 표와 로캘로 띄운다. 시각은 [testNow]로 고정하고, 지도는 가짜 지도([FakeMap])다.
 Future<ProviderContainer> pumpTestApp(
   WidgetTester tester, {
   required TripRepository repository,
@@ -81,6 +92,7 @@ Future<ProviderContainer> pumpTestApp(
     overrides: [
       clockProvider.overrideWithValue(() => testNow),
       tripRepositoryProvider.overrideWithValue(repository),
+      mapProviderProvider.overrideWith((ref, type) => const FakeMapProvider()),
     ],
   );
   final router = container.read(routerProvider);

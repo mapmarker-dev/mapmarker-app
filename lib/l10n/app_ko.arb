@@ -124,6 +124,49 @@
   "renameTripHelper": "비우면 기본 제목으로 돌아갑니다.",
   "tripNotFound": "여행을 찾을 수 없습니다.",
   "tripLoadFailed": "여행을 불러오지 못했습니다.",
+  "tripRouteSubtitle": "{phase} · {summary}",
+  "@tripRouteSubtitle": {
+    "description": "동선 페이지 제목 아래 줄. 예: 여행 중 · 2026.10.14 – 10.17 · 3박 4일",
+    "placeholders": {
+      "phase": {"type": "String", "example": "여행 중"},
+      "summary": {"type": "String", "example": "2026.10.14 – 10.17 · 3박 4일"}
+    }
+  },
+  "routeAllDays": "전체",
+  "@routeAllDays": {
+    "description": "동선 페이지의 일차 칩. 여행 전체 동선을 본다"
+  },
+  "routeDay": "{day}일차",
+  "@routeDay": {
+    "description": "동선 페이지의 일차 칩. 예: 2일차",
+    "placeholders": {
+      "day": {"type": "int"}
+    }
+  },
+  "routeShowLodging": "숙소",
+  "@routeShowLodging": {
+    "description": "동선 페이지에서 숙소를 지도에 보일지 켜고 끄는 칩"
+  },
+  "routeFitTooltip": "동선에 맞추기",
+  "@routeFitTooltip": {
+    "description": "지금 보이는 장소가 모두 들어오게 지도를 다시 맞추는 버튼"
+  },
+  "routeEmpty": "아직 장소가 없습니다.",
+  "routeDayEmpty": "{day}일차에는 장소가 없습니다.",
+  "@routeDayEmpty": {
+    "placeholders": {
+      "day": {"type": "int"}
+    }
+  },
+  "routeNothingVisible": "보이는 장소가 없습니다.",
+  "@routeNothingVisible": {
+    "description": "숙소를 끈 전체 보기에서 숙소 말고는 장소가 없을 때"
+  },
+
+  "stopKindLodging": "숙소",
+  "stopKindFood": "음식",
+  "stopKindTour": "관광",
+  "stopKindOther": "기타",
 
   "transportWalk": "도보",
   "transportSubway": "지하철",

@@ -1,4 +1,5 @@
 import '../data/models/segment.dart';
+import '../data/models/stop.dart';
 import '../data/models/trip.dart';
 import 'generated/app_localizations.dart';
 
@@ -60,6 +61,13 @@ extension ModelTexts on AppLocalizations {
       nightsText(trip.nights),
     );
   }
+
+  String stopKindName(StopKind kind) => switch (kind) {
+    StopKind.lodging => stopKindLodging,
+    StopKind.food => stopKindFood,
+    StopKind.tour => stopKindTour,
+    StopKind.other => stopKindOther,
+  };
 
   String transportModeName(TransportMode mode) => switch (mode) {
     TransportMode.walk => transportWalk,
