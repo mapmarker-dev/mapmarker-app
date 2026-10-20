@@ -50,6 +50,7 @@ class _NaverMapViewState extends State<NaverMapView> {
 
   /// 마커 그림은 만들 때 시간이 걸려서, 같은 그림은 한 번만 만든다.
   final _icons = <MarkerLook, NOverlayImage>{};
+  final _arrowIcons = <(Color, Color), NOverlayImage>{};
 
   @override
   void didUpdateWidget(NaverMapView oldWidget) {
@@ -59,7 +60,8 @@ class _NaverMapViewState extends State<NaverMapView> {
     final old = oldWidget.scene;
     final scene = widget.scene;
     if (!listEquals(old.markers, scene.markers) ||
-        !listEquals(old.lines, scene.lines)) {
+        !listEquals(old.lines, scene.lines) ||
+        !listEquals(old.arrows, scene.arrows)) {
       _showOverlays(controller);
     }
     _moveCamera(controller);
@@ -81,10 +83,17 @@ class _NaverMapViewState extends State<NaverMapView> {
       if (!mounted || version != _overlayVersion) return;
       markers.add(naverMarkerOf(marker, icon: icon, captionColor: textColor));
     }
+    final arrows = <NMarker>[];
+    for (final arrow in scene.arrows) {
+      final icon = await _arrowIconOf(arrow);
+      if (!mounted || version != _overlayVersion) return;
+      arrows.add(naverArrowOf(arrow, icon: icon));
+    }
     await controller.clearOverlays();
     if (!mounted || version != _overlayVersion) return;
     await controller.addOverlayAll({
       ...scene.lines.map(naverPathOf).nonNulls,
+      ...arrows,
       ...markers,
     });
   }
@@ -93,6 +102,16 @@ class _NaverMapViewState extends State<NaverMapView> {
       _icons[look] ??= await NOverlayImage.fromWidget(
         widget: MarkerIcon(look),
         size: MarkerIcon.size,
+        context: context,
+      );
+
+  Future<NOverlayImage> _arrowIconOf(MapArrow arrow) async =>
+      _arrowIcons[(
+        arrow.color,
+        arrow.outline,
+      )] ??= await NOverlayImage.fromWidget(
+        widget: ArrowIcon(color: arrow.color, outline: arrow.outline),
+        size: ArrowIcon.size,
         context: context,
       );
 
@@ -157,6 +176,26 @@ NMarker naverMarkerOf(
   ),
   isHideCollidedCaptions: true,
 );
+
+/// 화살표는 선(-100000)보다 위, 장소 마커(200000)보다 아래에 그린다.
+/// 네이버의 화살촉 경로선(`NArrowheadPathOverlay`)과 같은 높이다.
+const _arrowGlobalZIndex = 100000;
+
+/// 화살표를 지도와 함께 도는 평평한 마커로. 아이콘이 위(북쪽)를 가리키므로 방향만큼 돌린다.
+/// 마커 ID가 장소 마커와 겹치지 않게 앞에 `arrow:`를 붙인다.
+@visibleForTesting
+NMarker naverArrowOf(MapArrow arrow, {required NOverlayImage? icon}) =>
+    NMarker(
+        id: 'arrow:${arrow.id}',
+        position: _nLatLng(arrow.position),
+        icon: icon,
+        size: ArrowIcon.size,
+        anchor: const NPoint(0.5, 0.5),
+        angle: arrow.bearing,
+        isFlat: true,
+      )
+      ..setGlobalZIndex(_arrowGlobalZIndex)
+      ..setMinZoom(arrow.minZoom);
 
 /// [bounds]가 보이게 카메라를 옮기는 요청. 처음 열 때는 애니메이션 없이 옮긴다.
 @visibleForTesting

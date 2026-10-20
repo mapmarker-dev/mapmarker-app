@@ -160,6 +160,8 @@ void main() {
         '2',
       ]);
       expect(_lines(scene), ['a>b', 'b>hotel', 'hotel>c', 'c>d', 'd>hotel']);
+      // 선마다 가는 방향을 가리키는 화살표가 있다.
+      expect(scene.arrows.map((a) => a.id), scene.lines.map((l) => l.id));
       expect(scene.camera.bounds, _boundsOf(['a', 'b', 'hotel', 'c', 'd']));
       expect(find.byTooltip('동선에 맞추기'), findsOneWidget);
     });
@@ -190,6 +192,7 @@ void main() {
 
       expect(mapScene(tester).captions, ['a', 'b', 'c', 'd']);
       expect(_lines(mapScene(tester)), ['a>b', 'c>d']);
+      expect(mapScene(tester).arrows, hasLength(2));
       expect(mapScene(tester).camera.bounds, _boundsOf(['a', 'b', 'c', 'd']));
 
       // 일차를 바꿔도 숙소는 꺼진 채로 있다.

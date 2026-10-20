@@ -71,3 +71,54 @@ class MarkerIcon extends StatelessWidget {
     );
   }
 }
+
+/// 진행 방향 화살표 그림. 위(북쪽)를 가리키고, 지도 구현이 구간 방향만큼 돌린다.
+///
+/// 뒤가 오목한 화살촉 모양이다. 테두리를 둘러 같은 색 선 위에서도 모양이 보인다.
+class ArrowIcon extends StatelessWidget {
+  const ArrowIcon({super.key, required this.color, required this.outline});
+
+  static const size = Size.square(18);
+
+  final Color color;
+  final Color outline;
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+    size: size,
+    painter: _ArrowPainter(color: color, outline: outline),
+  );
+}
+
+class _ArrowPainter extends CustomPainter {
+  _ArrowPainter({required this.color, required this.outline});
+
+  final Color color;
+  final Color outline;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final path = Path()
+      ..moveTo(w * 0.5, h * 0.12)
+      ..lineTo(w * 0.88, h * 0.86)
+      ..lineTo(w * 0.5, h * 0.66)
+      ..lineTo(w * 0.12, h * 0.86)
+      ..close();
+    canvas
+      ..drawPath(
+        path,
+        Paint()
+          ..color = outline
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3
+          ..strokeJoin = StrokeJoin.round,
+      )
+      ..drawPath(path, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_ArrowPainter old) =>
+      old.color != color || old.outline != outline;
+}

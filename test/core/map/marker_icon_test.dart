@@ -18,6 +18,17 @@ Future<void> _pump(WidgetTester tester, MarkerLook look) => tester.pumpWidget(
 );
 
 void main() {
+  testWidgets('draws the arrow in its size', (tester) async {
+    await tester.pumpWidget(
+      const Center(
+        child: ArrowIcon(color: Colors.orange, outline: Colors.white),
+      ),
+    );
+
+    expect(tester.getSize(find.byType(ArrowIcon)), ArrowIcon.size);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('draws a two-digit number with a badge in its size', (
     tester,
   ) async {

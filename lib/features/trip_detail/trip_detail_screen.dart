@@ -244,7 +244,7 @@ class _RouteMap extends ConsumerWidget {
     final map = ref.watch(
       mapProviderProvider(trip.mapProvider ?? MapProviderType.naver),
     );
-    final (:markers, :lines) = routeOverlays(
+    final (:markers, :lines, :arrows) = routeOverlays(
       route: route,
       view: view,
       colors: context.appColors,
@@ -253,6 +253,7 @@ class _RouteMap extends ConsumerWidget {
       MapScene(
         markers: markers,
         lines: lines,
+        arrows: arrows,
         camera: MapCameraRequest(
           key: cameraKey,
           bounds: cameraBoundsFor(view.stops.map((stop) => stop.position)),

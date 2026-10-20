@@ -63,6 +63,30 @@ void main() {
     expect(() => marker.payload, returnsNormally);
   });
 
+  test('sends arrows the SDK can read, turned flat on the map', () {
+    final arrow = naverArrowOf(
+      const MapArrow(
+        id: 'segment',
+        position: LatLng(33.5, 126.5),
+        bearing: 135,
+        color: Colors.orange,
+        outline: Colors.white,
+        minZoom: 13.3,
+      ),
+      // 그림은 실기기에서만 만들 수 있다.
+      icon: null,
+    );
+
+    final payload = arrow.payload;
+
+    expect(payload['angle'], 135);
+    expect(payload['isFlat'], isTrue);
+    expect(payload['minZoom'], 13.3);
+    // 선보다 위, 장소 마커보다 아래.
+    expect(payload['globalZIndex'], inExclusiveRange(-100000, 200000));
+    expect(arrow.info.id, isNot('segment'));
+  });
+
   test('sends camera fits the SDK can read', () {
     final bounds = cameraBoundsFor(_line.points)!;
 

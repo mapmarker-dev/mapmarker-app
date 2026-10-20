@@ -5,8 +5,8 @@ import 'geo.dart';
 
 /// 지도. 지도 종류(네이버, 구글)마다 구현이 하나씩 있고, 화면은 이 인터페이스만 쓴다.
 ///
-/// 화면은 무엇을 그릴지([MapScene])만 넘긴다. 
-/// 
+/// 화면은 무엇을 그릴지([MapScene])만 넘긴다.
+///
 /// 아직 열지 않은 것: 마커·지도 탭(장소 편집 단위), 스냅샷과 좌표→화면 위치(1-5단계 내보내기).
 abstract interface class MapProvider {
   Widget buildMap(MapScene scene);
@@ -18,12 +18,14 @@ class MapScene {
   const MapScene({
     this.markers = const [],
     this.lines = const [],
+    this.arrows = const [],
     required this.camera,
     this.padding = EdgeInsets.zero,
   });
 
   final List<MapMarker> markers;
   final List<MapLine> lines;
+  final List<MapArrow> arrows;
   final MapCameraRequest camera;
 
   /// 지도 위를 덮는 화면 요소와 시스템 막대만큼의 여백.
@@ -143,4 +145,45 @@ class MapLine {
 
   @override
   int get hashCode => Object.hash(id, Object.hashAll(points), color, outline);
+}
+
+/// 진행 방향 화살표. 지도와 함께 돌고, 기울이면 지도 바닥에 눕는다.
+@immutable
+class MapArrow {
+  const MapArrow({
+    required this.id,
+    required this.position,
+    required this.bearing,
+    required this.color,
+    required this.outline,
+    this.minZoom = 0,
+  });
+
+  final String id;
+  final LatLng position;
+
+  /// 화살표가 가리키는 방향. 북쪽이 0도이고 시계 방향으로 잰다.
+  final double bearing;
+
+  final Color color;
+
+  /// 화살표 테두리 색. 선 위에 놓여도 화살표 모양이 보이게 한다.
+  final Color outline;
+
+  /// 이 줌보다 멀리서 보면 숨긴다.
+  final double minZoom;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MapArrow &&
+      other.id == id &&
+      other.position == position &&
+      other.bearing == bearing &&
+      other.color == color &&
+      other.outline == outline &&
+      other.minZoom == minZoom;
+
+  @override
+  int get hashCode =>
+      Object.hash(id, position, bearing, color, outline, minZoom);
 }

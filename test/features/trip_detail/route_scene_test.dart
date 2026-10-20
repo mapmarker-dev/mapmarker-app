@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mapmarker_app/core/map/route_arrow.dart';
 import 'package:mapmarker_app/core/theme/app_colors.dart';
 import 'package:mapmarker_app/core/theme/app_theme.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
@@ -78,6 +79,20 @@ void main() {
     expect(whole.lines.every((l) => l.outline == _colors.routeHalo), isTrue);
   });
 
+  test('puts an arrow on each line, pointing from start to end', () {
+    expect(whole.arrows.map((a) => a.id), whole.lines.map((l) => l.id));
+    for (final (i, arrow) in whole.arrows.indexed) {
+      final line = whole.lines[i];
+      final expected = routeArrow(line.points.first, line.points.last)!;
+
+      expect(arrow.color, line.color);
+      expect(arrow.outline, _colors.routeHalo);
+      expect(arrow.position, expected.position);
+      expect(arrow.bearing, expected.bearing);
+      expect(arrow.minZoom, expected.minZoom);
+    }
+  });
+
   test('follows the view', () {
     final day2 = routeOverlays(
       route: route,
@@ -87,5 +102,6 @@ void main() {
 
     expect(day2.markers.map((m) => m.id), ['shop']);
     expect(day2.lines, isEmpty);
+    expect(day2.arrows, isEmpty);
   });
 }
