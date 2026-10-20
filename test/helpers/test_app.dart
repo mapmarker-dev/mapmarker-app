@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/app/router.dart';
+import 'package:mapmarker_app/core/links/open_link.dart';
 import 'package:mapmarker_app/core/map/map_registry.dart';
 import 'package:mapmarker_app/core/theme/app_theme.dart';
 import 'package:mapmarker_app/core/time/today.dart';
@@ -82,17 +83,23 @@ MemoryTripRepository testRepository([
   return repository;
 }
 
+/// 링크를 열지 못하는 기기. 테스트에서 실제 앱이나 브라우저를 열지 않게 기본으로 쓴다.
+Future<bool> refuseLinks(Uri uri) async => false;
+
 /// 앱과 같은 경로 표와 로캘로 띄운다. 시각은 [testNow]로 고정하고, 지도는 가짜 지도([FakeMap])다.
+/// 앱 밖으로 여는 링크는 [openLink]가 받는다.
 Future<ProviderContainer> pumpTestApp(
   WidgetTester tester, {
   required TripRepository repository,
   String? location,
+  OpenLink openLink = refuseLinks,
 }) async {
   final container = ProviderContainer.test(
     overrides: [
       clockProvider.overrideWithValue(() => testNow),
       tripRepositoryProvider.overrideWithValue(repository),
       mapProviderProvider.overrideWith((ref, type) => const FakeMapProvider()),
+      openLinkProvider.overrideWithValue(openLink),
     ],
   );
   final router = container.read(routerProvider);

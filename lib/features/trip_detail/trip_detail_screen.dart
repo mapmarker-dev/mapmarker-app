@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/links/open_link.dart';
+import '../../core/map/external_map.dart';
 import '../../core/map/geo.dart';
 import '../../core/map/map_provider.dart';
 import '../../core/map/map_registry.dart';
@@ -9,13 +11,16 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/time/today.dart';
 import '../../data/models/map_provider_type.dart';
+import '../../data/models/stop.dart';
 import '../../data/models/trip.dart';
 import '../../data/models/trip_route.dart';
 import '../../l10n/l10n.dart';
+import 'day_itinerary.dart';
 import 'route_scene.dart';
 import 'trip_detail_controller.dart';
 import 'widgets/rename_trip_dialog.dart';
 import 'widgets/route_day_chips.dart';
+import 'widgets/route_day_sheet.dart';
 import 'widgets/route_title_bar.dart';
 import 'widgets/size_reporter.dart';
 
@@ -41,7 +46,10 @@ class TripDetailScreen extends ConsumerWidget {
 }
 
 /// 지도는 시스템 막대 뒤까지 화면 전체에 그린다.
-/// 그 위에 뜨는 제목 카드·일차 칩·버튼과 지도 로고는 시스템 여백만큼 띄운다.
+/// 그 위에 뜨는 제목 카드·일차 칩·버튼·시트와 지도 로고는 시스템 여백만큼 띄운다.
+///
+/// 일차 보기에서는 아래에 일차 동선 시트가 뜬다. 지도 여백에는 접힌 시트 높이까지만 넣고,
+/// 시트를 더 올리면 로고만 올린다(카메라와 지도 내용은 그대로).
 class _TripRoutePage extends ConsumerStatefulWidget {
   const _TripRoutePage({required this.trip});
 
@@ -51,12 +59,33 @@ class _TripRoutePage extends ConsumerStatefulWidget {
   ConsumerState<_TripRoutePage> createState() => _TripRoutePageState();
 }
 
+/// 시트 제목 줄 높이를 재기 전에 쓰는 어림값.
+const _estimatedSheetHeader = 56.0;
+
 class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   /// 위에 뜬 제목 카드와 일차 칩의 화면 위쪽부터의 높이. 재기 전에는 지도를 띄우지 않는다.
   /// 지도를 만들 때부터 여백이 맞아야 처음 카메라가 제목 카드 밑으로 숨지 않는다.
   double? _overlayHeight;
 
+  final _sheetController = DraggableScrollableController();
+  final _sheetKey = GlobalKey<RouteDaySheetState>();
+
+  /// 시트 제목 줄 높이. 일차마다 같아서 한 번 재면 계속 쓴다.
+  double _sheetHeaderHeight = _estimatedSheetHeader;
+
+  /// 시트가 접힌 높이보다 더 올라온 높이. 로고를 이만큼 더 올린다.
+  double _sheetLift = 0;
+
   Trip get trip => widget.trip;
+
+  RouteChoiceController get _choices =>
+      ref.read(routeChoiceProvider(trip.id).notifier);
+
+  @override
+  void dispose() {
+    _sheetController.dispose();
+    super.dispose();
+  }
 
   Future<void> _rename() async {
     final title = await showDialog<String>(
@@ -76,18 +105,155 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     }
   }
 
+  void _onSheetHeaderSize(double height) {
+    if (mounted && height != _sheetHeaderHeight) {
+      setState(() => _sheetHeaderHeight = height);
+    }
+  }
+
+  void _onSheetLift(double lift) {
+    if (mounted && (lift - _sheetLift).abs() >= 1) {
+      setState(() => _sheetLift = lift);
+    }
+  }
+
+  /// 마커를 누르면 시트에서 그 자리의 장소를 보여 준다.
+  /// 전체 보기에서는 그 일차로 들어간다. 같은 자리의 장소가 여러 일차에 있으면 일차를 고르게 한다.
+  Future<void> _onMarkerTap(RouteView view, int? day, String markerId) async {
+    final stops = stopsAtMarker(view, markerId);
+    if (stops.isEmpty) return;
+    if (day != null) {
+      _choices.focusOn([for (final stop in stops) stop.id]);
+      return;
+    }
+    final days = {for (final stop in stops) stop.day}.toList()..sort();
+    final chosen = days.length == 1 ? days.single : await _chooseDay(days);
+    if (chosen == null || !mounted) return;
+    _choices.selectDay(
+      chosen,
+      focus: [
+        for (final stop in stops)
+          if (stop.day == chosen) stop.id,
+      ],
+    );
+  }
+
+  Future<int?> _chooseDay(List<int> days) => showDialog<int>(
+    context: context,
+    builder: (context) => SimpleDialog(
+      title: Text(context.l10n.routeChooseDay),
+      children: [
+        for (final day in days)
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(context).pop(day),
+            child: Text(context.l10n.routeDay(day)),
+          ),
+      ],
+    ),
+  );
+
+  /// 선을 누르면 시트에서 그 구간을 보여 준다.
+  /// 전체 보기에서는 선 색의 일차(도착 장소의 일차)로 들어간다.
+  void _onLineTap(TripRoute route, int? day, String segmentId) {
+    final segment = route.segments.where((s) => s.id == segmentId).firstOrNull;
+    final to = segment == null ? null : route.stopById(segment.toStopId);
+    if (to == null) return;
+    if (day != null) {
+      _choices.focusOn([segmentId]);
+    } else {
+      _choices.selectDay(to.day, focus: [segmentId]);
+    }
+  }
+
+  /// 지도 빈 곳을 누르면 시트를 접는다.
+  void _onMapTap(MapTap tap) => _sheetKey.currentState?.collapse();
+
+  Future<void> _openMap(Stop stop) async {
+    final opened = await ref.read(openLinkProvider)(
+      naverMapSearchUri(stop.name, stop.position),
+    );
+    if (opened || !mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(context.l10n.itineraryOpenFailed)));
+  }
+
+  Future<void> _confirmDelete(Stop stop) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        final l10n = context.l10n;
+        return AlertDialog(
+          title: Text(l10n.deleteStopTitle(stop.name)),
+          content: Text(l10n.deleteStopMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+              ),
+              child: Text(l10n.deleteStop),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true || !mounted) return;
+    await ref.read(tripDetailProvider(trip.id).notifier).deleteStop(stop.id);
+  }
+
+  void _reorder(
+    TripRoute route,
+    int day,
+    List<String> visibleIds,
+    int oldIndex,
+    int newIndex,
+  ) {
+    // 제자리에 놓았다.
+    if (newIndex == oldIndex) return;
+    final order = reorderedStopOrder(
+      visibleIds: visibleIds,
+      dayStops: [
+        for (final stop in route.stops)
+          if (stop.day == day) stop,
+      ],
+      oldIndex: oldIndex,
+      newIndex: newIndex,
+    );
+    ref
+        .read(tripDetailProvider(trip.id).notifier)
+        .moveStop(visibleIds[oldIndex], day: day, order: order);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final insets = MediaQuery.paddingOf(context);
     final choice = ref.watch(routeChoiceProvider(trip.id));
-    final choices = ref.read(routeChoiceProvider(trip.id).notifier);
+    ref.listen(routeChoiceProvider(trip.id).select((c) => c.day), (_, day) {
+      // 전체 보기로 나가면 시트가 사라진다. 다시 들어오면 접힌 시트로 시작한다.
+      if (day == null) _sheetLift = 0;
+    });
     final route = ref.watch(tripRouteProvider(trip.id));
     final view = route.value?.view(
       day: choice.day,
       showLodging: choice.showLodging,
     );
     final overlayHeight = _overlayHeight;
+    final day = choice.day;
+    final itinerary = switch (route) {
+      AsyncData(value: final route) when view != null && day != null =>
+        DayItinerary.of(route, view, day),
+      _ => null,
+    };
+    // 시트가 있으면 지도와 버튼은 접힌 시트 위에 둔다.
+    final bottom = itinerary == null
+        ? insets.bottom
+        : insets.bottom + _sheetHeaderHeight;
 
     return Scaffold(
       body: Stack(
@@ -101,19 +267,24 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                 route: route,
                 view: view,
                 cameraKey: choice.fitCount,
-                padding: insets.copyWith(top: overlayHeight),
+                padding: insets.copyWith(top: overlayHeight, bottom: bottom),
+                logoLift: itinerary == null ? 0 : _sheetLift,
+                onMarkerTap: (id) => _onMarkerTap(view, day, id),
+                onLineTap: (id) => _onLineTap(route, day, id),
+                onMapTap: _onMapTap,
               ),
             ),
           if (overlayHeight != null)
             if (_messageOf(route, view, choice) case final message?)
               Positioned.fill(
                 top: overlayHeight,
+                bottom: bottom,
                 child: Center(child: _MessageCard(message)),
               ),
           if (view != null && view.stops.isNotEmpty)
             Positioned(
               right: insets.right + AppSpace.lg,
-              bottom: insets.bottom + AppSpace.lg,
+              bottom: bottom + AppSpace.lg,
               child: FloatingActionButton.small(
                 heroTag: null,
                 tooltip: l10n.routeFitTooltip,
@@ -121,8 +292,35 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                   context,
                 ).colorScheme.surfaceContainerLowest,
                 foregroundColor: Theme.of(context).colorScheme.onSurface,
-                onPressed: choices.fitCamera,
+                onPressed: _choices.fitCamera,
                 child: const Icon(Icons.fit_screen_outlined),
+              ),
+            ),
+          if (route case AsyncData(
+            value: final route,
+          ) when itinerary != null && overlayHeight != null)
+            Positioned.fill(
+              top: overlayHeight,
+              child: RouteDaySheet(
+                key: _sheetKey,
+                trip: trip,
+                route: route,
+                itinerary: itinerary,
+                controller: _sheetController,
+                headerHeight: _sheetHeaderHeight,
+                focus: choice.focus,
+                focusCount: choice.focusCount,
+                onHeaderSize: _onSheetHeaderSize,
+                onLift: _onSheetLift,
+                onOpenMap: _openMap,
+                onDelete: _confirmDelete,
+                onReorder: (visibleIds, oldIndex, newIndex) => _reorder(
+                  route,
+                  itinerary.day,
+                  visibleIds,
+                  oldIndex,
+                  newIndex,
+                ),
               ),
             ),
           Positioned(
@@ -230,6 +428,10 @@ class _RouteMap extends ConsumerWidget {
     required this.view,
     required this.cameraKey,
     required this.padding,
+    required this.logoLift,
+    required this.onMarkerTap,
+    required this.onLineTap,
+    required this.onMapTap,
   });
 
   final Trip trip;
@@ -237,6 +439,10 @@ class _RouteMap extends ConsumerWidget {
   final RouteView view;
   final Object cameraKey;
   final EdgeInsets padding;
+  final double logoLift;
+  final ValueChanged<String> onMarkerTap;
+  final ValueChanged<String> onLineTap;
+  final ValueChanged<MapTap> onMapTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -259,7 +465,11 @@ class _RouteMap extends ConsumerWidget {
           bounds: cameraBoundsFor(view.stops.map((stop) => stop.position)),
         ),
         padding: padding,
+        logoLift: logoLift,
       ),
+      onMarkerTap: onMarkerTap,
+      onLineTap: onLineTap,
+      onMapTap: onMapTap,
     );
   }
 }

@@ -87,6 +87,41 @@ void main() {
     expect(arrow.info.id, isNot('segment'));
   });
 
+  test('listens to taps on markers and lines', () {
+    final marker = naverMarkerOf(
+      const MapMarker(
+        id: 'stop',
+        position: LatLng(33.5, 126.5),
+        caption: '용두암',
+        look: MarkerLook(
+          fill: Colors.orange,
+          foreground: Colors.black,
+          halo: Colors.white,
+          label: '1',
+        ),
+      ),
+      icon: null,
+      captionColor: Colors.black,
+      onTap: () {},
+    );
+    final path = naverPathOf(_line, onTap: () {})!;
+
+    // 네이티브 지도는 이 값이 있어야 탭을 앱에 알린다.
+    expect(marker.payload['hasOnTapListener'], isTrue);
+    expect(path.payload['hasOnTapListener'], isTrue);
+    expect(
+      naverPathOf(_line)!.payload['hasOnTapListener'],
+      isFalse,
+      reason: '누를 일이 없는 선은 지도 탭을 가로채지 않는다',
+    );
+  });
+
+  test('reads place names written on several lines as one', () {
+    expect(naverPlaceNameOf('제주국제공항\n국내선'), '제주국제공항 국내선');
+    expect(naverPlaceNameOf('  성산일출봉 '), '성산일출봉');
+    expect(naverPlaceNameOf(' \n'), isNull);
+  });
+
   test('sends camera fits the SDK can read', () {
     final bounds = cameraBoundsFor(_line.points)!;
 

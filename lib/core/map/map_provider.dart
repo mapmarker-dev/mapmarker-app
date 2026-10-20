@@ -5,11 +5,42 @@ import 'geo.dart';
 
 /// 지도. 지도 종류(네이버, 구글)마다 구현이 하나씩 있고, 화면은 이 인터페이스만 쓴다.
 ///
-/// 화면은 무엇을 그릴지([MapScene])만 넘긴다.
+/// 화면은 무엇을 그릴지([MapScene])와, 사용자가 누를 때 부를 함수를 넘긴다.
 ///
-/// 아직 열지 않은 것: 마커·지도 탭(장소 편집 단위), 스냅샷과 좌표→화면 위치(1-5단계 내보내기).
+/// 아직 열지 않은 것: 스냅샷과 좌표→화면 위치(1-5단계 내보내기).
 abstract interface class MapProvider {
-  Widget buildMap(MapScene scene);
+  /// - [onMarkerTap]: 마커를 누르면 [MapMarker.id]로 부른다.
+  /// - [onLineTap]: 선을 누르면 [MapLine.id]로 부른다. 화살표는 누를 수 없다.
+  /// - [onMapTap]: 마커와 선이 아닌 곳을 누르면 부른다.
+  Widget buildMap(
+    MapScene scene, {
+    ValueChanged<String>? onMarkerTap,
+    ValueChanged<String>? onLineTap,
+    ValueChanged<MapTap>? onMapTap,
+  });
+}
+
+/// 지도를 누른 곳.
+@immutable
+class MapTap {
+  const MapTap(this.position, {this.placeName});
+
+  final LatLng position;
+
+  /// 지도에 원래 있는 장소 이름(예: 네이버 지도의 심볼)을 눌렀으면 그 이름이다.
+  final String? placeName;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MapTap &&
+      other.position == position &&
+      other.placeName == placeName;
+
+  @override
+  int get hashCode => Object.hash(position, placeName);
+
+  @override
+  String toString() => 'MapTap($position, $placeName)';
 }
 
 /// 지도에 그릴 것.
@@ -21,6 +52,7 @@ class MapScene {
     this.arrows = const [],
     required this.camera,
     this.padding = EdgeInsets.zero,
+    this.logoLift = 0,
   });
 
   final List<MapMarker> markers;
@@ -32,6 +64,12 @@ class MapScene {
   ///
   /// 지도는 이 여백 밑까지 그리지만, 로고와 카메라 맞춤은 이 안쪽에 온다.
   final EdgeInsets padding;
+
+  /// 아래에서 올라온 화면 요소(예: 끌어 올린 시트)가 [padding]보다 더 덮는 높이.
+  /// 로고만 이만큼 더 올린다. 지도 내용과 카메라는 그대로다.
+  ///
+  /// [padding]을 바꾸면 지도 내용이 함께 밀려서, 자주 바뀌는 높이는 여기로 넘긴다.
+  final double logoLift;
 }
 
 /// 카메라 요청. [key]가 바뀔 때만 [bounds]에 맞춘다.

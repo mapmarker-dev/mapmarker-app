@@ -19,7 +19,9 @@ IconData? kindBadge(StopKind kind) => switch (kind) {
 /// 보이는 동선을 지도의 마커와 선으로 바꾼다.
 ///
 /// - 숙소가 아닌 장소: 일차 색 원에 일차 안 번호, 오른쪽 위에 종류 배지.
-/// - 숙소: 숙소 색 원에 침대 아이콘. 연박하며 밤마다 넣은 같은 자리의 숙소는 마커 하나로 합친다.
+/// - 숙소: 숙소 색 원에 침대 아이콘.
+/// - 같은 자리에 여러 번 넣은 장소(연박한 숙소, 처음과 끝이 같은 공항)는 종류와 상관없이 마커 하나로 합친다.
+///   마커는 동선에서 먼저 오는 장소의 것이다. 누르면 [stopsAtMarker]로 그 자리의 장소를 모두 찾는다.
 /// - 선: 도착 장소의 일차 색. 일차를 넘는 구간은 다음 날 아침의 이동이라 다음 날 색이다.
 /// - 화살표: 선 가운데에 가는 방향으로, 선과 같은 색. 선이 화면에서 짧으면 숨는다.
 ({List<MapMarker> markers, List<MapLine> lines, List<MapArrow> arrows})
@@ -29,28 +31,16 @@ routeOverlays({
   required AppColors colors,
 }) {
   final markers = <MapMarker>[];
-  final lodgings = <Stop>[];
+  final drawn = <Stop>[];
   for (final stop in view.stops) {
-    if (stop.isLodging) {
-      if (lodgings.any(stop.isSamePlaceAs)) continue;
-      lodgings.add(stop);
-    }
-    final dayColors = stop.isLodging
-        ? colors.routeLodging
-        : colors.routeDay(stop.day);
+    if (drawn.any(stop.isSamePlaceAs)) continue;
+    drawn.add(stop);
     markers.add(
       MapMarker(
         id: stop.id,
         position: stop.position,
         caption: stop.name,
-        look: MarkerLook(
-          fill: dayColors.background,
-          foreground: dayColors.foreground,
-          halo: colors.routeHalo,
-          label: route.numberOf(stop)?.toString(),
-          icon: stop.isLodging ? lodgingIcon : null,
-          badge: kindBadge(stop.kind),
-        ),
+        look: markerLookOf(route, stop, colors),
       ),
     );
   }
@@ -86,4 +76,30 @@ routeOverlays({
     }
   }
   return (markers: markers, lines: lines, arrows: arrows);
+}
+
+/// 장소의 마커 그림. 일차 동선 시트의 장소 줄도 같은 그림을 쓴다.
+MarkerLook markerLookOf(TripRoute route, Stop stop, AppColors colors) {
+  final dayColors = stop.isLodging
+      ? colors.routeLodging
+      : colors.routeDay(stop.day);
+  return MarkerLook(
+    fill: dayColors.background,
+    foreground: dayColors.foreground,
+    halo: colors.routeHalo,
+    label: route.numberOf(stop)?.toString(),
+    icon: stop.isLodging ? lodgingIcon : null,
+    badge: kindBadge(stop.kind),
+  );
+}
+
+/// [markerId] 마커가 나타내는 장소들. 같은 자리의 보이는 장소를 동선 순서로 모은다.
+/// 지도에 없는 마커면 빈 목록이다.
+List<Stop> stopsAtMarker(RouteView view, String markerId) {
+  final marked = view.stops.where((stop) => stop.id == markerId).firstOrNull;
+  if (marked == null) return const [];
+  return [
+    for (final stop in view.stops)
+      if (stop.isSamePlaceAs(marked)) stop,
+  ];
 }

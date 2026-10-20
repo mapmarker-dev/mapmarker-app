@@ -104,4 +104,54 @@ void main() {
     expect(day2.lines, isEmpty);
     expect(day2.arrows, isEmpty);
   });
+
+  group('same place twice', () {
+    // 공항에서 시작해 공항에서 끝나는 여행. 공항은 숙소가 아니다.
+    Stop airport(String id, {required int day, int order = 0}) => testStop(
+      id,
+      day: day,
+      order: order,
+      latitude: 33.51,
+      longitude: 126.49,
+    );
+    final trip = _route([
+      airport('arrive', day: 1),
+      testStop('sight', order: 1),
+      testStop('cafe', day: 2),
+      airport('leave', day: 2, order: 1),
+    ]);
+
+    test('draws one marker, the first in the route', () {
+      final overlays = routeOverlays(
+        route: trip,
+        view: trip.view(),
+        colors: _colors,
+      );
+
+      expect(overlays.markers.map((m) => m.id), ['arrive', 'sight', 'cafe']);
+      expect(overlays.markers.first.look.label, '1');
+      expect(overlays.markers.first.look.fill, _colors.routeDay(1).background);
+    });
+
+    test('finds every visible place under the marker', () {
+      expect(stopsAtMarker(trip.view(), 'arrive').map((s) => s.id), [
+        'arrive',
+        'leave',
+      ]);
+      expect(stopsAtMarker(trip.view(day: 2), 'leave').map((s) => s.id), [
+        'leave',
+      ]);
+      expect(stopsAtMarker(trip.view(), 'sight').map((s) => s.id), ['sight']);
+      expect(stopsAtMarker(trip.view(day: 2), 'sight'), isEmpty);
+    });
+
+    test('finds the lodging of both nights in a day view', () {
+      // 2일차 보기: 출발 숙소(hotel)와 그날 밤 숙소(hotel2)는 같은 자리다.
+      expect(stopsAtMarker(route.view(day: 2), 'hotel').map((s) => s.id), [
+        'hotel',
+        'hotel2',
+        'hotel3',
+      ]);
+    });
+  });
 }

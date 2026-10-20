@@ -45,6 +45,7 @@ dependencies:
   uuid: ^4.6.0
   # gen-l10n이 만든 코드가 쓴다. 버전은 flutter_localizations가 정한다.
   intl: any
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:

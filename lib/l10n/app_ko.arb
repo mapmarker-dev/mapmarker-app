@@ -162,6 +162,57 @@
   "@routeNothingVisible": {
     "description": "숙소를 끈 전체 보기에서 숙소 말고는 장소가 없을 때"
   },
+  "routeChooseDay": "어느 일차를 볼까요?",
+  "@routeChooseDay": {
+    "description": "여러 일차에 넣은 같은 자리의 마커(예: 처음과 끝이 같은 공항)를 눌렀을 때 대화상자 제목"
+  },
+
+  "itineraryTitleWithDate": "{day}일차 · {date}",
+  "@itineraryTitleWithDate": {
+    "description": "일차 동선 시트 제목. 기간이 있는 여행. 예: 2일차 · 10월 21일 (수)",
+    "placeholders": {
+      "day": {"type": "int"},
+      "date": {"type": "DateTime", "format": "MMMEd"}
+    }
+  },
+  "itineraryStopCount": "{count, plural, =0{장소 없음} other{장소 {count}곳}}",
+  "@itineraryStopCount": {
+    "description": "일차 동선 시트 제목 옆. 출발 숙소는 세지 않는다",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "itineraryStartLodging": "전날 묵은 숙소에서 출발",
+  "@itineraryStartLodging": {
+    "description": "일차 동선 시트 맨 위의 출발 숙소 줄"
+  },
+  "itineraryKindAndTime": "{kind} · {time}",
+  "@itineraryKindAndTime": {
+    "description": "장소 줄의 종류와 예정 시각. 예: 음식 · 오후 12:30",
+    "placeholders": {
+      "kind": {"type": "String", "example": "음식"},
+      "time": {"type": "String", "example": "오후 12:30"}
+    }
+  },
+  "itineraryOpenNaverMap": "네이버 지도에서 영업시간·리뷰 보기",
+  "@itineraryOpenNaverMap": {
+    "description": "장소 줄 아래 칸. 누르면 네이버 지도에서 이름과 좌표로 장소를 찾는다"
+  },
+  "itineraryOpenFailed": "네이버 지도를 열지 못했습니다.",
+  "itineraryTransportUndecided": "이동 수단 미정",
+  "itineraryMemo": "메모",
+  "itineraryReorder": "끌어서 순서 바꾸기",
+  "@itineraryReorder": {
+    "description": "장소 줄 오른쪽 손잡이의 설명"
+  },
+  "deleteStop": "지우기",
+  "deleteStopTitle": "‘{name}’ 지우기",
+  "@deleteStopTitle": {
+    "placeholders": {
+      "name": {"type": "String", "example": "성산일출봉"}
+    }
+  },
+  "deleteStopMessage": "앞뒤 장소는 바로 이어집니다. 이 장소에 닿은 구간의 이동 수단은 사라집니다.",
 
   "stopKindLodging": "숙소",
   "stopKindFood": "음식",

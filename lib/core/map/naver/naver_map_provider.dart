@@ -15,7 +15,17 @@ class NaverMapProvider implements MapProvider {
   const NaverMapProvider();
 
   @override
-  Widget buildMap(MapScene scene) => NaverMapView(scene: scene);
+  Widget buildMap(
+    MapScene scene, {
+    ValueChanged<String>? onMarkerTap,
+    ValueChanged<String>? onLineTap,
+    ValueChanged<MapTap>? onMapTap,
+  }) => NaverMapView(
+    scene: scene,
+    onMarkerTap: onMarkerTap,
+    onLineTap: onLineTap,
+    onMapTap: onMapTap,
+  );
 }
 
 /// 장소가 없는 여행을 처음 열 때 보여 줄 곳: 한국 전체.
@@ -25,15 +35,25 @@ const _korea = NCameraPosition(target: NLatLng(36.3, 127.8), zoom: 5.8);
 const _fitPadding = EdgeInsets.all(AppSpace.xxl + AppSpace.lg);
 
 /// 로고는 가리거나 끄면 안 된다. 왼쪽 아래에 고정하고, [MapScene.padding] 안쪽에서 이만큼 띄운다.
+/// 아래에서 시트가 더 올라오면 [MapScene.logoLift]만큼 더 올린다.
 const _logoMargin = EdgeInsets.all(AppSpace.md);
 
 const _lineWidth = 5.0;
 const _lineOutlineWidth = 1.5;
 
 class NaverMapView extends StatefulWidget {
-  const NaverMapView({super.key, required this.scene});
+  const NaverMapView({
+    super.key,
+    required this.scene,
+    this.onMarkerTap,
+    this.onLineTap,
+    this.onMapTap,
+  });
 
   final MapScene scene;
+  final ValueChanged<String>? onMarkerTap;
+  final ValueChanged<String>? onLineTap;
+  final ValueChanged<MapTap>? onMapTap;
 
   @override
   State<NaverMapView> createState() => _NaverMapViewState();
@@ -81,7 +101,15 @@ class _NaverMapViewState extends State<NaverMapView> {
     for (final marker in scene.markers) {
       final icon = await _iconOf(marker.look);
       if (!mounted || version != _overlayVersion) return;
-      markers.add(naverMarkerOf(marker, icon: icon, captionColor: textColor));
+      markers.add(
+        naverMarkerOf(
+          marker,
+          icon: icon,
+          captionColor: textColor,
+          // 오버레이는 장면이 바뀔 때만 다시 올린다. 누른 때의 함수를 부르게 widget에서 읽는다.
+          onTap: () => widget.onMarkerTap?.call(marker.id),
+        ),
+      );
     }
     final arrows = <NMarker>[];
     for (final arrow in scene.arrows) {
@@ -92,7 +120,12 @@ class _NaverMapViewState extends State<NaverMapView> {
     await controller.clearOverlays();
     if (!mounted || version != _overlayVersion) return;
     await controller.addOverlayAll({
-      ...scene.lines.map(naverPathOf).nonNulls,
+      ...scene.lines
+          .map(
+            (line) =>
+                naverPathOf(line, onTap: () => widget.onLineTap?.call(line.id)),
+          )
+          .nonNulls,
       ...arrows,
       ...markers,
     });
@@ -126,16 +159,25 @@ class _NaverMapViewState extends State<NaverMapView> {
 
   @override
   Widget build(BuildContext context) {
+    final scene = widget.scene;
     return NaverMap(
       options: NaverMapViewOptions(
         initialCameraPosition: _korea,
-        contentPadding: widget.scene.padding,
+        contentPadding: scene.padding,
         logoAlign: NLogoAlign.leftBottom,
-        logoMargin: _logoMargin,
+        logoMargin: _logoMargin + EdgeInsets.only(bottom: scene.logoLift),
         scaleBarEnable: false,
         indoorEnable: false,
       ),
       onMapReady: _onMapReady,
+      onMapTapped: (_, latLng) =>
+          widget.onMapTap?.call(MapTap(_latLng(latLng))),
+      onSymbolTapped: (symbol) => widget.onMapTap?.call(
+        MapTap(
+          _latLng(symbol.position),
+          placeName: naverPlaceNameOf(symbol.caption),
+        ),
+      ),
     );
   }
 }
@@ -144,10 +186,10 @@ class _NaverMapViewState extends State<NaverMapView> {
 
 /// 선을 네이버 경로선으로. 그릴 길이가 없으면 null이다.
 @visibleForTesting
-NPathOverlay? naverPathOf(MapLine line) {
+NPathOverlay? naverPathOf(MapLine line, {VoidCallback? onTap}) {
   // SDK는 서로 다른 점이 두 개 이상이어야 한다.
   if (line.points.toSet().length < 2) return null;
-  return NPathOverlay(
+  final path = NPathOverlay(
     id: line.id,
     // SDK는 좌표를 List로만 메시지로 바꾼다. map()으로 만든 Iterable을 그대로 넘기면 실패한다.
     coords: [for (final point in line.points) _nLatLng(point)],
@@ -156,6 +198,8 @@ NPathOverlay? naverPathOf(MapLine line) {
     outlineWidth: _lineOutlineWidth,
     outlineColor: line.outline,
   );
+  if (onTap != null) path.setOnTapListener((_) => onTap());
+  return path;
 }
 
 @visibleForTesting
@@ -163,19 +207,31 @@ NMarker naverMarkerOf(
   MapMarker marker, {
   required NOverlayImage? icon,
   required Color captionColor,
-}) => NMarker(
-  id: marker.id,
-  position: _nLatLng(marker.position),
-  icon: icon,
-  size: MarkerIcon.size,
-  anchor: const NPoint(0.5, 0.5),
-  caption: NOverlayCaption(
-    text: marker.caption,
-    color: captionColor,
-    haloColor: marker.look.halo,
-  ),
-  isHideCollidedCaptions: true,
-);
+  VoidCallback? onTap,
+}) {
+  final nMarker = NMarker(
+    id: marker.id,
+    position: _nLatLng(marker.position),
+    icon: icon,
+    size: MarkerIcon.size,
+    anchor: const NPoint(0.5, 0.5),
+    caption: NOverlayCaption(
+      text: marker.caption,
+      color: captionColor,
+      haloColor: marker.look.halo,
+    ),
+    isHideCollidedCaptions: true,
+  );
+  if (onTap != null) nMarker.setOnTapListener((_) => onTap());
+  return nMarker;
+}
+
+/// 심볼 이름. 여러 줄로 쓰인 이름(예: 공항의 이름과 터미널)은 한 줄로 잇는다.
+@visibleForTesting
+String? naverPlaceNameOf(String caption) {
+  final name = caption.replaceAll(RegExp(r'\s+'), ' ').trim();
+  return name.isEmpty ? null : name;
+}
 
 /// 화살표는 선(-100000)보다 위, 장소 마커(200000)보다 아래에 그린다.
 /// 네이버의 화살촉 경로선(`NArrowheadPathOverlay`)과 같은 높이다.
@@ -217,3 +273,5 @@ NCameraUpdate naverFitOf(LatLngBounds bounds, {required bool animate}) {
 }
 
 NLatLng _nLatLng(LatLng p) => NLatLng(p.latitude, p.longitude);
+
+LatLng _latLng(NLatLng p) => LatLng(p.latitude, p.longitude);
