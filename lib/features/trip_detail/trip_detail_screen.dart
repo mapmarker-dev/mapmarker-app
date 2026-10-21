@@ -22,7 +22,10 @@ import 'stop_draft.dart';
 import 'stop_placement.dart';
 import 'trip_detail_controller.dart';
 import 'widgets/rename_trip_dialog.dart';
+import 'route_sheet_layout.dart';
+import 'widgets/day_itinerary_list.dart';
 import 'widgets/route_day_chips.dart';
+import 'widgets/route_day_panel.dart';
 import 'widgets/route_day_sheet.dart';
 import 'widgets/route_title_bar.dart';
 import 'widgets/stop_form_dialog.dart';
@@ -86,6 +89,12 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   /// 장소를 넣으려고 누른 자리. 지도에 임시 핀을 꽂고, 아래 카드에서 추가하거나 취소한다.
   MapTap? _draftPlace;
 
+  /// 일차 동선 목록에서 펼친 줄과 고른 줄. 기기를 돌려 아래 시트와 오른쪽 패널이 바뀌어도 남는다.
+  final _selection = ItinerarySelection();
+
+  /// 지난번에 그린 목록 자리. 기기를 돌려 바뀐 것을 알아챈다.
+  RouteSheetLayout? _layout;
+
   Trip get trip => widget.trip;
 
   RouteChoiceController get _choices =>
@@ -94,6 +103,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   @override
   void dispose() {
     _sheetController.dispose();
+    _selection.dispose();
     super.dispose();
   }
 
@@ -182,8 +192,10 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   }
 
   /// 지도 빈 곳(또는 지도에 원래 있는 장소 이름)을 누르면 그 자리에 임시 핀을 꽂는다.
+  /// 아래 시트가 올라와 있으면 시트만 접는다.
+  /// 오른쪽 패널은 지도를 덮지 않아서 접을 것이 없다.
   void _onMapTap(MapTap tap, int? day) {
-    if (day != null && _sheetLift > 0) {
+    if (_layout == RouteSheetLayout.bottom && day != null && _sheetLift > 0) {
       _sheetKey.currentState?.collapse();
       return;
     }
@@ -366,8 +378,17 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
         DayItinerary.of(route, view, day),
       _ => null,
     };
-    // 시트가 있으면 지도와 버튼은 접힌 시트 위에 둔다.
-    final bottom = itinerary == null
+    final screen = MediaQuery.sizeOf(context);
+    final layout = routeSheetLayoutOf(screen);
+    final isSide = layout == RouteSheetLayout.side;
+    if (_layout != null && _layout != layout) _onLayoutChanged(layout, choice);
+    _layout = layout;
+    // 오른쪽 패널을 열면 지도 영역은 패널 왼쪽까지다.
+    final panelWidth = sidePanelWidth(screen.width);
+    final panelShown = isSide && itinerary != null && choice.panelOpen;
+    final right = panelShown ? panelWidth + insets.right : insets.right;
+    // 아래 시트가 있으면 지도와 버튼은 접힌 시트 위에 둔다.
+    final bottom = itinerary == null || isSide
         ? insets.bottom
         : insets.bottom + _sheetHeaderHeight;
 
@@ -383,8 +404,13 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                 route: route,
                 view: view,
                 cameraKey: choice.fitCount,
-                padding: insets.copyWith(top: overlayHeight, bottom: bottom),
-                logoLift: itinerary == null ? 0 : _sheetLift,
+                padding: insets.copyWith(
+                  top: overlayHeight,
+                  right: right,
+                  bottom: bottom,
+                ),
+                // 로고는 왼쪽 아래라서 오른쪽 패널에는 가리지 않는다.
+                logoLift: itinerary == null || isSide ? 0 : _sheetLift,
                 draft: _draftPlace,
                 onMarkerTap: (id) => _onMarkerTap(route, view, day, id),
                 onLineTap: (id) => _onLineTap(route, day, id),
@@ -395,12 +421,13 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
             if (_messageOf(route, view, choice) case final message?)
               Positioned.fill(
                 top: overlayHeight,
+                right: right - insets.right,
                 bottom: bottom,
                 child: Center(child: _MessageCard(message)),
               ),
           if (view != null && view.stops.isNotEmpty)
             Positioned(
-              right: insets.right + AppSpace.lg,
+              right: right + AppSpace.lg,
               bottom: bottom + AppSpace.lg,
               child: FloatingActionButton.small(
                 heroTag: null,
@@ -418,7 +445,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
               Positioned(
                 left: insets.left + AppSpace.md,
                 // 오른쪽의 맞추기 버튼을 가리지 않는다.
-                right: insets.right + AppSpace.lg + _smallFabSize + AppSpace.sm,
+                right: right + AppSpace.lg + _smallFabSize + AppSpace.sm,
                 bottom: bottom + AppSpace.lg,
                 child: _DraftCard(
                   place: place,
@@ -429,37 +456,59 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
           if (route case AsyncData(
             value: final route,
           ) when itinerary != null && overlayHeight != null)
-            Positioned.fill(
-              top: overlayHeight,
-              child: RouteDaySheet(
-                key: _sheetKey,
-                trip: trip,
-                route: route,
-                itinerary: itinerary,
-                controller: _sheetController,
-                headerHeight: _sheetHeaderHeight,
-                focus: choice.focus,
-                focusCount: choice.focusCount,
-                onHeaderSize: _onSheetHeaderSize,
-                onLift: _onSheetLift,
-                onOpenMap: _openMap,
-                onDelete: _confirmDelete,
-                onEdit: (stop) => _editStop(route, stop),
-                onStayAgain: (lodging) =>
-                    _stayAgain(route, itinerary.day, lodging),
-                onReorder: (visibleIds, oldIndex, newIndex) => _reorder(
-                  route,
-                  itinerary.day,
-                  visibleIds,
-                  oldIndex,
-                  newIndex,
+            if (isSide)
+              // 닫혀도 그려 둔다. 다시 열 때 넘긴 자리와 펼친 줄이 그대로다.
+              AnimatedPositioned(
+                duration: _panelDuration,
+                curve: Curves.easeOutCubic,
+                top: 0,
+                bottom: 0,
+                width: panelWidth + insets.right,
+                right: choice.panelOpen ? 0 : -(panelWidth + insets.right),
+                child: RouteDayPanel(
+                  header: ItineraryHeader(
+                    trip: trip,
+                    itinerary: itinerary,
+                    onClose: _choices.closePanel,
+                  ),
+                  list: _itineraryList(
+                    route,
+                    itinerary,
+                    choice,
+                    padding: EdgeInsets.only(bottom: insets.bottom),
+                    // 패널은 일차를 고르거나 지도를 누를 때 이미 열린다.
+                    onReveal: () async {},
+                  ),
+                ),
+              )
+            else
+              Positioned.fill(
+                top: overlayHeight,
+                child: RouteDaySheet(
+                  key: _sheetKey,
+                  controller: _sheetController,
+                  headerHeight: _sheetHeaderHeight,
+                  header: ItineraryHeader(
+                    trip: trip,
+                    itinerary: itinerary,
+                    showHandle: true,
+                  ),
+                  list: _itineraryList(
+                    route,
+                    itinerary,
+                    choice,
+                    padding: insets.copyWith(top: 0),
+                    onReveal: () async => _sheetKey.currentState?.reveal(),
+                  ),
+                  onHeaderSize: _onSheetHeaderSize,
+                  onLift: _onSheetLift,
                 ),
               ),
-            ),
           Positioned(
             top: 0,
             left: 0,
-            right: 0,
+            // 오른쪽 패널을 열면 제목 카드와 일차 칩은 지도 영역 안에 둔다.
+            right: panelShown ? right : 0,
             // 앱 바가 없어서 상태 표시줄 아이콘 색을 직접 정한다. 지도 바탕이 밝아서 어둡게 둔다.
             child: AnnotatedRegion<SystemUiOverlayStyle>(
               value: const SystemUiOverlayStyle(
@@ -473,6 +522,8 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                   trip: trip,
                   choice: choice,
                   onRename: _rename,
+                  // 패널이 오른쪽 시스템 여백을 덮으면 따로 띄울 필요가 없다.
+                  rightInset: panelShown ? 0 : insets.right,
                 ),
               ),
             ),
@@ -480,6 +531,47 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
         ],
       ),
     );
+  }
+
+  static const _panelDuration = Duration(milliseconds: 250);
+
+  /// 그날의 목록. 아래 시트와 오른쪽 패널이 같은 목록과 같은 고른 줄([_selection])을 쓴다.
+  Widget _itineraryList(
+    TripRoute route,
+    DayItinerary itinerary,
+    RouteChoice choice, {
+    required EdgeInsets padding,
+    required Future<void> Function() onReveal,
+  }) => DayItineraryList(
+    route: route,
+    itinerary: itinerary,
+    selection: _selection,
+    focus: choice.focus,
+    focusCount: choice.focusCount,
+    onReveal: onReveal,
+    padding: padding,
+    onOpenMap: _openMap,
+    onDelete: _confirmDelete,
+    onEdit: (stop) => _editStop(route, stop),
+    onStayAgain: (lodging) => _stayAgain(route, itinerary.day, lodging),
+    onReorder: (visibleIds, oldIndex, newIndex) =>
+        _reorder(route, itinerary.day, visibleIds, oldIndex, newIndex),
+  );
+
+  /// 기기를 돌려 목록 자리가 바뀌었다. 펼친 줄과 고른 줄은 [_selection]에 남아 있다.
+  ///
+  /// 가로→세로: 오른쪽 패널이 열려 있었으면 아래 시트를 가운데 높이(40%)로 올린다.
+  /// 세로→가로: 패널은 [RouteChoice.panelOpen]대로다(일차를 고르면 열린다).
+  /// 아래 시트의 올라온 높이는 새 시트가 알려 줄 때까지 0으로 둔다.
+  void _onLayoutChanged(RouteSheetLayout layout, RouteChoice choice) {
+    _sheetLift = 0;
+    if (layout == RouteSheetLayout.bottom &&
+        choice.day != null &&
+        choice.panelOpen) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _sheetKey.currentState?.reveal();
+      });
+    }
   }
 
   String? _messageOf(
@@ -506,11 +598,15 @@ class _TopOverlay extends ConsumerWidget {
     required this.trip,
     required this.choice,
     required this.onRename,
+    required this.rightInset,
   });
 
   final Trip trip;
   final RouteChoice choice;
   final VoidCallback onRename;
+
+  /// 오른쪽에서 비킬 시스템 여백. 오른쪽 패널이 열려 있으면 패널이 덮어서 0이다.
+  final double rightInset;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -520,7 +616,7 @@ class _TopOverlay extends ConsumerWidget {
     final choices = ref.read(routeChoiceProvider(trip.id).notifier);
     final side = EdgeInsets.only(
       left: insets.left + AppSpace.md,
-      right: insets.right + AppSpace.md,
+      right: rightInset + AppSpace.md,
     );
     return Padding(
       padding: EdgeInsets.only(top: insets.top + AppSpace.sm),

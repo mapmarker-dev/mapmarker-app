@@ -67,6 +67,7 @@ class RouteChoice {
     this.fitCount = 0,
     this.focus = const [],
     this.focusCount = 0,
+    this.panelOpen = true,
   });
 
   /// 보는 일차. null이면 여행 전체다.
@@ -86,18 +87,24 @@ class RouteChoice {
   /// 같은 마커를 다시 눌러도 다시 보여 주려고 센다.
   final int focusCount;
 
+  /// 가로이고 넓은 화면의 오른쪽 패널이 열려 있는지. 아래 시트에는 쓰지 않는다(시트는 끌어서 높이를 정한다).
+  /// 기기를 돌려도 남게 화면 상태로 둔다.
+  final bool panelOpen;
+
   RouteChoice _copyWith({
     int? Function()? day,
     bool? showLodging,
     int? fitCount,
     List<String>? focus,
     int? focusCount,
+    bool? panelOpen,
   }) => RouteChoice(
     day: day == null ? this.day : day(),
     showLodging: showLodging ?? this.showLodging,
     fitCount: fitCount ?? this.fitCount,
     focus: focus ?? this.focus,
     focusCount: focusCount ?? this.focusCount,
+    panelOpen: panelOpen ?? this.panelOpen,
   );
 }
 
@@ -116,17 +123,25 @@ class RouteChoiceController extends Notifier<RouteChoice> {
 
   /// 일차를 고른다. null이면 여행 전체다. 지금 보는 일차를 다시 골라도 카메라를 다시 맞춘다.
   /// [focus]를 주면 시트에서 그 장소나 구간을 보여 준다(지도에서 눌러 일차로 들어올 때).
+  /// 일차를 고르면 오른쪽 패널이 열린다.
   void selectDay(int? day, {List<String> focus = const []}) =>
       state = state._copyWith(
         day: () => day,
         fitCount: state.fitCount + 1,
         focus: focus,
         focusCount: focus.isEmpty ? null : state.focusCount + 1,
+        panelOpen: true,
       );
 
-  /// 지금 일차의 시트에서 [ids] 장소나 구간을 보여 준다. 카메라는 그대로다.
-  void focusOn(List<String> ids) =>
-      state = state._copyWith(focus: ids, focusCount: state.focusCount + 1);
+  /// 지금 일차의 시트에서 [ids] 장소나 구간을 보여 준다. 카메라는 그대로다. 닫힌 패널은 연다.
+  void focusOn(List<String> ids) => state = state._copyWith(
+    focus: ids,
+    focusCount: state.focusCount + 1,
+    panelOpen: true,
+  );
+
+  /// 오른쪽 패널을 닫는다. 일차를 고르거나 지도에서 장소·선을 누르면 다시 열린다.
+  void closePanel() => state = state._copyWith(panelOpen: false);
 
   void setShowLodging(bool show) => state = state._copyWith(
     showLodging: show,

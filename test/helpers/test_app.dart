@@ -59,6 +59,16 @@ Trip testTrip({
   );
 }
 
+/// 휴대폰 세로 화면(412×915)으로 만든다.
+///
+/// 테스트 기본 화면(800×600)은 가로이고 폭이 600 이상이라, 동선 페이지가 일차 동선 목록을 오른쪽 패널로 띄운다.
+/// 아래 시트를 보는 테스트는 이 화면에서 띄운다.
+void usePortraitPhone(WidgetTester tester) {
+  tester.view.physicalSize =
+      const Size(412, 915) * tester.view.devicePixelRatio;
+  addTearDown(tester.view.reset);
+}
+
 /// 아래에 시스템 내비게이션 막대(3버튼, [height] 논리 px)가 화면을 가리는 기기로 만든다.
 void showNavigationBar(WidgetTester tester, {double height = 48}) {
   final padding = FakeViewPadding(

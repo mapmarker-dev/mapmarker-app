@@ -286,6 +286,7 @@ void main() {
 
   group('day sheet', () {
     testWidgets('shows only in a day view', (tester) async {
+      usePortraitPhone(tester);
       await _pumpJeju(tester);
 
       expect(find.byType(RouteDaySheet), findsNothing);
@@ -359,6 +360,7 @@ void main() {
     });
 
     testWidgets('scrolls the list without resizing the sheet', (tester) async {
+      usePortraitPhone(tester);
       await _pumpJeju(tester);
       await _tapChip(tester, '2일차');
       // 지도에서 장소를 누르면 시트가 가운데 높이(40%)로 올라온다.
@@ -678,6 +680,7 @@ void main() {
     testWidgets('keeps the map and the fit button above the folded sheet', (
       tester,
     ) async {
+      usePortraitPhone(tester);
       showNavigationBar(tester);
       await _pumpJeju(tester);
 
