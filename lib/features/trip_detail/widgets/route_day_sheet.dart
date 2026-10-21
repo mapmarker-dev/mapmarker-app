@@ -33,6 +33,8 @@ class RouteDaySheet extends StatefulWidget {
     required this.onLift,
     required this.onOpenMap,
     required this.onDelete,
+    required this.onEdit,
+    required this.onStayAgain,
     required this.onReorder,
   });
 
@@ -55,6 +57,10 @@ class RouteDaySheet extends StatefulWidget {
 
   final ValueChanged<Stop> onOpenMap;
   final ValueChanged<Stop> onDelete;
+  final ValueChanged<Stop> onEdit;
+
+  /// "오늘 밤도 여기서 묵기"를 누른 전날 밤 숙소.
+  final ValueChanged<Stop> onStayAgain;
 
   /// 끌어서 옮긴 장소. [visibleIds]는 옮기기 전 순서다(출발 숙소 제외). [newIndex]는 옮긴 뒤 자리다.
   final void Function(List<String> visibleIds, int oldIndex, int newIndex)
@@ -66,6 +72,23 @@ class RouteDaySheet extends StatefulWidget {
 
   @override
   State<RouteDaySheet> createState() => RouteDaySheetState();
+}
+
+/// 시트가 [extent](화면 높이 [height]에 대한 비율)에 있을 때, 접힌 높이([minSize])보다 더 올라온 높이(논리 px).
+///
+/// 시트가 멈추는 높이(접힘·가운데·최대) 근처일 때만 값을 내고, 그 사이를 지나는 중이면 null이다.
+/// 값은 지금 높이가 아니라 그 멈추는 높이로 낸다. 접힘이면 정확히 0이다.
+@visibleForTesting
+double? sheetLiftAt(
+  double extent, {
+  required double minSize,
+  required double height,
+}) {
+  const tolerance = 0.002;
+  for (final size in [minSize, RouteDaySheet.midSize, RouteDaySheet.maxSize]) {
+    if ((extent - size).abs() < tolerance) return (size - minSize) * height;
+  }
+  return null;
 }
 
 class RouteDaySheetState extends State<RouteDaySheet> {
@@ -167,17 +190,12 @@ class RouteDaySheetState extends State<RouteDaySheet> {
   void _tapSegment(String id) => setState(() => _highlighted = {id});
 
   bool _onExtent(DraggableScrollableNotification notification) {
-    // 끌기가 멈추면 시트는 항상 멈추는 높이 중 하나에 놓인다.
-    final extent = notification.extent;
-    const tolerance = 0.002;
-    final settled = [
-      _minSize,
-      RouteDaySheet.midSize,
-      RouteDaySheet.maxSize,
-    ].any((size) => (extent - size).abs() < tolerance);
-    if (settled) {
-      widget.onLift(((extent - _minSize) * _height).clamp(0, _height));
-    }
+    final lift = sheetLiftAt(
+      notification.extent,
+      minSize: _minSize,
+      height: _height,
+    );
+    if (lift != null) widget.onLift(lift);
     return false;
   }
 
@@ -270,6 +288,7 @@ class RouteDaySheetState extends State<RouteDaySheet> {
       onToggle: () => _tapStop(stop.id),
       onOpenMap: () => widget.onOpenMap(stop),
       onDelete: fixed ? null : () => widget.onDelete(stop),
+      onEdit: () => widget.onEdit(stop),
       reorderHandle: index == null || stops.length < 2
           ? null
           : ReorderableDragStartListener(
@@ -342,6 +361,21 @@ class RouteDaySheetState extends State<RouteDaySheet> {
             },
           ),
         ),
+        // 연박: 그날 밤 숙소를 아직 넣지 않았으면 전날 숙소를 한 번에 다시 넣는다.
+        if (itinerary.lodgingToStayAgain case final lodging?)
+          SliverPadding(
+            padding: side.add(const EdgeInsets.only(top: AppSpace.sm)),
+            sliver: SliverToBoxAdapter(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: () => widget.onStayAgain(lodging),
+                  icon: const Icon(Icons.bed_outlined),
+                  label: Text(l10n.stayAgain(lodging.name)),
+                ),
+              ),
+            ),
+          ),
         SliverToBoxAdapter(
           child: SizedBox(height: insets.bottom + AppSpace.lg),
         ),

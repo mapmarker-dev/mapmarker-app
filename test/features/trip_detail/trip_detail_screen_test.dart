@@ -234,7 +234,7 @@ void main() {
         location: Routes.trip('busan'),
       );
 
-      expect(find.text('아직 장소가 없습니다.'), findsOneWidget);
+      expect(find.text('아직 장소가 없습니다.\n지도를 눌러 첫 장소를 넣어 보세요.'), findsOneWidget);
       expect(mapScene(tester).markers, isEmpty);
       expect(mapScene(tester).camera.bounds, isNull);
       expect(find.byTooltip('동선에 맞추기'), findsNothing);

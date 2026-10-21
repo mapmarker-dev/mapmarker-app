@@ -151,7 +151,7 @@
   "@routeFitTooltip": {
     "description": "지금 보이는 장소가 모두 들어오게 지도를 다시 맞추는 버튼"
   },
-  "routeEmpty": "아직 장소가 없습니다.",
+  "routeEmpty": "아직 장소가 없습니다.\n지도를 눌러 첫 장소를 넣어 보세요.",
   "routeDayEmpty": "{day}일차에는 장소가 없습니다.",
   "@routeDayEmpty": {
     "placeholders": {
@@ -213,6 +213,56 @@
     }
   },
   "deleteStopMessage": "앞뒤 장소는 바로 이어집니다. 이 장소에 닿은 구간의 이동 수단은 사라집니다.",
+  "editStop": "편집",
+  "stayAgain": "오늘 밤도 ‘{name}’에서 묵기",
+  "@stayAgain": {
+    "description": "일차 동선 시트 맨 아래 버튼. 전날 밤 숙소를 이 일차 밤 숙소로 한 번 더 넣는다(연박)",
+    "placeholders": {
+      "name": {"type": "String", "example": "제주시 숙소"}
+    }
+  },
+
+  "addStopHere": "여기에 장소 추가",
+  "@addStopHere": {
+    "description": "지도 빈 곳을 누르면 뜨는 카드"
+  },
+  "addNamedStop": "‘{name}’ 추가",
+  "@addNamedStop": {
+    "description": "네이버 지도의 장소 이름(심볼)을 누르면 뜨는 카드",
+    "placeholders": {
+      "name": {"type": "String", "example": "성산일출봉"}
+    }
+  },
+  "addStop": "추가",
+  "stopAddedToDay": "{day}일차에 넣었습니다.",
+  "@stopAddedToDay": {
+    "description": "일차 보기에서 다른 일차에 장소를 넣었을 때",
+    "placeholders": {
+      "day": {"type": "int"}
+    }
+  },
+  "stopMovedToDay": "{day}일차로 옮겼습니다.",
+  "@stopMovedToDay": {
+    "description": "일차 보기에서 장소를 편집해 다른 일차로 옮겼을 때",
+    "placeholders": {
+      "day": {"type": "int"}
+    }
+  },
+
+  "stopFormAddTitle": "장소 추가",
+  "stopFormEditTitle": "장소 편집",
+  "stopNameLabel": "이름",
+  "stopKindLabel": "종류",
+  "stopDayLabel": "일차",
+  "stopTimeLabel": "예정 시각",
+  "stopTimeNone": "정하지 않음",
+  "stopTimeClear": "예정 시각 지우기",
+  "stopDescriptionLabel": "설명",
+  "stopDescriptionHelper": "공유하면 다른 사람도 봅니다.",
+  "stopMemoLabel": "메모",
+  "stopMemoHelper": "나만 봅니다. 공유해도 보이지 않습니다.",
+  "discardChangesTitle": "고친 내용을 버릴까요?",
+  "discardChanges": "버리기",
 
   "stopKindLodging": "숙소",
   "stopKindFood": "음식",

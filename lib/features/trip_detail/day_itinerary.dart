@@ -48,6 +48,13 @@ class DayItinerary {
   /// 화면에 보이는 장소의 ID. 출발 숙소부터 동선 순서다.
   List<String> get stopIds => [?start?.id, for (final s in stops) s.stop.id];
 
+  /// "오늘 밤도 여기서 묵기"로 이 일차 밤에 다시 넣을 수 있는 전날 밤 숙소.
+  /// 출발 숙소가 있고, 이 일차 마지막이 숙소가 아닐 때(이 일차의 밤 숙소를 아직 넣지 않았을 때)다.
+  Stop? get lodgingToStayAgain {
+    if (stops.lastOrNull?.stop.isLodging ?? false) return null;
+    return start;
+  }
+
   /// [id] 장소나 구간이 이 목록에 있는지.
   bool contains(String id) =>
       start?.id == id ||

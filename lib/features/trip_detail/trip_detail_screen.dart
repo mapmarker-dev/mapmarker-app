@@ -15,13 +15,17 @@ import '../../data/models/stop.dart';
 import '../../data/models/trip.dart';
 import '../../data/models/trip_route.dart';
 import '../../l10n/l10n.dart';
+import '../../data/models/new_id.dart';
 import 'day_itinerary.dart';
 import 'route_scene.dart';
+import 'stop_draft.dart';
+import 'stop_placement.dart';
 import 'trip_detail_controller.dart';
 import 'widgets/rename_trip_dialog.dart';
 import 'widgets/route_day_chips.dart';
 import 'widgets/route_day_sheet.dart';
 import 'widgets/route_title_bar.dart';
+import 'widgets/stop_form_dialog.dart';
 import 'widgets/size_reporter.dart';
 
 /// 여행 동선 페이지. 지도에 장소와 구간을 보여 주고, 여행 전체와 일차별 보기를 오간다.
@@ -62,6 +66,9 @@ class _TripRoutePage extends ConsumerStatefulWidget {
 /// 시트 제목 줄 높이를 재기 전에 쓰는 어림값.
 const _estimatedSheetHeader = 56.0;
 
+/// Material 작은 플로팅 버튼(맞추기 버튼)의 크기.
+const _smallFabSize = 40.0;
+
 class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   /// 위에 뜬 제목 카드와 일차 칩의 화면 위쪽부터의 높이. 재기 전에는 지도를 띄우지 않는다.
   /// 지도를 만들 때부터 여백이 맞아야 처음 카메라가 제목 카드 밑으로 숨지 않는다.
@@ -75,6 +82,9 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
 
   /// 시트가 접힌 높이보다 더 올라온 높이. 로고를 이만큼 더 올린다.
   double _sheetLift = 0;
+
+  /// 장소를 넣으려고 누른 자리. 지도에 임시 핀을 꽂고, 아래 카드에서 추가하거나 취소한다.
+  MapTap? _draftPlace;
 
   Trip get trip => widget.trip;
 
@@ -119,7 +129,13 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
 
   /// 마커를 누르면 시트에서 그 자리의 장소를 보여 준다.
   /// 전체 보기에서는 그 일차로 들어간다. 같은 자리의 장소가 여러 일차에 있으면 일차를 고르게 한다.
-  Future<void> _onMarkerTap(RouteView view, int? day, String markerId) async {
+  Future<void> _onMarkerTap(
+    TripRoute route,
+    RouteView view,
+    int? day,
+    String markerId,
+  ) async {
+    if (markerId == draftMarkerId) return _addStop(route, day);
     final stops = stopsAtMarker(view, markerId);
     if (stops.isEmpty) return;
     if (day != null) {
@@ -165,8 +181,106 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     }
   }
 
-  /// 지도 빈 곳을 누르면 시트를 접는다.
-  void _onMapTap(MapTap tap) => _sheetKey.currentState?.collapse();
+  /// 지도 빈 곳(또는 지도에 원래 있는 장소 이름)을 누르면 그 자리에 임시 핀을 꽂는다.
+  void _onMapTap(MapTap tap, int? day) {
+    if (day != null && _sheetLift > 0) {
+      _sheetKey.currentState?.collapse();
+      return;
+    }
+    setState(() => _draftPlace = tap);
+  }
+
+  /// 지금 저장소에 있는 동선. 입력 화면을 닫는 사이에 바뀌었을 수 있어서 넣기 직전에 다시 읽는다.
+  TripRoute _latestRoute(TripRoute fallback) =>
+      ref.read(tripRouteProvider(trip.id)).value ?? fallback;
+
+  static List<Stop> _stopsOfDay(TripRoute route, int day) => [
+    for (final stop in route.stops)
+      if (stop.day == day) stop,
+  ];
+
+  /// 임시 핀 자리에 장소를 넣는다. 입력 화면에서 이름 등을 받는다.
+  Future<void> _addStop(TripRoute route, int? viewDay) async {
+    final place = _draftPlace;
+    if (place == null) return;
+    final draft = await showStopForm(
+      context,
+      trip: trip,
+      isNew: true,
+      initial: StopDraft(
+        name: place.placeName ?? '',
+        day: defaultDayForNewStop(route, viewDay: viewDay),
+      ),
+    );
+    if (draft == null || !mounted) return;
+    final latest = _latestRoute(route);
+    final stop = draft.toNewStop(
+      id: newId(),
+      tripId: trip.id,
+      position: place.position,
+      order: insertionOrder(_stopsOfDay(latest, draft.day), draft.kind),
+    );
+    await ref.read(tripDetailProvider(trip.id).notifier).addStop(stop);
+    if (!mounted) return;
+    setState(() => _draftPlace = null);
+    _showPlaced(stop.id, stop.day, moved: false);
+  }
+
+  Future<void> _editStop(TripRoute route, Stop stop) async {
+    final initial = StopDraft.of(stop);
+    final draft = await showStopForm(
+      context,
+      trip: trip,
+      isNew: false,
+      initial: initial,
+    );
+    if (draft == null || draft == initial || !mounted) return;
+    final controller = ref.read(tripDetailProvider(trip.id).notifier);
+    await controller.updateStop(draft.applyTo(stop));
+    if (draft.day == stop.day || !mounted) return;
+    // 다른 일차로 옮기면 새 장소를 넣을 때와 같은 자리(맨 뒤, 밤 숙소 앞)에 넣는다.
+    final others = [
+      for (final s in _stopsOfDay(_latestRoute(route), draft.day))
+        if (s.id != stop.id) s,
+    ];
+    await controller.moveStop(
+      stop.id,
+      day: draft.day,
+      order: insertionOrder(others, draft.kind),
+    );
+    if (mounted) _showPlaced(stop.id, draft.day, moved: true);
+  }
+
+  /// 연박: 전날 밤 숙소를 [day]일차 밤 숙소로 그 일차 맨 뒤에 넣는다.
+  Future<void> _stayAgain(TripRoute route, int day, Stop lodging) async {
+    final stop = stayAnotherNight(
+      lodging,
+      id: newId(),
+      day: day,
+      order: _stopsOfDay(_latestRoute(route), day).length,
+    );
+    await ref.read(tripDetailProvider(trip.id).notifier).addStop(stop);
+    if (mounted) _choices.focusOn([stop.id]);
+  }
+
+  /// 넣거나 옮긴 장소를 보여 준다. 카메라는 움직이지 않는다.
+  /// 일차 보기에서 그 일차면 시트에서 그 줄을 보여 주고, 다른 일차면 어디로 갔는지 알린다.
+  void _showPlaced(String stopId, int stopDay, {required bool moved}) {
+    final viewDay = ref.read(routeChoiceProvider(trip.id)).day;
+    if (viewDay == null) return;
+    if (viewDay == stopDay) {
+      _choices.focusOn([stopId]);
+      return;
+    }
+    final l10n = context.l10n;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          moved ? l10n.stopMovedToDay(stopDay) : l10n.stopAddedToDay(stopDay),
+        ),
+      ),
+    );
+  }
 
   Future<void> _openMap(Stop stop) async {
     final opened = await ref.read(openLinkProvider)(
@@ -237,6 +351,8 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     ref.listen(routeChoiceProvider(trip.id).select((c) => c.day), (_, day) {
       // 전체 보기로 나가면 시트가 사라진다. 다시 들어오면 접힌 시트로 시작한다.
       if (day == null) _sheetLift = 0;
+      // 다른 보기로 가면 꽂아 둔 임시 핀은 버린다.
+      if (_draftPlace != null) setState(() => _draftPlace = null);
     });
     final route = ref.watch(tripRouteProvider(trip.id));
     final view = route.value?.view(
@@ -269,9 +385,10 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                 cameraKey: choice.fitCount,
                 padding: insets.copyWith(top: overlayHeight, bottom: bottom),
                 logoLift: itinerary == null ? 0 : _sheetLift,
-                onMarkerTap: (id) => _onMarkerTap(view, day, id),
+                draft: _draftPlace,
+                onMarkerTap: (id) => _onMarkerTap(route, view, day, id),
                 onLineTap: (id) => _onLineTap(route, day, id),
-                onMapTap: _onMapTap,
+                onMapTap: (tap) => _onMapTap(tap, day),
               ),
             ),
           if (overlayHeight != null)
@@ -296,6 +413,19 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                 child: const Icon(Icons.fit_screen_outlined),
               ),
             ),
+          if (route case AsyncData(value: final route))
+            if (_draftPlace case final place?)
+              Positioned(
+                left: insets.left + AppSpace.md,
+                // 오른쪽의 맞추기 버튼을 가리지 않는다.
+                right: insets.right + AppSpace.lg + _smallFabSize + AppSpace.sm,
+                bottom: bottom + AppSpace.lg,
+                child: _DraftCard(
+                  place: place,
+                  onAdd: () => _addStop(route, day),
+                  onCancel: () => setState(() => _draftPlace = null),
+                ),
+              ),
           if (route case AsyncData(
             value: final route,
           ) when itinerary != null && overlayHeight != null)
@@ -314,6 +444,9 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                 onLift: _onSheetLift,
                 onOpenMap: _openMap,
                 onDelete: _confirmDelete,
+                onEdit: (stop) => _editStop(route, stop),
+                onStayAgain: (lodging) =>
+                    _stayAgain(route, itinerary.day, lodging),
                 onReorder: (visibleIds, oldIndex, newIndex) => _reorder(
                   route,
                   itinerary.day,
@@ -429,6 +562,7 @@ class _RouteMap extends ConsumerWidget {
     required this.cameraKey,
     required this.padding,
     required this.logoLift,
+    required this.draft,
     required this.onMarkerTap,
     required this.onLineTap,
     required this.onMapTap,
@@ -440,6 +574,9 @@ class _RouteMap extends ConsumerWidget {
   final Object cameraKey;
   final EdgeInsets padding;
   final double logoLift;
+
+  /// 임시 핀 자리. 카메라 맞춤에는 넣지 않는다.
+  final MapTap? draft;
   final ValueChanged<String> onMarkerTap;
   final ValueChanged<String> onLineTap;
   final ValueChanged<MapTap> onMapTap;
@@ -450,14 +587,20 @@ class _RouteMap extends ConsumerWidget {
     final map = ref.watch(
       mapProviderProvider(trip.mapProvider ?? MapProviderType.naver),
     );
+    final colors = context.appColors;
     final (:markers, :lines, :arrows) = routeOverlays(
       route: route,
       view: view,
-      colors: context.appColors,
+      colors: colors,
     );
+    final draft = this.draft;
     return map.buildMap(
       MapScene(
-        markers: markers,
+        markers: [
+          ...markers,
+          if (draft != null)
+            draftMarker(draft, Theme.of(context).colorScheme, colors),
+        ],
         lines: lines,
         arrows: arrows,
         camera: MapCameraRequest(
@@ -470,6 +613,53 @@ class _RouteMap extends ConsumerWidget {
       onMarkerTap: onMarkerTap,
       onLineTap: onLineTap,
       onMapTap: onMapTap,
+    );
+  }
+}
+
+/// 임시 핀을 꽂으면 아래에 뜨는 카드. 추가를 누르면 입력 화면을 연다.
+class _DraftCard extends StatelessWidget {
+  const _DraftCard({
+    required this.place,
+    required this.onAdd,
+    required this.onCancel,
+  });
+
+  final MapTap place;
+  final VoidCallback onAdd;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final name = place.placeName;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.only(left: AppSpace.lg, right: AppSpace.xs),
+        child: Row(
+          children: [
+            Icon(
+              Icons.add_location_alt_outlined,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: AppSpace.sm),
+            Expanded(
+              child: Text(
+                name == null ? l10n.addStopHere : l10n.addNamedStop(name),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: AppSpace.sm),
+            FilledButton.tonal(onPressed: onAdd, child: Text(l10n.addStop)),
+            IconButton(
+              tooltip: MaterialLocalizations.of(context).cancelButtonLabel,
+              icon: const Icon(Icons.close),
+              onPressed: onCancel,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

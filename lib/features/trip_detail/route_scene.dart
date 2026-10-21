@@ -78,6 +78,23 @@ routeOverlays({
   return (markers: markers, lines: lines, arrows: arrows);
 }
 
+/// 장소를 넣으려고 지도를 누른 자리의 임시 핀 ID. 장소 ID(UUID)와 겹치지 않는다.
+const draftMarkerId = 'draft';
+
+/// 임시 핀. 주 색 원에 + 아이콘이고, 심볼을 눌렀으면 그 이름을 단다.
+MapMarker draftMarker(MapTap place, ColorScheme scheme, AppColors colors) =>
+    MapMarker(
+      id: draftMarkerId,
+      position: place.position,
+      caption: place.placeName ?? '',
+      look: MarkerLook(
+        fill: scheme.primary,
+        foreground: scheme.onPrimary,
+        halo: colors.routeHalo,
+        icon: Icons.add,
+      ),
+    );
+
 /// 장소의 마커 그림. 일차 동선 시트의 장소 줄도 같은 그림을 쓴다.
 MarkerLook markerLookOf(TripRoute route, Stop stop, AppColors colors) {
   final dayColors = stop.isLodging

@@ -102,6 +102,8 @@ class Stop {
     int? order,
     String? description,
     String? memo,
+    // 예정 시각은 지울 수도 있어서 함수로 받는다.
+    LocalTime? Function()? plannedTime,
   }) => Stop(
     id: id,
     tripId: tripId,
@@ -113,7 +115,7 @@ class Stop {
     order: order ?? this.order,
     description: description ?? this.description,
     memo: memo ?? this.memo,
-    plannedTime: plannedTime,
+    plannedTime: plannedTime == null ? this.plannedTime : plannedTime(),
     visited: visited,
     visitedAt: visitedAt,
     timeZone: timeZone,

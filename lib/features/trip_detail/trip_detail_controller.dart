@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/models/stop.dart';
 import '../../data/models/trip.dart';
 import '../../data/models/trip_route.dart';
 import '../../data/trips/trip_repository.dart';
@@ -30,6 +31,14 @@ class TripDetailController extends StreamNotifier<Trip?> {
           trip.copyWith(title: trimmed.isEmpty ? defaultTitle : trimmed),
         );
   }
+
+  /// [Stop.day]일차의 [Stop.order] 자리에 넣는다. 앞뒤 장소와의 구간은 저장소가 만든다.
+  Future<Stop> addStop(Stop stop) =>
+      ref.read(tripRepositoryProvider).addStop(stop);
+
+  /// 이름·종류·설명·메모·예정 시각을 바꾼다. 일차는 [moveStop]으로 옮긴다.
+  Future<Stop> updateStop(Stop stop) =>
+      ref.read(tripRepositoryProvider).updateStop(stop);
 
   /// 앞뒤 장소는 저장소가 새 구간으로 잇는다.
   Future<void> deleteStop(String stopId) =>

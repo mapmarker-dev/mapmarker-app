@@ -68,6 +68,31 @@ void main() {
       expect(day2.stops.map((s) => s.arrival), [null, null]);
     });
 
+    test('offers to stay another night until the night has lodging', () {
+      // 1일차: a > 숙소, 2일차: c, 3일차: 없음.
+      final trip = _route([
+        testStop('a'),
+        testLodging('hotel', order: 1),
+        testStop('c', day: 2),
+      ]);
+      DayItinerary dayOf(TripRoute route, int day, {bool lodging = true}) =>
+          DayItinerary.of(
+            route,
+            route.view(day: day, showLodging: lodging),
+            day,
+          );
+
+      // 전날 숙소가 없다.
+      expect(dayOf(trip, 1).lodgingToStayAgain, isNull);
+      expect(dayOf(trip, 2).lodgingToStayAgain?.id, 'hotel');
+      // 2일차 밤 숙소가 없어서 3일차는 숙소에서 출발하지 않는다.
+      expect(dayOf(trip, 3).lodgingToStayAgain, isNull);
+      // 숙소를 끄면 출발 숙소도 보이지 않는다.
+      expect(dayOf(trip, 2, lodging: false).lodgingToStayAgain, isNull);
+      // 그날 밤 숙소가 있다.
+      expect(dayOf(route, 2).lodgingToStayAgain, isNull);
+    });
+
     test('knows its stops and segments', () {
       final day2 = DayItinerary.of(route, route.view(day: 2), 2);
 

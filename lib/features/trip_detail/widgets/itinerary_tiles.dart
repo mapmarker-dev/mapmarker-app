@@ -9,7 +9,7 @@ import '../../../l10n/l10n.dart';
 
 /// 일차 동선 시트의 장소 줄.
 ///
-/// 이름 쪽을 누르면 펼쳐져서 설명 전체, 메모, 지우기 버튼이 나온다.
+/// 이름 쪽을 누르면 펼쳐져서 설명 전체, 메모, 편집·지우기 버튼이 나온다.
 /// 아래 칸을 누르면 외부 지도(네이버)에서 장소를 연다. 영업시간, 리뷰는 거기서 본다.
 class ItineraryStopTile extends StatelessWidget {
   const ItineraryStopTile({
@@ -20,6 +20,7 @@ class ItineraryStopTile extends StatelessWidget {
     required this.highlighted,
     required this.onToggle,
     required this.onOpenMap,
+    required this.onEdit,
     this.caption,
     this.onDelete,
     this.reorderHandle,
@@ -37,6 +38,7 @@ class ItineraryStopTile extends StatelessWidget {
 
   final VoidCallback onToggle;
   final VoidCallback onOpenMap;
+  final VoidCallback onEdit;
 
   /// 이름 위의 작은 글자. 예: 출발 숙소 표시.
   final String? caption;
@@ -143,17 +145,26 @@ class ItineraryStopTile extends StatelessWidget {
                 child: _OpenMapLink(onTap: onOpenMap),
               ),
             ),
-            if (expanded && onDelete != null)
+            if (expanded)
               Padding(
                 padding: EdgeInsets.only(left: AppSpace.sm + _iconWidth),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: onDelete,
-                    icon: const Icon(Icons.delete_outline),
-                    label: Text(l10n.deleteStop),
-                    style: TextButton.styleFrom(foregroundColor: scheme.error),
-                  ),
+                child: Wrap(
+                  children: [
+                    TextButton.icon(
+                      onPressed: onEdit,
+                      icon: const Icon(Icons.edit_outlined),
+                      label: Text(l10n.editStop),
+                    ),
+                    if (onDelete != null)
+                      TextButton.icon(
+                        onPressed: onDelete,
+                        icon: const Icon(Icons.delete_outline),
+                        label: Text(l10n.deleteStop),
+                        style: TextButton.styleFrom(
+                          foregroundColor: scheme.error,
+                        ),
+                      ),
+                  ],
                 ),
               ),
           ],
