@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/app/routes.dart';
+import 'package:mapmarker_app/core/map/map_provider.dart';
 import 'package:mapmarker_app/data/models/segment.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/trips/memory_trip_repository.dart';
@@ -727,6 +728,89 @@ void main() {
 
       expect(find.byType(AlertDialog), findsNothing);
       expect(savedDays(container), [('a', 1), ('hotel', 1), ('b', 2)]);
+    });
+  });
+
+  group('on the map', () {
+    Segment firstSegment(ProviderContainer container) => _segmentOf(
+      container.read(tripRouteProvider('jeju')).value!.segments,
+      'a',
+      'b',
+    );
+
+    MapLine lineOf(WidgetTester tester, String id) =>
+        mapScene(tester).lines.singleWhere((l) => l.id == id);
+
+    testWidgets('redraws the line and adds the icon after saving', (
+      tester,
+    ) async {
+      final (_, container) = await _pumpJeju(tester);
+      final id = firstSegment(container).id;
+      await _openForm(tester);
+      expect(lineOf(tester, id).style, MapLineStyle.solid);
+      expect(mapScene(tester).lineIcons, isEmpty);
+
+      await _addLeg(tester, '도보');
+      await _save(tester);
+
+      expect(lineOf(tester, id).style, MapLineStyle.dotted);
+      expect(mapScene(tester).lineIcons.map((i) => (i.id, i.icon)), [
+        (id, Icons.directions_walk),
+      ]);
+    });
+
+    testWidgets('draws a transfer with its representative mode', (
+      tester,
+    ) async {
+      final (_, container) = await _pumpJeju(
+        tester,
+        firstLegs: const [
+          TransportLeg(TransportMode.walk),
+          TransportLeg(TransportMode.flight),
+          TransportLeg(TransportMode.subway),
+        ],
+      );
+      final id = firstSegment(container).id;
+
+      expect(lineOf(tester, id).style, MapLineStyle.dashed);
+      expect(mapScene(tester).lineIcons.single.icon, Icons.flight);
+    });
+
+    testWidgets('goes back to a plain line when the transport is cleared', (
+      tester,
+    ) async {
+      final (_, container) = await _pumpJeju(
+        tester,
+        firstLegs: const [TransportLeg(TransportMode.ferry)],
+      );
+      final id = firstSegment(container).id;
+      await _openForm(tester);
+
+      await _tapInForm(tester, _inForm(find.byTooltip('이 수단 지우기')));
+      await _save(tester);
+
+      expect(lineOf(tester, id).style, MapLineStyle.solid);
+      expect(mapScene(tester).lineIcons, isEmpty);
+    });
+
+    testWidgets('tapping the icon shows the segment like tapping the line', (
+      tester,
+    ) async {
+      final (_, container) = await _pumpJeju(
+        tester,
+        firstLegs: const [TransportLeg(TransportMode.bus, stopCount: 3)],
+      );
+      final id = firstSegment(container).id;
+
+      // 여행 전체 보기에서 누르면 그 일차로 들어가 구간 줄을 고른다.
+      await tapLineIcon(tester, id);
+
+      expect(
+        tester.widget<ItinerarySegmentTile>(_firstSegmentTile).highlighted,
+        isTrue,
+      );
+      // 지도에서 고른 줄이라 연필은 없다.
+      expect(_editButton, findsNothing);
     });
   });
 }

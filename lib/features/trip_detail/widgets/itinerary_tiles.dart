@@ -160,6 +160,48 @@ class ItineraryStopTile extends StatelessWidget {
 /// 장소 줄 왼쪽 마커 그림의 폭. 아래 칸과 구간 줄을 이 폭에 맞춰 들인다.
 final _iconWidth = MarkerIcon.size.width;
 
+/// 구간 줄 왼쪽의 세로선. 지도의 선 모양(실선·파선·점선)을 세로로 줄여 그린다.
+class _RouteBarPainter extends CustomPainter {
+  _RouteBarPainter({required this.color, required this.style});
+
+  final Color color;
+  final MapLineStyle style;
+
+  /// 파선 한 토막과 빈칸.
+  static const _dash = AppSpace.sm;
+  static const _dashGap = AppSpace.xs;
+
+  /// 점 사이 간격(점 중심끼리). 점 지름은 선 두께다.
+  static const _dotStep = AppSpace.sm;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final width = size.width;
+    final radius = Radius.circular(width / 2);
+    switch (style) {
+      case MapLineStyle.solid:
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(Offset.zero & size, radius),
+          paint,
+        );
+      case MapLineStyle.dashed:
+        for (var y = 0.0; y < size.height; y += _dash + _dashGap) {
+          final end = (y + _dash).clamp(0.0, size.height);
+          canvas.drawRRect(RRect.fromLTRBR(0, y, width, end, radius), paint);
+        }
+      case MapLineStyle.dotted:
+        for (var y = width / 2; y < size.height; y += _dotStep) {
+          canvas.drawCircle(Offset(width / 2, y), width / 2, paint);
+        }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RouteBarPainter old) =>
+      old.color != color || old.style != style;
+}
+
 /// 구간 줄에서 토막과 "+" 사이 간격. 글자 사이 띄어쓰기 한 칸쯤이다.
 const _chunkGap = AppSpace.xs;
 
@@ -306,11 +348,16 @@ class ItinerarySegmentTile extends StatelessWidget {
                 SizedBox(
                   width: _iconWidth,
                   child: Center(
-                    child: Container(
+                    // 줄 높이를 다 채운다.
+                    child: SizedBox(
                       width: AppSpace.xs,
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: AppRadius.sm,
+                      height: double.infinity,
+                      child: CustomPaint(
+                        painter: _RouteBarPainter(
+                          color: color,
+                          // 지도의 선과 같은 모양이다. 시트와 지도가 이어져 보이게 하려는 것이다.
+                          style: lineStyleOf(representativeMode(segment.legs)),
+                        ),
                       ),
                     ),
                   ),

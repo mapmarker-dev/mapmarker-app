@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/core/map/geo.dart';
 import 'package:mapmarker_app/core/map/map_provider.dart';
@@ -131,5 +132,110 @@ void main() {
         returnsNormally,
       );
     }
+  });
+
+  group('patterned lines', () {
+    MapLine styled(MapLineStyle style) => MapLine(
+      id: 'segment',
+      points: _line.points,
+      color: Colors.orange,
+      outline: Colors.white,
+      style: style,
+    );
+
+    test('keep solid lines as one outlined path', () {
+      final overlays = naverLinesOf(_line);
+
+      expect(overlays, hasLength(1));
+      expect(overlays.single, isA<NPathOverlay>());
+    });
+
+    test('draw dashes and dots as an outline line under the colored line', () {
+      for (final style in [MapLineStyle.dashed, MapLineStyle.dotted]) {
+        final [halo, line] = naverPatternLinesOf(styled(style));
+        final haloPayload = halo.payload;
+        final linePayload = line.payload;
+
+        expect(line.info.id, 'segment', reason: '$style');
+        expect(halo.info.id, isNot('segment'), reason: '$style');
+        expect(linePayload['color'], isNot(haloPayload['color']));
+        expect(
+          haloPayload['width'] as double,
+          greaterThan(linePayload['width'] as double),
+        );
+        // 테두리 선이 아래에 깔린다. 선 높이는 경로선과 같아서 화살표·마커보다 아래다.
+        expect(
+          haloPayload['globalZIndex'] as int,
+          lessThan(linePayload['globalZIndex'] as int),
+        );
+        expect(linePayload['globalZIndex'], lessThan(100000));
+        // SDK는 List만 메시지로 바꾼다. 두 선의 무늬가 같아야 맞물린다.
+        expect(linePayload['coords'], isA<List<Object?>>());
+        expect(linePayload['pattern'], isA<List<Object?>>());
+        expect(linePayload['pattern'], isNotEmpty);
+        expect(haloPayload['pattern'], linePayload['pattern']);
+      }
+    });
+
+    test('round the dots but cut the dashes square', () {
+      final [_, dots] = naverPatternLinesOf(styled(MapLineStyle.dotted));
+      final [_, dashes] = naverPatternLinesOf(styled(MapLineStyle.dashed));
+
+      expect(dots.lineCap, NLineCap.round);
+      expect(dashes.lineCap, NLineCap.butt);
+      expect(dots.pattern, isNot(dashes.pattern));
+    });
+
+    test('listen to taps on both lines', () {
+      final lines = naverPatternLinesOf(
+        styled(MapLineStyle.dashed),
+        onTap: () {},
+      );
+
+      for (final line in lines) {
+        expect(line.payload['hasOnTapListener'], isTrue);
+      }
+    });
+
+    test('skip lines without length', () {
+      expect(
+        naverLinesOf(
+          const MapLine(
+            id: 'same place',
+            points: [LatLng(33.5, 126.5), LatLng(33.5, 126.5)],
+            color: Colors.orange,
+            outline: Colors.white,
+            style: MapLineStyle.dotted,
+          ),
+        ),
+        isEmpty,
+      );
+    });
+  });
+
+  test('sends line icons the SDK can read, standing above arrows', () {
+    final marker = naverLineIconOf(
+      const MapLineIcon(
+        id: 'segment',
+        position: LatLng(33.5, 126.5),
+        icon: Icons.subway,
+        background: Colors.white,
+        border: Colors.orange,
+        foreground: Colors.brown,
+        minZoom: 14.3,
+      ),
+      // 그림은 실기기에서만 만들 수 있다.
+      icon: null,
+      onTap: () {},
+    );
+
+    final payload = marker.payload;
+
+    expect(payload['minZoom'], 14.3);
+    expect(payload['isFlat'], isFalse);
+    // 화살표(100000)보다 위, 장소 마커(200000)보다 아래.
+    expect(payload['globalZIndex'], inExclusiveRange(100000, 200000));
+    expect(payload['hasOnTapListener'], isTrue);
+    expect(marker.info.id, isNot('segment'));
   });
 }

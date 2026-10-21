@@ -42,7 +42,11 @@ Future<void> main() async {
         // 서버가 생기기 전에는 디버그 빌드에서 샘플 여행을 미리 넣는다.
         if (kDebugMode)
           tripRepositoryProvider.overrideWithValue(
-            MemoryTripRepository(seed: samples.trips, seedStops: samples.stops),
+            MemoryTripRepository(
+              seed: samples.trips,
+              seedStops: samples.stops,
+              seedSegments: samples.segments,
+            ),
           ),
       ],
       child: const MapMarkerApp(),

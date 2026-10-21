@@ -10,7 +10,7 @@ import 'geo.dart';
 /// 아직 열지 않은 것: 스냅샷과 좌표→화면 위치(1-5단계 내보내기).
 abstract interface class MapProvider {
   /// - [onMarkerTap]: 마커를 누르면 [MapMarker.id]로 부른다.
-  /// - [onLineTap]: 선을 누르면 [MapLine.id]로 부른다. 화살표는 누를 수 없다.
+  /// - [onLineTap]: 선이나 선 아이콘을 누르면 [MapLine.id]([MapLineIcon.id])로 부른다. 화살표는 누를 수 없다.
   /// - [onMapTap]: 마커와 선이 아닌 곳을 누르면 부른다.
   Widget buildMap(
     MapScene scene, {
@@ -50,6 +50,7 @@ class MapScene {
     this.markers = const [],
     this.lines = const [],
     this.arrows = const [],
+    this.lineIcons = const [],
     required this.camera,
     this.padding = EdgeInsets.zero,
     this.logoLift = 0,
@@ -58,6 +59,7 @@ class MapScene {
   final List<MapMarker> markers;
   final List<MapLine> lines;
   final List<MapArrow> arrows;
+  final List<MapLineIcon> lineIcons;
   final MapCameraRequest camera;
 
   /// 지도 위를 덮는 화면 요소와 시스템 막대만큼의 여백.
@@ -156,6 +158,17 @@ class MarkerLook {
   int get hashCode => Object.hash(fill, foreground, halo, label, icon, badge);
 }
 
+/// 선 모양. 무늬 길이는 지도 구현이 정한다.
+enum MapLineStyle {
+  solid,
+
+  /// 긴 파선.
+  dashed,
+
+  /// 둥근 점이 이어진 선.
+  dotted,
+}
+
 /// 선. 점 목록을 차례로 잇는다. 곡선도 앱이 점으로 계산해서 넘긴다.
 @immutable
 class MapLine {
@@ -164,6 +177,7 @@ class MapLine {
     required this.points,
     required this.color,
     required this.outline,
+    this.style = MapLineStyle.solid,
   });
 
   final String id;
@@ -173,16 +187,62 @@ class MapLine {
   /// 선 테두리 색. 지도 바탕 위에서 선이 묻히지 않게 한다.
   final Color outline;
 
+  final MapLineStyle style;
+
   @override
   bool operator ==(Object other) =>
       other is MapLine &&
       other.id == id &&
       listEquals(other.points, points) &&
       other.color == color &&
-      other.outline == outline;
+      other.outline == outline &&
+      other.style == style;
 
   @override
-  int get hashCode => Object.hash(id, Object.hashAll(points), color, outline);
+  int get hashCode =>
+      Object.hash(id, Object.hashAll(points), color, outline, style);
+}
+
+/// 선에 붙는 작은 아이콘(예: 이동 수단). 둥근 네모 바탕에 아이콘이 있고, 지도를 돌려도 서 있다.
+///
+/// 누르면 그 선을 누른 것과 같다([MapProvider.buildMap]의 `onLineTap`을 [id]로 부른다).
+@immutable
+class MapLineIcon {
+  const MapLineIcon({
+    required this.id,
+    required this.position,
+    required this.icon,
+    required this.background,
+    required this.border,
+    required this.foreground,
+    this.minZoom = 0,
+  });
+
+  /// 붙은 선의 [MapLine.id].
+  final String id;
+  final LatLng position;
+  final IconData icon;
+  final Color background;
+  final Color border;
+  final Color foreground;
+
+  /// 이 줌보다 멀리서 보면 숨긴다.
+  final double minZoom;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MapLineIcon &&
+      other.id == id &&
+      other.position == position &&
+      other.icon == icon &&
+      other.background == background &&
+      other.border == border &&
+      other.foreground == foreground &&
+      other.minZoom == minZoom;
+
+  @override
+  int get hashCode =>
+      Object.hash(id, position, icon, background, border, foreground, minZoom);
 }
 
 /// 진행 방향 화살표. 지도와 함께 돌고, 기울이면 지도 바닥에 눕는다.

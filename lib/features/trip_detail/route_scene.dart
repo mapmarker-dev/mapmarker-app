@@ -5,6 +5,7 @@ import '../../core/map/route_arrow.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/stop.dart';
 import '../../data/models/trip_route.dart';
+import 'transport_look.dart';
 
 /// 숙소 마커 가운데 아이콘.
 const lodgingIcon = Icons.bed;
@@ -23,8 +24,16 @@ IconData? kindBadge(StopKind kind) => switch (kind) {
 /// - 같은 자리에 여러 번 넣은 장소(연박한 숙소, 처음과 끝이 같은 공항)는 종류와 상관없이 마커 하나로 합친다.
 ///   마커는 동선에서 먼저 오는 장소의 것이다. 누르면 [stopsAtMarker]로 그 자리의 장소를 모두 찾는다.
 /// - 선: 도착 장소의 일차 색. 일차를 넘는 구간은 다음 날 아침의 이동이라 다음 날 색이다.
+///   모양은 구간의 대표 수단으로 정한다([lineStyleOf], [representativeMode]). 미정은 실선이다.
 /// - 화살표: 선 가운데에 가는 방향으로, 선과 같은 색. 선이 화면에서 짧으면 숨는다.
-({List<MapMarker> markers, List<MapLine> lines, List<MapArrow> arrows})
+/// - 선 아이콘: 대표 수단 아이콘을 선의 1/4 지점(출발 쪽)에 둔다. 화살표와 겹치지 않는다.
+///   미정 구간에는 없고, 선이 화면에서 짧아지면 화살표보다 조금 먼저(출발 마커와 겹치기 전에) 숨는다.
+({
+  List<MapMarker> markers,
+  List<MapLine> lines,
+  List<MapArrow> arrows,
+  List<MapLineIcon> lineIcons,
+})
 routeOverlays({
   required TripRoute route,
   required RouteView view,
@@ -47,20 +56,39 @@ routeOverlays({
 
   final lines = <MapLine>[];
   final arrows = <MapArrow>[];
+  final lineIcons = <MapLineIcon>[];
   for (final segment in view.segments) {
     final from = route.stopById(segment.fromStopId);
     final to = route.stopById(segment.toStopId);
     // 같은 자리를 잇는 구간(예: 숙소를 다음 날 첫 장소로 또 넣음)은 그릴 것이 없다.
     if (from == null || to == null || from.isSamePlaceAs(to)) continue;
-    final color = colors.routeDay(to.day).background;
+    final dayColors = colors.routeDay(to.day);
+    final color = dayColors.background;
+    final mode = representativeMode(segment.legs);
     lines.add(
       MapLine(
         id: segment.id,
         points: [from.position, to.position],
         color: color,
         outline: colors.routeHalo,
+        style: lineStyleOf(mode),
       ),
     );
+    if (mode != null) {
+      if (routeLineIcon(from.position, to.position) case final place?) {
+        lineIcons.add(
+          MapLineIcon(
+            id: segment.id,
+            position: place.position,
+            icon: transportIcon(mode),
+            background: colors.routeHalo,
+            border: color,
+            foreground: dayColors.foreground,
+            minZoom: place.minZoom,
+          ),
+        );
+      }
+    }
     // 선을 아직 직선으로만 그려서 곡률은 넘기지 않는다. 곡선 단위에서 선과 함께 넘긴다.
     if (routeArrow(from.position, to.position) case final arrow?) {
       arrows.add(
@@ -75,7 +103,7 @@ routeOverlays({
       );
     }
   }
-  return (markers: markers, lines: lines, arrows: arrows);
+  return (markers: markers, lines: lines, arrows: arrows, lineIcons: lineIcons);
 }
 
 /// 장소를 넣으려고 지도를 누른 자리의 임시 핀 ID. 장소 ID(UUID)와 겹치지 않는다.

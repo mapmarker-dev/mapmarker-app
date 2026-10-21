@@ -1,9 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mapmarker_app/core/map/map_provider.dart';
 import 'package:mapmarker_app/core/time/local_date.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
 import 'package:mapmarker_app/data/trips/memory_trip_repository.dart';
 import 'package:mapmarker_app/dev/sample_trips.dart';
+import 'package:mapmarker_app/features/trip_detail/transport_look.dart';
 import 'package:mapmarker_app/l10n/l10n.dart';
 
 final _l10n = lookupAppLocalizations(appLocale);
@@ -36,7 +38,7 @@ void main() {
   });
 
   test('uses default titles and distinct ids', () {
-    final (:trips, :stops) = _samples();
+    final (:trips, :stops, :segments) = _samples();
 
     expect(trips.map((trip) => trip.title), [
       for (final trip in trips) _l10n.defaultTitleOf(trip),
@@ -46,7 +48,7 @@ void main() {
   });
 
   test('puts every stop in a day of its trip', () {
-    final (:trips, :stops) = _samples();
+    final (:trips, :stops, :segments) = _samples();
     final tripsById = {for (final trip in trips) trip.id: trip};
 
     for (final stop in stops) {
@@ -61,8 +63,12 @@ void main() {
   });
 
   test('covers an empty trip, an empty day and a change of lodging', () async {
-    final (:trips, :stops) = _samples();
-    final repository = MemoryTripRepository(seed: trips, seedStops: stops);
+    final (:trips, :stops, :segments) = _samples();
+    final repository = MemoryTripRepository(
+      seed: trips,
+      seedStops: stops,
+      seedSegments: segments,
+    );
     addTearDown(repository.dispose);
     final [jeju, gangneung, busan] = trips;
 
@@ -80,5 +86,26 @@ void main() {
 
     final busanRoute = await repository.watchRoute(busan.id).first;
     expect(busanRoute.stops.where((s) => s.day == 2), isEmpty);
+  });
+
+  test('shows every line style, a transfer and an undecided segment', () async {
+    final (:trips, :stops, :segments) = _samples();
+    final repository = MemoryTripRepository(
+      seed: trips,
+      seedStops: stops,
+      seedSegments: segments,
+    );
+    addTearDown(repository.dispose);
+
+    final jeju = await repository.watchRoute(trips.first.id).first;
+    final legs = [for (final s in jeju.segments) s.legs];
+
+    // 미리 넣은 구간은 모두 이웃한 장소 사이라서 저장소에 남는다.
+    expect(legs.where((l) => l.isNotEmpty), hasLength(segments.length));
+    expect({
+      for (final l in legs) lineStyleOf(representativeMode(l)),
+    }, unorderedEquals(MapLineStyle.values));
+    expect(legs.any((l) => l.length > 1), isTrue, reason: '갈아타기');
+    expect(legs.any((l) => l.isEmpty), isTrue, reason: '미정');
   });
 }

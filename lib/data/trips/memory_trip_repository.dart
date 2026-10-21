@@ -10,13 +10,18 @@ import 'trip_repository.dart';
 /// 메모리에만 두는 저장소. 앱을 끄면 사라진다.
 class MemoryTripRepository implements TripRepository {
   /// [seedStops]는 일차와 순서대로 넣고, 구간은 저장소가 잇는다.
+  /// [seedSegments]는 이동 수단 등을 미리 넣을 구간이다. 이웃한 장소 쌍의 구간만 남는다.
   MemoryTripRepository({
     this.clock = DateTime.now,
     Iterable<Trip> seed = const [],
     Iterable<Stop> seedStops = const [],
+    Iterable<Segment> seedSegments = const [],
   }) {
     for (final trip in seed) {
       _trips[trip.id] = trip;
+    }
+    for (final segment in seedSegments) {
+      _segments[segment.id] = segment;
     }
     final daysByTrip = <String, Map<int, List<Stop>>>{};
     for (final stop in seedStops.toList()..sort(compareRouteOrder)) {

@@ -59,10 +59,51 @@ RouteArrow? routeArrow(LatLng from, LatLng to, {double curvature = 0}) {
   );
 }
 
-/// 메르카토르 길이 [length](세계 지도 한 변 = 1)가 화면에서 [arrowMinLineLength]가 되는 줌.
-double _zoomForLength(double length) {
-  final zoom =
-      math.log(arrowMinLineLength / (length * _worldSizeAtZoom0)) / math.ln2;
+/// 구간의 1/4 지점(출발 쪽)에 놓는 선 아이콘(이동 수단)의 자리.
+@immutable
+class RouteLineIconPlace {
+  const RouteLineIconPlace({required this.position, required this.minZoom});
+
+  final LatLng position;
+
+  /// 이 줌보다 멀리서 보면 숨긴다. 선이 화면에서 짧아지면 아이콘이 마커·화살표와 겹치기 때문이다.
+  final double minZoom;
+}
+
+/// 선 아이콘이 보이려면 선이 화면에서 이만큼(논리 px) 길어야 한다.
+///
+/// 아이콘은 1/4 지점이라 출발 마커와 화살표에서 각각 선 길이의 1/4만큼 떨어진다.
+/// 화살표([arrowMinLineLength])에 되도록 맞춰 나타나게 여백 없이 둔다(사용자 결정). 줌으로는 화살표보다 약 0.7단계 늦다.
+const lineIconMinLineLength = 120.0;
+
+/// 선 아이콘을 놓는 자리(출발 장소에서 선 길이의 몇 분의 몇). 화살표가 가운데(0.5)라서 겹치지 않는다.
+const _lineIconAt = 0.25;
+
+/// [from]에서 [to]로 가는 구간의 선 아이콘 자리. 두 점이 같으면 null이다.
+///
+/// [routeArrow]처럼 메르카토르 좌표에서 계산하고, [curvature]가 있으면 곡선 위(t = 0.25)에 놓는다.
+RouteLineIconPlace? routeLineIcon(
+  LatLng from,
+  LatLng to, {
+  double curvature = 0,
+}) {
+  final a = mercatorOf(from);
+  final b = mercatorOf(to);
+  final length = (b - a).distance;
+  if (length == 0) return null;
+  final control = quadraticControlPoint(a, b, curvature);
+  return RouteLineIconPlace(
+    position: latLngOfMercator(quadraticPoint(a, control, b, _lineIconAt)),
+    minZoom: _zoomForLength(length, lineIconMinLineLength),
+  );
+}
+
+/// 메르카토르 길이 [length](세계 지도 한 변 = 1)가 화면에서 [screenLength]가 되는 줌.
+double _zoomForLength(
+  double length, [
+  double screenLength = arrowMinLineLength,
+]) {
+  final zoom = math.log(screenLength / (length * _worldSizeAtZoom0)) / math.ln2;
   return zoom.clamp(0, _maxZoom);
 }
 

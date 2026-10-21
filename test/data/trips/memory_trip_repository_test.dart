@@ -158,6 +158,30 @@ void main() {
       ]);
     });
 
+    test('keeps seed segments only between neighbors', () async {
+      const walk = [TransportLeg(TransportMode.walk)];
+      final seeded = MemoryTripRepository(
+        seed: [_trip('trip')],
+        seedStops: [testStop('a'), testStop('b', order: 1)],
+        seedSegments: const [
+          Segment(
+            id: 'ab',
+            tripId: 'trip',
+            fromStopId: 'a',
+            toStopId: 'b',
+            legs: walk,
+          ),
+          Segment(id: 'ba', tripId: 'trip', fromStopId: 'b', toStopId: 'a'),
+        ],
+      );
+      addTearDown(seeded.dispose);
+
+      final route = await seeded.watchRoute('trip').first;
+
+      expect(route.segments.map((s) => s.id), ['ab']);
+      expect(route.segments.single.legs, walk);
+    });
+
     test('adds a stop at its place in the day and links it', () async {
       await repository.addStop(testStop('a'));
       await repository.addStop(testStop('c', order: 9));

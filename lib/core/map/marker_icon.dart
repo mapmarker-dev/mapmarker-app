@@ -72,6 +72,32 @@ class MarkerIcon extends StatelessWidget {
   }
 }
 
+/// 선 아이콘 그림(예: 이동 수단). 둥근 네모라서 둥근 원인 장소 마커와 구분된다.
+///
+/// 흰 바탕([MapLineIcon.background])에 선 색 테두리, 그 위에 아이콘이다. 장소 마커보다 작다.
+class LineIconBadge extends StatelessWidget {
+  const LineIconBadge(this.lineIcon, {super.key});
+
+  static const size = Size.square(22);
+  static const _border = 2.0;
+  static const _icon = 14.0;
+
+  final MapLineIcon lineIcon;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size.width,
+    height: size.height,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: lineIcon.background,
+      borderRadius: AppRadius.sm,
+      border: Border.all(color: lineIcon.border, width: _border),
+    ),
+    child: Icon(lineIcon.icon, size: _icon, color: lineIcon.foreground),
+  );
+}
+
 /// 진행 방향 화살표 그림. 위(북쪽)를 가리키고, 지도 구현이 구간 방향만큼 돌린다.
 ///
 /// 뒤가 오목한 화살촉 모양이다. 테두리를 둘러 같은 색 선 위에서도 모양이 보인다.

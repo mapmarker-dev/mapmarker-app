@@ -80,4 +80,58 @@ void main() {
       reason: '아주 긴 선은 언제나 보인다',
     );
   });
+
+  group('line icon', () {
+    test('sits a quarter of the way from the start', () {
+      final to = _offset(_jeju, north: 0.04, east: 0.08);
+
+      final icon = routeLineIcon(_jeju, to)!;
+
+      expect(icon.position.longitude, closeTo(126.52, 1e-9));
+      expect(icon.position.latitude, closeTo(33.51, 1e-4));
+    });
+
+    test('keeps clear of the arrow in the middle', () {
+      final to = _offset(_jeju, east: 0.04);
+
+      expect(
+        routeLineIcon(_jeju, to)!.position,
+        isNot(routeArrow(_jeju, to)!.position),
+      );
+    });
+
+    test('shows up a little after the arrow, once it clears the marker', () {
+      final to = _offset(_jeju, east: 0.01);
+
+      // 아이콘은 선이 화면에서 120px이 되어야 보인다(화살표는 72px). 줌으로 약 0.7단계 늦다.
+      expect(
+        routeLineIcon(_jeju, to)!.minZoom - routeArrow(_jeju, to)!.minZoom,
+        closeTo(math.log(120 / 72) / math.ln2, 1e-9),
+      );
+      expect(lineIconMinLineLength, greaterThan(arrowMinLineLength));
+    });
+
+    test('appears only when a quarter of the line clears the start marker', () {
+      // 1/4 지점의 아이콘이 출발 마커(반지름 14)와 화살표(18px)에 겹치지 않는다.
+      // 아이콘은 22px 네모라서, 선이 대각선으로 지나도 되게 대각선의 반으로 잰다.
+      final iconReach = 22 * math.sqrt2 / 2;
+      final quarter = lineIconMinLineLength / 4;
+
+      expect(quarter, greaterThanOrEqualTo(14 + iconReach));
+      expect(quarter, greaterThanOrEqualTo(18 * math.sqrt2 / 2 + iconReach));
+    });
+
+    test('follows the curve of a curved segment', () {
+      final to = _offset(_jeju, east: 0.04);
+
+      expect(
+        routeLineIcon(_jeju, to, curvature: 0.3)!.position,
+        isNot(routeLineIcon(_jeju, to)!.position),
+      );
+    });
+
+    test('has no place between the same place', () {
+      expect(routeLineIcon(_jeju, _jeju), isNull);
+    });
+  });
 }

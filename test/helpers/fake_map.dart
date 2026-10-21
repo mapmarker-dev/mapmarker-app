@@ -69,6 +69,18 @@ Future<void> tapLine(WidgetTester tester, String id) async {
   await tester.pumpAndSettle();
 }
 
+/// 지도에 있는 선 아이콘(이동 수단)을 누른 것처럼 한다. 선을 누른 것과 같다.
+Future<void> tapLineIcon(WidgetTester tester, String id) async {
+  final map = _fakeMap(tester);
+  expect(
+    map.scene.lineIcons.map((i) => i.id),
+    contains(id),
+    reason: '지도에 없는 선 아이콘은 누를 수 없다',
+  );
+  map.onLineTap!(id);
+  await tester.pumpAndSettle();
+}
+
 /// 지도의 빈 곳(또는 [placeName]이 있으면 지도에 원래 있는 장소 이름)을 누른 것처럼 한다.
 Future<void> tapMap(
   WidgetTester tester,
