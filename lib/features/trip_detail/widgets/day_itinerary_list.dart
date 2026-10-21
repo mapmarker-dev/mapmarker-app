@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../data/models/segment.dart';
 import '../../../data/models/stop.dart';
 import '../../../data/models/trip.dart';
 import '../../../data/models/trip_route.dart';
@@ -27,21 +28,46 @@ class ItinerarySelection extends ChangeNotifier {
   /// 마지막으로 보여 준 지도 탭(`RouteChoice.focusCount`). 틀이 바뀌어 목록을 새로 만들어도 같은 탭을 다시 보여 주지 않는다.
   int shownFocusCount = 0;
 
-  /// 장소 줄을 누르면 그 장소를 고르고 펼친다. 이미 펼친 장소면 접기만 하고 고른 것은 그대로 둔다.
+  /// 목록에서 직접 누른 줄. 이 줄에만 연필 아이콘(고치기·지우기)과 순서 바꾸기 손잡이가 보인다.
+  ///
+  /// 지도에서 눌러 고른 줄에는 보이지 않는다. 목록을 늘 깔끔하게 두고, 고칠 줄을 한 번 더 눌러야
+  /// 손댈 수 있게 하려는 것이다.
+  String? active;
+
+  /// 장소 줄을 눌렀다.
+  ///
+  /// - 연필이 없는 줄([active]가 아님): 그 줄을 고르고 펼친다. 이미 펼쳐져 있으면(지도에서 눌러 연 줄, 저장 뒤 보여 준 줄) 접지 않고 연필·손잡이만 더한다.
+  /// - 연필이 떠 있는 줄: 펼침과 접힘을 오간다. 고른 것은 그대로 둔다.
   void tapStop(String id) {
+    final wasActive = active == id;
     highlighted = {id};
-    expanded = expanded == id ? null : id;
+    active = id;
+    expanded = wasActive && expanded == id ? null : id;
     notifyListeners();
   }
 
-  void tapSegment(String id) {
+  /// 구간 줄이나 연필 아이콘을 누르면 그 줄 하나만 고른다. 펼친 장소는 그대로다.
+  void pick(String id) {
     highlighted = {id};
+    active = id;
     notifyListeners();
   }
 
-  /// 지도에서 누른 것을 고른다. [stopId]가 있으면 그 장소를 펼친다.
+  /// 일차를 바꾸면 펼친 장소와 고른 줄을 모두 비운다. 다시 돌아와도 모든 장소가 접힌 목록으로 시작한다.
+  ///
+  /// 지도에서 눌러 일차로 들어올 때는 이 뒤에 [focus]가 와서 누른 장소를 펼친다.
+  void clear() {
+    if (expanded == null && highlighted.isEmpty && active == null) return;
+    expanded = null;
+    highlighted = {};
+    active = null;
+    notifyListeners();
+  }
+
+  /// 지도에서 누른 것을 고른다. [stopId]가 있으면 그 장소를 펼친다. 연필·손잡이는 숨긴다.
   void focus(Iterable<String> ids, {String? stopId, required int count}) {
     highlighted = ids.toSet();
+    active = null;
     if (stopId != null) expanded = stopId;
     shownFocusCount = count;
     notifyListeners();
@@ -50,7 +76,8 @@ class ItinerarySelection extends ChangeNotifier {
 
 /// 그날의 장소와 구간 목록. 아래 시트와 오른쪽 패널이 함께 쓴다.
 ///
-/// 장소 줄을 누르면 고르고 펼치며, 손잡이로 끌어 순서를 바꾼다.
+/// 장소 줄을 누르면 고르고 펼치며, 손잡이로 끌어 순서를 바꾼다. 구간 줄을 누르면 고른다.
+/// 목록에서 누른 줄에만 오른쪽 연필 아이콘(고치기·지우기)과, 장소면 순서 바꾸기 손잡이가 뜬다.
 /// 지도에서 누른 장소·구간([focus])은 [onReveal]로 틀을 연 뒤 그 줄로 넘긴다.
 class DayItineraryList extends StatefulWidget {
   const DayItineraryList({
@@ -62,8 +89,8 @@ class DayItineraryList extends StatefulWidget {
     required this.focusCount,
     required this.onReveal,
     required this.onOpenMap,
-    required this.onDelete,
     required this.onEdit,
+    required this.onEditSegment,
     required this.onStayAgain,
     required this.onReorder,
     this.padding = EdgeInsets.zero,
@@ -81,14 +108,24 @@ class DayItineraryList extends StatefulWidget {
   final Future<void> Function() onReveal;
 
   final ValueChanged<Stop> onOpenMap;
-  final ValueChanged<Stop> onDelete;
-  final ValueChanged<Stop> onEdit;
+
+  /// 장소 줄의 연필 아이콘을 눌렀다(장소 입력 화면을 연다). 연필은 목록에서 누른 줄에만 보인다.
+  /// 출발 숙소는 앞 일차의 장소라서 이 일차에서 지울 수 없다([canDelete]가 false).
+  final void Function(Stop stop, {required bool canDelete}) onEdit;
+
+  /// 구간 줄의 연필 아이콘을 눌렀다(이동 수단 입력 화면을 연다). 연필은 목록에서 누른 줄에만 보인다.
+  final ValueChanged<Segment> onEditSegment;
 
   /// "오늘 밤도 여기서 묵기"를 누른 전날 밤 숙소.
   final ValueChanged<Stop> onStayAgain;
 
   /// 끌어서 옮긴 장소. [visibleIds]는 옮기기 전 순서다(출발 숙소 제외). [newIndex]는 옮긴 뒤 자리다.
-  final void Function(List<String> visibleIds, int oldIndex, int newIndex)
+  /// 옮겼으면 true, 취소했으면(이동 수단이 지워져서 묻고 취소) false다. false면 옮기기 전 순서로 돌아간다.
+  final Future<bool> Function(
+    List<String> visibleIds,
+    int oldIndex,
+    int newIndex,
+  )
   onReorder;
 
   /// 목록 바깥 여백. 아래 시트는 시스템 여백을 더한다.
@@ -196,33 +233,36 @@ class _DayItineraryListState extends State<DayItineraryList> {
       String? caption,
       bool fixed = false,
       int? index,
-    }) => ItineraryStopTile(
-      key: _keyOf(stop.id),
-      stop: stop,
-      look: markerLookOf(widget.route, stop, colors),
-      caption: caption,
-      expanded: selection.expanded == stop.id,
-      highlighted: selection.highlighted.contains(stop.id),
-      onToggle: () => selection.tapStop(stop.id),
-      onOpenMap: () => widget.onOpenMap(stop),
-      onDelete: fixed ? null : () => widget.onDelete(stop),
-      onEdit: () => widget.onEdit(stop),
-      reorderHandle: index == null || stops.length < 2
-          ? null
-          : ReorderableDragStartListener(
-              index: index,
-              child: Tooltip(
-                message: l10n.itineraryReorder,
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpace.sm),
-                  child: Icon(
-                    Icons.drag_handle,
-                    color: scheme.onSurfaceVariant,
+    }) {
+      final active = selection.active == stop.id;
+      return ItineraryStopTile(
+        key: _keyOf(stop.id),
+        stop: stop,
+        look: markerLookOf(widget.route, stop, colors),
+        caption: caption,
+        expanded: selection.expanded == stop.id,
+        highlighted: selection.highlighted.contains(stop.id),
+        onToggle: () => selection.tapStop(stop.id),
+        onOpenMap: () => widget.onOpenMap(stop),
+        // 목록에서 누른 줄에만 연필과 손잡이가 보인다.
+        onEdit: active ? () => widget.onEdit(stop, canDelete: !fixed) : null,
+        reorderHandle: !active || index == null || stops.length < 2
+            ? null
+            : ReorderableDragStartListener(
+                index: index,
+                child: Tooltip(
+                  message: l10n.itineraryReorder,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpace.sm),
+                    child: Icon(
+                      Icons.drag_handle,
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ),
-            ),
-    );
+      );
+    }
 
     return CustomScrollView(
       // 아래 시트와 오른쪽 패널이 같은 키를 써서, 기기를 돌려 틀이 바뀌어도 넘긴 자리가 남는다.
@@ -245,12 +285,20 @@ class _DayItineraryListState extends State<DayItineraryList> {
           padding: side,
           sliver: SliverReorderableList(
             itemCount: stops.length,
-            onReorderItem: (oldIndex, newIndex) {
+            onReorderItem: (oldIndex, newIndex) async {
               final moved = [...visibleIds];
               final id = moved.removeAt(oldIndex);
               moved.insert(newIndex, id);
               setState(() => _movedOrder = moved);
-              widget.onReorder(visibleIds, oldIndex, newIndex);
+              final saved = await widget.onReorder(
+                visibleIds,
+                oldIndex,
+                newIndex,
+              );
+              // 묻고 취소했으면 옮기기 전 순서로 돌려 놓는다.
+              if (!saved && mounted && _movedOrder == moved) {
+                setState(() => _movedOrder = null);
+              }
             },
             proxyDecorator: (child, _, _) => Material(
               color: scheme.surfaceContainerLowest,
@@ -272,7 +320,10 @@ class _DayItineraryListState extends State<DayItineraryList> {
                       // 선은 도착 장소의 일차 색이다.
                       color: colors.routeDay(entry.stop.day).background,
                       highlighted: selection.highlighted.contains(arrival.id),
-                      onTap: () => selection.tapSegment(arrival.id),
+                      onTap: () => selection.pick(arrival.id),
+                      onEdit: selection.active == arrival.id
+                          ? () => widget.onEditSegment(arrival)
+                          : null,
                     ),
                   stopTile(entry.stop, index: index),
                 ],

@@ -59,4 +59,19 @@ class Segment {
   final double curvature;
 
   final SegmentType type;
+
+  /// 어느 장소를 잇는지는 저장소가 정해서 바꾸지 않는다.
+  Segment copyWith({
+    List<TransportLeg>? legs,
+    double? curvature,
+    SegmentType? type,
+  }) => Segment(
+    id: id,
+    tripId: tripId,
+    fromStopId: fromStopId,
+    toStopId: toStopId,
+    legs: legs ?? this.legs,
+    curvature: curvature ?? this.curvature,
+    type: type ?? this.type,
+  );
 }

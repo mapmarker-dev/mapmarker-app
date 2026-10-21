@@ -342,10 +342,11 @@ void main() {
   });
 
   group('editing', () {
+    /// 목록에서 장소 줄을 누르고, 그 줄에 뜬 연필 아이콘을 누른다.
     Future<void> openEditor(WidgetTester tester, String name) async {
       await tester.tap(find.text(name));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(TextButton, '편집'));
+      await tester.tap(find.byTooltip('장소 편집'));
       await tester.pumpAndSettle();
     }
 

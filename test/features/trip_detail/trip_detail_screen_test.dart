@@ -428,12 +428,38 @@ void main() {
 
       expect(_highlighted(tester), ['d']);
 
-      // 펼친 장소를 다시 누르면 접히지만 고른 것은 그대로다.
+      // 지도에서 펼친 장소를 시트에서 누르면 펼친 채로 연필만 더한다.
+      await tester.tap(find.text('d'));
+      await tester.pumpAndSettle();
+
+      expect(_tile(tester, 'd').expanded, isTrue);
+      expect(_highlighted(tester), ['d']);
+
+      // 한 번 더 누르면 접히지만 고른 것은 그대로다.
       await tester.tap(find.text('d'));
       await tester.pumpAndSettle();
 
       expect(_tile(tester, 'd').expanded, isFalse);
       expect(_highlighted(tester), ['d']);
+    });
+
+    testWidgets('folds every stop when the day changes', (tester) async {
+      _tallScreen(tester);
+      await _pumpJeju(tester);
+      await _tapChip(tester, '2일차');
+      await _openSheet(tester);
+      await tester.tap(find.text('c'));
+      await tester.pumpAndSettle();
+      expect(_tile(tester, 'c').expanded, isTrue);
+
+      await _tapChip(tester, '3일차');
+      await _tapChip(tester, '2일차');
+      await _openSheet(tester);
+
+      expect(_tile(tester, 'c').expanded, isFalse);
+      expect(_highlighted(tester), isEmpty);
+      expect(find.byTooltip('장소 편집'), findsNothing);
+      expect(find.text('주차 2시간 무료'), findsNothing);
     });
 
     testWidgets('expands a stop to show its memo', (tester) async {
@@ -500,8 +526,15 @@ void main() {
       await _openSheet(tester);
       await tester.tap(find.text('d'));
       await tester.pumpAndSettle();
+      // 지우기는 목록이 아니라 장소 입력 화면 맨 아래에 있다.
+      expect(_inTile('d', find.text('지우기')), findsNothing);
+      await tester.tap(_inTile('d', find.byTooltip('장소 편집')));
+      await tester.pumpAndSettle();
 
-      await tester.tap(_inTile('d', find.text('지우기')));
+      final deleteButton = find.widgetWithText(OutlinedButton, '장소 지우기');
+      await tester.ensureVisible(deleteButton);
+      await tester.pumpAndSettle();
+      await tester.tap(deleteButton);
       await tester.pumpAndSettle();
 
       expect(find.text('‘d’ 지우기'), findsOneWidget);
@@ -509,9 +542,11 @@ void main() {
       await tester.tap(find.text('취소'));
       await tester.pumpAndSettle();
 
+      // 취소하면 입력 화면에 그대로 남는다.
+      expect(find.byType(Dialog), findsOneWidget);
       expect(_tileNames(tester), contains('d'));
 
-      await tester.tap(_inTile('d', find.text('지우기')));
+      await tester.tap(deleteButton);
       await tester.pumpAndSettle();
       await tester.tap(
         find.descendant(
@@ -521,6 +556,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // 지우면 입력 화면도 닫힌다.
+      expect(find.byType(Dialog), findsNothing);
       expect(_tileNames(tester), ['hotel', 'c', 'hotel2']);
       expect(mapScene(tester).captions, ['hotel', 'c']);
       // 앞뒤 장소가 바로 이어진다.
@@ -538,8 +575,39 @@ void main() {
       await tester.tap(find.text('hotel'));
       await tester.pumpAndSettle();
 
-      expect(_inTile('hotel', find.text('지우기')), findsNothing);
       expect(_inTile('hotel', find.byIcon(Icons.drag_handle)), findsNothing);
+      // 이름 등은 고칠 수 있지만, 입력 화면에 지우기가 없다.
+      await tester.tap(_inTile('hotel', find.byTooltip('장소 편집')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Dialog), findsOneWidget);
+      expect(find.text('장소 지우기', skipOffstage: false), findsNothing);
+    });
+
+    testWidgets('shows the pencil and handle only on the row tapped in the '
+        'list', (tester) async {
+      _tallScreen(tester);
+      await _pumpJeju(tester);
+      await _tapChip(tester, '2일차');
+      await _openSheet(tester);
+
+      expect(find.byTooltip('장소 편집'), findsNothing);
+      expect(find.byIcon(Icons.drag_handle), findsNothing);
+
+      await tester.tap(find.text('c'));
+      await tester.pumpAndSettle();
+
+      expect(_inTile('c', find.byTooltip('장소 편집')), findsOneWidget);
+      expect(_inTile('c', find.byIcon(Icons.drag_handle)), findsOneWidget);
+      expect(find.byTooltip('장소 편집'), findsOneWidget);
+      expect(find.byIcon(Icons.drag_handle), findsOneWidget);
+
+      // 지도에서 고르면 바탕색만 바뀌고 목록은 깔끔하게 남는다.
+      await tapMarker(tester, 'd');
+
+      expect(_tile(tester, 'd').highlighted, isTrue);
+      expect(find.byTooltip('장소 편집'), findsNothing);
+      expect(find.byIcon(Icons.drag_handle), findsNothing);
     });
 
     testWidgets('moves a stop by dragging its handle', (tester) async {
@@ -547,6 +615,9 @@ void main() {
       await _pumpJeju(tester);
       await _tapChip(tester, '2일차');
       await _openSheet(tester);
+      // 손잡이는 목록에서 누른 줄에만 뜬다.
+      await tester.tap(find.text('c'));
+      await tester.pumpAndSettle();
 
       // c를 d 아래로 끈다.
       final handle = _inTile('c', find.byIcon(Icons.drag_handle));
@@ -583,6 +654,62 @@ void main() {
       expect(find.text('주차 2시간 무료'), findsOneWidget);
       // 시트를 펼쳐 올린다.
       expect(mapScene(tester).logoLift, greaterThan(0));
+    });
+
+    testWidgets('keeps a stop opened from the map expanded when tapped in the '
+        'sheet', (tester) async {
+      _tallScreen(tester);
+      await _pumpJeju(tester);
+      await tapMarker(tester, 'c');
+      // 지도에서 열면 펼쳐져 있지만 연필·손잡이는 없다.
+      expect(_tile(tester, 'c').expanded, isTrue);
+      expect(find.byTooltip('장소 편집'), findsNothing);
+
+      // 시트에서 한 번 누르면 접지 않고 연필·손잡이만 더한다.
+      await tester.tap(find.text('c'));
+      await tester.pumpAndSettle();
+
+      expect(_tile(tester, 'c').expanded, isTrue);
+      expect(find.text('주차 2시간 무료'), findsOneWidget);
+      expect(_inTile('c', find.byTooltip('장소 편집')), findsOneWidget);
+      expect(_inTile('c', find.byIcon(Icons.drag_handle)), findsOneWidget);
+
+      // 연필이 뜬 뒤로는 누를 때마다 접고 펼친다.
+      await tester.tap(find.text('c'));
+      await tester.pumpAndSettle();
+
+      expect(_tile(tester, 'c').expanded, isFalse);
+      expect(find.text('주차 2시간 무료'), findsNothing);
+      expect(_inTile('c', find.byTooltip('장소 편집')), findsOneWidget);
+
+      await tester.tap(find.text('c'));
+      await tester.pumpAndSettle();
+
+      expect(_tile(tester, 'c').expanded, isTrue);
+    });
+
+    testWidgets('expands a collapsed stop on the first tap in the sheet', (
+      tester,
+    ) async {
+      _tallScreen(tester);
+      await _pumpJeju(tester);
+      await _tapChip(tester, '2일차');
+      await _openSheet(tester);
+
+      await tester.tap(find.text('c'));
+      await tester.pumpAndSettle();
+
+      // 시트에서만 쓸 때는 첫 탭에 고르고 펼친다(지금까지와 같다).
+      expect(_tile(tester, 'c').expanded, isTrue);
+      expect(_inTile('c', find.byTooltip('장소 편집')), findsOneWidget);
+
+      // 다른 줄을 누르면 그 줄도 첫 탭에 펼친다.
+      await tester.tap(find.text('d'));
+      await tester.pumpAndSettle();
+
+      expect(_tile(tester, 'd').expanded, isTrue);
+      expect(_inTile('d', find.byTooltip('장소 편집')), findsOneWidget);
+      expect(_inTile('c', find.byTooltip('장소 편집')), findsNothing);
     });
 
     testWidgets('shows both nights of a lodging tapped in a day view', (

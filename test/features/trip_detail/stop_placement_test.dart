@@ -61,7 +61,7 @@ void main() {
     expect(again.name, hotel.name);
     expect(again.kind, StopKind.lodging);
     expect(again.description, '바다 전망');
-    // 메모는 두 밤 모두 필요해서 복사한다(사용자 결정).
+    // 메모는 두 밤 모두 필요해서 복사한다.
     expect(again.memo, '현관 비밀번호 1234');
     expect(again.plannedTime, isNull);
   });

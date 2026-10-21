@@ -73,4 +73,54 @@ void main() {
       isEmpty,
     );
   });
+
+  group('segments dropped by a move', () {
+    // 1일차: a > b > c, 2일차: d.
+    final stops = [
+      testStop('a'),
+      testStop('b', order: 1),
+      testStop('c', order: 2),
+      testStop('d', day: 2),
+    ];
+    final segments = linkStops(
+      tripId: 'trip',
+      stops: stops,
+      existing: const [],
+      createId: createId,
+    );
+
+    List<(String, String)> dropped(String stopId, int day, int order) => pairs(
+      segmentsDroppedByMove(
+        stops: stops,
+        segments: segments,
+        stopId: stopId,
+        day: day,
+        order: order,
+      ),
+    );
+
+    test('are the ones into and out of the stop, and the gap it fills', () {
+      // a를 b와 c 사이로: a>b, b>c가 사라지고 b>a, a>c가 생긴다.
+      expect(dropped('a', 1, 1), [('a', 'b'), ('b', 'c')]);
+    });
+
+    test('include the link across days when moving to the end', () {
+      // a를 1일차 맨 뒤로: c>d 사이에 끼어든다.
+      expect(dropped('a', 1, 5), [('a', 'b'), ('c', 'd')]);
+    });
+
+    test('include segments of another day', () {
+      // d를 1일차 맨 앞으로.
+      expect(dropped('d', 1, 0), [('c', 'd')]);
+      expect(dropped('b', 2, 0), [('a', 'b'), ('b', 'c'), ('c', 'd')]);
+    });
+
+    test('are none when the stop stays where it is', () {
+      expect(dropped('b', 1, 1), isEmpty);
+    });
+
+    test('are none for an unknown stop', () {
+      expect(dropped('x', 1, 0), isEmpty);
+    });
+  });
 }

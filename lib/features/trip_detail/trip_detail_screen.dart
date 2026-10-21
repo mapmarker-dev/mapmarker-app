@@ -11,15 +11,18 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/time/today.dart';
 import '../../data/models/map_provider_type.dart';
+import '../../data/models/segment.dart';
 import '../../data/models/stop.dart';
 import '../../data/models/trip.dart';
 import '../../data/models/trip_route.dart';
 import '../../l10n/l10n.dart';
 import '../../data/models/new_id.dart';
+import '../../data/trips/route_links.dart';
 import 'day_itinerary.dart';
 import 'route_scene.dart';
 import 'stop_draft.dart';
 import 'stop_placement.dart';
+import 'transport_draft.dart';
 import 'trip_detail_controller.dart';
 import 'widgets/rename_trip_dialog.dart';
 import 'route_sheet_layout.dart';
@@ -30,6 +33,7 @@ import 'widgets/route_day_sheet.dart';
 import 'widgets/route_title_bar.dart';
 import 'widgets/stop_form_dialog.dart';
 import 'widgets/size_reporter.dart';
+import 'widgets/transport_form_dialog.dart';
 
 /// 여행 동선 페이지. 지도에 장소와 구간을 보여 주고, 여행 전체와 일차별 보기를 오간다.
 class TripDetailScreen extends ConsumerWidget {
@@ -238,29 +242,90 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     _showPlaced(stop.id, stop.day, moved: false);
   }
 
-  Future<void> _editStop(TripRoute route, Stop stop) async {
+  /// [canDelete]가 false면(출발 숙소) 입력 화면에 지우기가 없다.
+  Future<void> _editStop(
+    TripRoute route,
+    Stop stop, {
+    required bool canDelete,
+  }) async {
     final initial = StopDraft.of(stop);
     final draft = await showStopForm(
       context,
       trip: trip,
       isNew: false,
       initial: initial,
+      onDelete: canDelete ? () => _confirmDelete(stop) : null,
+      // 다른 일차로 옮기면 이웃이 바뀐다. 지워질 이동 수단이 있으면 저장하기 전에 묻는다.
+      confirmSave: (draft) async {
+        if (draft.day == stop.day) return true;
+        final latest = _latestRoute(route);
+        final dropped = _transportsDroppedByMove(
+          latest,
+          stop.id,
+          day: draft.day,
+          order: _dayChangeOrder(latest, stop.id, draft),
+        );
+        return dropped.isEmpty ||
+            await _confirmDropTransport(latest, draft.name.trim(), dropped);
+      },
     );
     if (draft == null || draft == initial || !mounted) return;
     final controller = ref.read(tripDetailProvider(trip.id).notifier);
     await controller.updateStop(draft.applyTo(stop));
     if (draft.day == stop.day || !mounted) return;
-    // 다른 일차로 옮기면 새 장소를 넣을 때와 같은 자리(맨 뒤, 밤 숙소 앞)에 넣는다.
-    final others = [
-      for (final s in _stopsOfDay(_latestRoute(route), draft.day))
-        if (s.id != stop.id) s,
-    ];
     await controller.moveStop(
       stop.id,
       day: draft.day,
-      order: insertionOrder(others, draft.kind),
+      order: _dayChangeOrder(_latestRoute(route), stop.id, draft),
     );
     if (mounted) _showPlaced(stop.id, draft.day, moved: true);
+  }
+
+  /// 장소 입력 화면에서 일차를 바꿨을 때 넣을 자리. 새 장소를 넣을 때와 같다(맨 뒤, 밤 숙소 앞).
+  static int _dayChangeOrder(TripRoute route, String stopId, StopDraft draft) =>
+      insertionOrder([
+        for (final s in _stopsOfDay(route, draft.day))
+          if (s.id != stopId) s,
+      ], draft.kind);
+
+  /// [stopId] 장소를 [day]일차의 [order] 자리로 옮기면 사라지는 구간 중, 이동 수단을 적어 둔 구간.
+  static List<Segment> _transportsDroppedByMove(
+    TripRoute route,
+    String stopId, {
+    required int day,
+    required int order,
+  }) => [
+    for (final segment in segmentsDroppedByMove(
+      stops: route.stops,
+      segments: route.segments,
+      stopId: stopId,
+      day: day,
+      order: order,
+    ))
+      if (segment.legs.isNotEmpty) segment,
+  ];
+
+  /// 구간의 이동 수단을 고친다. 카메라는 그대로이고, 목록의 그 줄은 고른 채로 남는다.
+  Future<void> _editSegment(TripRoute route, Segment segment) async {
+    final from = route.stopById(segment.fromStopId);
+    final to = route.stopById(segment.toStopId);
+    if (from == null || to == null) return;
+    final initial = TransportDraft.of(segment);
+    final draft = await showTransportForm(
+      context,
+      initial: initial,
+      from: from.name,
+      to: to.name,
+    );
+    if (draft == null || draft == initial || !mounted) return;
+    // 곡률 등 다른 값은 입력 화면을 여는 사이에 바뀌었을 수 있어서 저장소의 구간에 넣는다.
+    final latest = _latestRoute(
+      route,
+    ).segments.where((s) => s.id == segment.id).firstOrNull;
+    if (latest == null) return;
+    await ref
+        .read(tripDetailProvider(trip.id).notifier)
+        .updateSegment(latest.copyWith(legs: draft.toLegs()));
   }
 
   /// 연박: 전날 밤 숙소를 [day]일차 밤 숙소로 그 일차 맨 뒤에 넣는다.
@@ -304,7 +369,8 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     ).showSnackBar(SnackBar(content: Text(context.l10n.itineraryOpenFailed)));
   }
 
-  Future<void> _confirmDelete(Stop stop) async {
+  /// 확인을 받아 장소를 지운다. 지웠으면 true다. 장소 입력 화면의 "장소 지우기"가 부른다.
+  Future<bool> _confirmDelete(Stop stop) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -328,31 +394,102 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
         );
       },
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) return false;
     await ref.read(tripDetailProvider(trip.id).notifier).deleteStop(stop.id);
+    return true;
   }
 
-  void _reorder(
+  /// 끌어서 옮긴 장소를 저장한다. 옮겼으면 true, 취소했으면 false다(목록이 옮기기 전 순서로 돌아간다).
+  ///
+  /// 이웃이 바뀌어 사라질 구간에 적어 둔 이동 수단이 있으면 먼저 묻는다.
+  Future<bool> _reorder(
     TripRoute route,
     int day,
     List<String> visibleIds,
     int oldIndex,
     int newIndex,
-  ) {
+  ) async {
     // 제자리에 놓았다.
-    if (newIndex == oldIndex) return;
+    if (newIndex == oldIndex) return true;
+    final latest = _latestRoute(route);
+    final stopId = visibleIds[oldIndex];
     final order = reorderedStopOrder(
       visibleIds: visibleIds,
-      dayStops: [
-        for (final stop in route.stops)
-          if (stop.day == day) stop,
-      ],
+      dayStops: _stopsOfDay(latest, day),
       oldIndex: oldIndex,
       newIndex: newIndex,
     );
-    ref
+    final dropped = _transportsDroppedByMove(
+      latest,
+      stopId,
+      day: day,
+      order: order,
+    );
+    final stop = latest.stopById(stopId);
+    if (dropped.isNotEmpty && stop != null) {
+      final move = await _confirmDropTransport(latest, stop.name, dropped);
+      if (!move || !mounted) return false;
+    }
+    await ref
         .read(tripDetailProvider(trip.id).notifier)
-        .moveStop(visibleIds[oldIndex], day: day, order: order);
+        .moveStop(stopId, day: day, order: order);
+    return true;
+  }
+
+  /// [stopName] 장소를 옮기면 [dropped] 구간의 이동 수단이 지워진다고 알리고, 옮길지 묻는다.
+  /// 목록에서 끌어 옮길 때와 장소 입력 화면에서 일차를 바꿀 때 함께 쓴다.
+  Future<bool> _confirmDropTransport(
+    TripRoute route,
+    String stopName,
+    List<Segment> dropped,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        final l10n = context.l10n;
+        final textTheme = Theme.of(context).textTheme;
+        final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+        return AlertDialog(
+          title: Text(l10n.moveStopDropsTransportTitle),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(l10n.moveStopDropsTransportMessage(stopName)),
+                for (final segment in dropped)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpace.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (l10n.segmentRouteText(route, segment)
+                            case final text?)
+                          Text(text, style: textTheme.titleSmall),
+                        Text(
+                          l10n.transportText(segment),
+                          style: textTheme.bodySmall?.copyWith(color: muted),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(l10n.moveStopConfirm),
+            ),
+          ],
+        );
+      },
+    );
+    return confirmed ?? false;
   }
 
   @override
@@ -365,6 +502,8 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       if (day == null) _sheetLift = 0;
       // 다른 보기로 가면 꽂아 둔 임시 핀은 버린다.
       if (_draftPlace != null) setState(() => _draftPlace = null);
+      // 펼친 장소와 고른 줄도 비운다. 지도에서 눌러 들어온 것이면 목록이 그 줄을 다시 고른다.
+      _selection.clear();
     });
     final route = ref.watch(tripRouteProvider(trip.id));
     final view = route.value?.view(
@@ -551,8 +690,9 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     onReveal: onReveal,
     padding: padding,
     onOpenMap: _openMap,
-    onDelete: _confirmDelete,
-    onEdit: (stop) => _editStop(route, stop),
+    onEdit: (stop, {required canDelete}) =>
+        _editStop(route, stop, canDelete: canDelete),
+    onEditSegment: (segment) => _editSegment(route, segment),
     onStayAgain: (lodging) => _stayAgain(route, itinerary.day, lodging),
     onReorder: (visibleIds, oldIndex, newIndex) =>
         _reorder(route, itinerary.day, visibleIds, oldIndex, newIndex),

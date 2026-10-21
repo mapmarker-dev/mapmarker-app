@@ -4,6 +4,7 @@ import 'package:mapmarker_app/core/time/local_date.dart';
 import 'package:mapmarker_app/data/models/segment.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
+import 'package:mapmarker_app/data/models/trip_route.dart';
 import 'package:mapmarker_app/l10n/l10n.dart';
 
 final l10n = lookupAppLocalizations(appLocale);
@@ -211,6 +212,48 @@ void main() {
 
     test('is empty when no transport is chosen', () {
       expect(l10n.transportText(_segment(const [])), isEmpty);
+    });
+  });
+
+  group('segment route', () {
+    Stop stop(String id, String name, int day) => Stop(
+      id: id,
+      tripId: 'trip-1',
+      latitude: 33.5,
+      longitude: 126.5,
+      name: name,
+      day: day,
+      order: 0,
+    );
+
+    final route = TripRoute(
+      stops: [
+        stop('a', '용두암', 2),
+        stop('b', '동문시장', 2).copyWith(order: 1),
+        stop('hotel', '제주시 숙소', 1),
+      ],
+    );
+
+    Segment link(String from, String to) => Segment(
+      id: '$from-$to',
+      tripId: 'trip-1',
+      fromStopId: from,
+      toStopId: to,
+    );
+
+    test('names the day of a segment within one day', () {
+      expect(l10n.segmentRouteText(route, link('a', 'b')), '2일차 용두암 → 동문시장');
+    });
+
+    test('names both days of a segment across days', () {
+      expect(
+        l10n.segmentRouteText(route, link('hotel', 'a')),
+        '1일차 제주시 숙소 → 2일차 용두암',
+      );
+    });
+
+    test('is null when a stop is missing', () {
+      expect(l10n.segmentRouteText(route, link('a', 'gone')), isNull);
     });
   });
 }

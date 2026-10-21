@@ -1,6 +1,7 @@
 import '../data/models/segment.dart';
 import '../data/models/stop.dart';
 import '../data/models/trip.dart';
+import '../data/models/trip_route.dart';
 import 'generated/app_localizations.dart';
 
 /// 모델을 화면 글자로 바꾼다. 모델(`data/`)에는 글자를 두지 않는다.
@@ -89,7 +90,22 @@ extension ModelTexts on AppLocalizations {
   /// 구간의 이동 수단. 갈아타면 +로 잇는다. 예: "지하철 2정류장 + 도보".
   /// 이동 수단을 정하지 않았으면 빈 글자다.
   String transportText(Segment segment) =>
-      segment.legs.map(transportLegText).join(' + ');
+      segment.legs.map(transportLegText).join(transportLegSeparator);
+
+  /// 구간이 어느 일차의 어느 장소 사이인지. 이동 수단이 사라진다고 물을 때 보여 준다.
+  /// 예: "2일차 용두암 → 동문시장". 일차를 넘는 구간은 양쪽에 일차를 붙인다: "1일차 숙소 → 2일차 용두암".
+  /// 양 끝 장소가 [route]에 없으면 null이다.
+  String? segmentRouteText(TripRoute route, Segment segment) {
+    final from = route.stopById(segment.fromStopId);
+    final to = route.stopById(segment.toStopId);
+    if (from == null || to == null) return null;
+    return from.day == to.day
+        ? droppedTransportRoute(to.day, from.name, to.name)
+        : droppedTransportRouteAcrossDays(from.day, from.name, to.day, to.name);
+  }
+
+  /// 갈아타는 토막 사이. 일차 동선 목록이 토막마다 아이콘을 붙일 때도 쓴다.
+  String get transportLegSeparator => ' + ';
 
   /// 예: "20분", "2시간", "3시간 20분".
   String durationText(Duration duration) {

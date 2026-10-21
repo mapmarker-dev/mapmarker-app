@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/models/segment.dart';
 import '../../data/models/stop.dart';
 import '../../data/models/trip.dart';
 import '../../data/models/trip_route.dart';
@@ -51,6 +52,10 @@ class TripDetailController extends StreamNotifier<Trip?> {
     required int order,
   }) =>
       ref.read(tripRepositoryProvider).moveStop(stopId, day: day, order: order);
+
+  /// 이동 수단을 바꾼다. 비우면 미정이다.
+  Future<Segment> updateSegment(Segment segment) =>
+      ref.read(tripRepositoryProvider).updateSegment(segment);
 }
 
 /// 여행의 장소와 구간.

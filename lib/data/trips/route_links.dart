@@ -31,3 +31,45 @@ List<Segment> linkStops({
           ),
   ];
 }
+
+/// [stopId] 장소를 [day]일차의 [order] 자리로 옮기면 사라지는 구간. 이웃이 바뀐 쌍의 구간이다.
+///
+/// 옮긴 장소로 오는 구간과 거기서 나가는 구간, 그리고 새로 끼어드는 자리의 구간(A와 B 사이에 넣으면 A→B)이다.
+/// 화면이 옮기기 전에 이동 수단이 지워지는지 묻는 데 쓴다.
+///
+/// [stops]는 동선 순서다. 옮기는 방법은 저장소의 `moveStop`과 같다:
+/// 그 일차의 다른 장소들 사이 [order] 자리에 넣고, 장소 수보다 크면 맨 뒤에 넣는다.
+List<Segment> segmentsDroppedByMove({
+  required List<Stop> stops,
+  required Iterable<Segment> segments,
+  required String stopId,
+  required int day,
+  required int order,
+}) {
+  final moved = stops.where((stop) => stop.id == stopId).firstOrNull;
+  if (moved == null) return const [];
+  final others = [
+    for (final stop in stops)
+      if (stop.id != stopId) stop,
+  ];
+  final dayOthers = [
+    for (final stop in others)
+      if (stop.day == day) stop,
+  ];
+  final index = order < 0 ? 0 : order;
+  final int at;
+  if (index < dayOthers.length) {
+    at = others.indexOf(dayOthers[index]);
+  } else {
+    final after = others.indexWhere((stop) => stop.day > day);
+    at = after == -1 ? others.length : after;
+  }
+  final next = [...others]..insert(at, moved);
+  final pairs = {
+    for (var i = 0; i + 1 < next.length; i++) (next[i].id, next[i + 1].id),
+  };
+  return [
+    for (final segment in segments)
+      if (!pairs.contains((segment.fromStopId, segment.toStopId))) segment,
+  ];
+}

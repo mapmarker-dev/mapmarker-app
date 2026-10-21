@@ -200,12 +200,19 @@
   },
   "itineraryOpenFailed": "네이버 지도를 열지 못했습니다.",
   "itineraryTransportUndecided": "이동 수단 미정",
+  "itineraryEditTransport": "이동 수단 고치기",
+  "@itineraryEditTransport": {
+    "description": "구간 줄 오른쪽 연필 아이콘의 설명. 줄을 누르면 이동 수단 입력 화면이 열린다"
+  },
   "itineraryMemo": "메모",
   "itineraryReorder": "끌어서 순서 바꾸기",
   "@itineraryReorder": {
     "description": "장소 줄 오른쪽 손잡이의 설명"
   },
   "deleteStop": "지우기",
+  "@deleteStop": {
+    "description": "장소 지우기 확인 대화상자의 버튼"
+  },
   "deleteStopTitle": "‘{name}’ 지우기",
   "@deleteStopTitle": {
     "placeholders": {
@@ -213,7 +220,36 @@
     }
   },
   "deleteStopMessage": "앞뒤 장소는 바로 이어집니다. 이 장소에 닿은 구간의 이동 수단은 사라집니다.",
-  "editStop": "편집",
+  "moveStopDropsTransportTitle": "이동 수단이 사라집니다",
+  "@moveStopDropsTransportTitle": {
+    "description": "장소를 끌어 옮기면 이웃이 바뀌는 구간에 적어 둔 이동 수단이 있을 때 묻는 대화상자 제목"
+  },
+  "moveStopDropsTransportMessage": "‘{name}’ 장소를 옮기면 아래 구간의 이동 수단이 지워집니다. 옮길까요?",
+  "@moveStopDropsTransportMessage": {
+    "placeholders": {
+      "name": {"type": "String", "example": "용두암"}
+    }
+  },
+  "moveStopConfirm": "옮기기",
+  "droppedTransportRoute": "{day}일차 {from} → {to}",
+  "@droppedTransportRoute": {
+    "description": "이동 수단이 사라지는 구간. 같은 일차 안의 구간. 예: 2일차 용두암 → 동문시장",
+    "placeholders": {
+      "day": {"type": "int"},
+      "from": {"type": "String", "example": "용두암"},
+      "to": {"type": "String", "example": "동문시장"}
+    }
+  },
+  "droppedTransportRouteAcrossDays": "{fromDay}일차 {from} → {toDay}일차 {to}",
+  "@droppedTransportRouteAcrossDays": {
+    "description": "이동 수단이 사라지는 구간. 일차를 넘는 구간(전날 숙소 → 다음 날 첫 장소). 예: 1일차 제주시 숙소 → 2일차 용두암",
+    "placeholders": {
+      "fromDay": {"type": "int"},
+      "from": {"type": "String", "example": "제주시 숙소"},
+      "toDay": {"type": "int"},
+      "to": {"type": "String", "example": "용두암"}
+    }
+  },
   "stayAgain": "오늘 밤도 ‘{name}’에서 묵기",
   "@stayAgain": {
     "description": "일차 동선 시트 맨 아래 버튼. 전날 밤 숙소를 이 일차 밤 숙소로 한 번 더 넣는다(연박)",
@@ -261,8 +297,57 @@
   "stopDescriptionHelper": "공유하면 다른 사람도 봅니다.",
   "stopMemoLabel": "메모",
   "stopMemoHelper": "나만 봅니다. 공유해도 보이지 않습니다.",
+  "stopFormDelete": "장소 지우기",
+  "@stopFormDelete": {
+    "description": "장소 편집 화면 맨 아래 버튼. 누르면 확인 대화상자를 거쳐 지운다"
+  },
   "discardChangesTitle": "고친 내용을 버릴까요?",
   "discardChanges": "버리기",
+
+  "transportFormTitle": "이동 수단",
+  "transportFormRoute": "{from} → {to}",
+  "@transportFormRoute": {
+    "description": "이동 수단 입력 화면 제목 아래 줄. 출발 장소와 도착 장소",
+    "placeholders": {
+      "from": {"type": "String", "example": "제주시 숙소"},
+      "to": {"type": "String", "example": "용두암"}
+    }
+  },
+  "transportFormEmpty": "고르지 않으면 이동 수단 미정으로 둡니다.",
+  "@transportFormEmpty": {
+    "description": "이동 수단 입력 화면에 토막이 하나도 없을 때 안내"
+  },
+  "transportPickFirst": "이동 수단 고르기",
+  "@transportPickFirst": {
+    "description": "토막이 없을 때 수단 칩 위 제목. 칩을 누르면 그 수단이 들어간다"
+  },
+  "transportAddTransfer": "갈아타기 추가",
+  "@transportAddTransfer": {
+    "description": "토막이 있을 때 수단 칩 위 제목. 칩을 누르면 그 수단이 맨 뒤에 이어진다"
+  },
+  "transportMaxLegs": "한 구간에는 수단을 {count}개까지 이을 수 있습니다.",
+  "@transportMaxLegs": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "transportChangeMode": "수단 바꾸기",
+  "transportMoveLegUp": "앞으로 옮기기",
+  "transportMoveLegDown": "뒤로 옮기기",
+  "transportDeleteLeg": "이 수단 지우기",
+  "transportStopsLabel": "정류장 수",
+  "transportStopsSuffix": "정류장",
+  "transportHoursLabel": "시간",
+  "transportMinutesLabel": "분",
+  "transportNumberRange": "{min}~{max} 사이로 적어 주세요.",
+  "@transportNumberRange": {
+    "description": "정류장 수·시간·분 칸의 오류. 분은 0~59라서 60분 이상은 시간 칸에 적는다",
+    "placeholders": {
+      "min": {"type": "int"},
+      "max": {"type": "int"}
+    }
+  },
+  "transportDurationLabel": "걸리는 시간 (선택)",
 
   "stopKindLodging": "숙소",
   "stopKindFood": "음식",

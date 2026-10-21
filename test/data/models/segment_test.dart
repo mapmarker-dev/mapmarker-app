@@ -16,6 +16,26 @@ void main() {
     expect(segment.legs, isEmpty);
   });
 
+  test('copies with new legs and keeps the stops it links', () {
+    const segment = Segment(
+      id: 'segment-1',
+      tripId: 'trip-1',
+      fromStopId: 'stop-1',
+      toStopId: 'stop-2',
+      curvature: 0.3,
+    );
+
+    final copy = segment.copyWith(
+      legs: const [TransportLeg(TransportMode.walk)],
+    );
+
+    expect(copy.id, 'segment-1');
+    expect(copy.fromStopId, 'stop-1');
+    expect(copy.toStopId, 'stop-2');
+    expect(copy.curvature, 0.3);
+    expect(copy.legs, const [TransportLeg(TransportMode.walk)]);
+  });
+
   test('compares legs by mode, stops and duration', () {
     expect(
       const TransportLeg(TransportMode.subway, stopCount: 2),

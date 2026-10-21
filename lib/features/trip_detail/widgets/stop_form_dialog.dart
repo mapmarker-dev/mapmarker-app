@@ -11,16 +11,25 @@ import '../stop_draft.dart';
 ///
 /// 칸이 많아 키보드가 올라오면 시트 안에서는 비좁아서 화면 전체를 쓴다.
 /// 경로는 만들지 않는다. 링크로 바로 열 일이 없는 화면 상태라서다.
+///
+/// [onDelete]가 있으면 맨 아래에 "장소 지우기"가 있다. 지웠으면(true) 입력 화면을 닫고 null을 돌려준다.
 Future<StopDraft?> showStopForm(
   BuildContext context, {
   required Trip trip,
   required StopDraft initial,
   required bool isNew,
+  Future<bool> Function()? onDelete,
+  Future<bool> Function(StopDraft draft)? confirmSave,
 }) => showDialog<StopDraft>(
   context: context,
   useSafeArea: false,
-  builder: (context) =>
-      StopFormDialog(trip: trip, initial: initial, isNew: isNew),
+  builder: (context) => StopFormDialog(
+    trip: trip,
+    initial: initial,
+    isNew: isNew,
+    onDelete: onDelete,
+    confirmSave: confirmSave,
+  ),
 );
 
 class StopFormDialog extends StatefulWidget {
@@ -29,11 +38,22 @@ class StopFormDialog extends StatefulWidget {
     required this.trip,
     required this.initial,
     required this.isNew,
+    this.onDelete,
+    this.confirmSave,
   });
 
   final Trip trip;
   final StopDraft initial;
   final bool isNew;
+
+  /// 확인을 받아 장소를 지운다. 지웠으면 true다. null이면 지우기가 없다(새 장소, 출발 숙소).
+  ///
+  /// 지우기는 일차 동선 목록이 아니라 여기에 둔다. 목록은 깔끔하게 두고, 지우기는 자주 쓰지 않아서다.
+  final Future<bool> Function()? onDelete;
+
+  /// [저장]을 누르면 닫기 전에 부른다. false면 닫지 않고 입력 화면에 남는다.
+  /// 예: 일차를 바꿔서 이웃 구간의 이동 수단이 지워질 때 묻고, 취소하면 다시 고칠 수 있게 한다.
+  final Future<bool> Function(StopDraft draft)? confirmSave;
 
   @override
   State<StopFormDialog> createState() => _StopFormDialogState();
@@ -74,7 +94,12 @@ class _StopFormDialogState extends State<StopFormDialog> {
     super.dispose();
   }
 
-  void _save() => Navigator.of(context).pop(_draft);
+  Future<void> _save() async {
+    final draft = _draft;
+    final confirmSave = widget.confirmSave;
+    if (confirmSave != null && !await confirmSave(draft)) return;
+    if (mounted) Navigator.of(context).pop(draft);
+  }
 
   Future<void> _pickTime() async {
     final time = _draft.plannedTime;
@@ -115,6 +140,7 @@ class _StopFormDialogState extends State<StopFormDialog> {
     final l10n = context.l10n;
     final material = MaterialLocalizations.of(context);
     final textTheme = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
     final insets = MediaQuery.paddingOf(context);
     const gap = SizedBox(height: AppSpace.lg);
 
@@ -221,6 +247,26 @@ class _StopFormDialogState extends State<StopFormDialog> {
                   alignLabelWithHint: true,
                 ),
               ),
+              if (widget.onDelete case final onDelete?) ...[
+                const SizedBox(height: AppSpace.xl),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    // 저장하지 않은 고친 내용이 있어도 장소를 지우면 함께 버린다. 따로 묻지 않는다.
+                    onPressed: () async {
+                      if (await onDelete() && context.mounted) {
+                        Navigator.of(context).pop();
+                      }
+                    },
+                    icon: const Icon(Icons.delete_outline),
+                    label: Text(l10n.stopFormDelete),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: scheme.error,
+                      side: BorderSide(color: scheme.error),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
