@@ -754,6 +754,15 @@ void main() {
       await _save(tester);
 
       expect(lineOf(tester, id).style, MapLineStyle.dotted);
+      // 목록에서 고른 구간에는 곡선 핸들이 있어서 아이콘은 그리지 않는다.
+      expect(mapScene(tester).curveHandle?.id, id);
+      expect(mapScene(tester).lineIcons, isEmpty);
+
+      // 다른 줄을 고르면 핸들이 빠지고 아이콘이 보인다.
+      await tester.tap(find.text('b'));
+      await tester.pumpAndSettle();
+
+      expect(mapScene(tester).curveHandle, isNull);
       expect(mapScene(tester).lineIcons.map((i) => (i.id, i.icon)), [
         (id, Icons.directions_walk),
       ]);

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/core/map/geo.dart';
 import 'package:mapmarker_app/core/map/map_provider.dart';
 import 'package:mapmarker_app/core/map/naver/naver_map_provider.dart';
+import 'package:mapmarker_app/core/map/route_arrow.dart';
 
 // SDK는 오버레이를 메시지(payload)로 바꿔 네이티브 지도에 보낸다. 바꿀 수 없는 값이 있으면
 // 그 묶음의 오버레이가 모두 빠지고 지도에는 아무것도 안 보인다(로그에만 남는다).
@@ -238,4 +239,40 @@ void main() {
     expect(payload['hasOnTapListener'], isTrue);
     expect(marker.info.id, isNot('segment'));
   });
+
+  test(
+    'sends the curve handle the SDK can read, on the middle of the curve',
+    () {
+      const handle = MapCurveHandle(
+        id: 'segment',
+        from: LatLng(33.50, 126.49),
+        to: LatLng(33.50, 126.53),
+        curvature: 0.4,
+        color: Colors.orange,
+        outline: Colors.white,
+      );
+      final marker = naverCurveHandleOf(
+        handle,
+        // 그림은 실기기에서만 만들 수 있다.
+        icon: null,
+      );
+      final middle = routeArrow(handle.from, handle.to, curvature: 0.4)!;
+
+      final payload = marker.payload;
+
+      expect(marker.info.id, isNot('segment'));
+      expect(marker.position.latitude, closeTo(middle.position.latitude, 1e-9));
+      expect(
+        marker.position.longitude,
+        closeTo(middle.position.longitude, 1e-9),
+      );
+      // 안의 화살표가 곡선 방향을 가리키고, 지도와 함께 돈다.
+      expect(payload['angle'], middle.bearing);
+      expect(payload['isFlat'], isTrue);
+      // 선 아이콘(150000)보다 위, 장소 마커(200000)보다 아래.
+      expect(payload['globalZIndex'], inExclusiveRange(150000, 200000));
+      // 끌기는 지도 위 Flutter 영역이 받는다. 리스너를 달면 지도 탭을 가로챈다.
+      expect(payload['hasOnTapListener'], isFalse);
+    },
+  );
 }

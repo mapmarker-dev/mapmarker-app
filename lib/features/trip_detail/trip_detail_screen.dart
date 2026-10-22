@@ -306,6 +306,29 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   ];
 
   /// 구간의 이동 수단을 고친다. 카메라는 그대로이고, 목록의 그 줄은 고른 채로 남는다.
+  /// 지도의 곡선 핸들을 끌었다 놓았다. 저장소의 최신 구간에 곡률만 넣는다(이동 수단은 그대로).
+  Future<void> _changeCurvature(
+    TripRoute route,
+    String segmentId,
+    double curvature,
+  ) async {
+    final latest = _latestRoute(
+      route,
+    ).segments.where((s) => s.id == segmentId).firstOrNull;
+    if (latest == null || latest.curvature == curvature) return;
+    await ref
+        .read(tripDetailProvider(trip.id).notifier)
+        .updateSegment(latest.copyWith(curvature: curvature));
+  }
+
+  /// 곡선 핸들을 둘 구간. 일차 보기에서 목록의 구간 줄을 직접 눌러 고른 때만이다
+  /// 지도에서 고른 구간에는 없다.
+  String? _curveSegmentId(RouteView view, int? day) {
+    final active = _selection.active;
+    if (day == null || active == null) return null;
+    return view.segments.any((s) => s.id == active) ? active : null;
+  }
+
   Future<void> _editSegment(TripRoute route, Segment segment) async {
     final from = route.stopById(segment.fromStopId);
     final to = route.stopById(segment.toStopId);
@@ -538,22 +561,29 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
             value: final route,
           ) when view != null && overlayHeight != null)
             Positioned.fill(
-              child: _RouteMap(
-                trip: trip,
-                route: route,
-                view: view,
-                cameraKey: choice.fitCount,
-                padding: insets.copyWith(
-                  top: overlayHeight,
-                  right: right,
-                  bottom: bottom,
+              // 목록에서 구간 줄을 고르면 곡선 핸들이 생긴다.
+              child: ListenableBuilder(
+                listenable: _selection,
+                builder: (context, _) => _RouteMap(
+                  trip: trip,
+                  route: route,
+                  view: view,
+                  cameraKey: choice.fitCount,
+                  padding: insets.copyWith(
+                    top: overlayHeight,
+                    right: right,
+                    bottom: bottom,
+                  ),
+                  // 로고는 왼쪽 아래라서 오른쪽 패널에는 가리지 않는다.
+                  logoLift: itinerary == null || isSide ? 0 : _sheetLift,
+                  draft: _draftPlace,
+                  curveSegmentId: _curveSegmentId(view, day),
+                  onMarkerTap: (id) => _onMarkerTap(route, view, day, id),
+                  onLineTap: (id) => _onLineTap(route, day, id),
+                  onMapTap: (tap) => _onMapTap(tap, day),
+                  onCurveChanged: (id, curvature) =>
+                      _changeCurvature(route, id, curvature),
                 ),
-                // 로고는 왼쪽 아래라서 오른쪽 패널에는 가리지 않는다.
-                logoLift: itinerary == null || isSide ? 0 : _sheetLift,
-                draft: _draftPlace,
-                onMarkerTap: (id) => _onMarkerTap(route, view, day, id),
-                onLineTap: (id) => _onLineTap(route, day, id),
-                onMapTap: (tap) => _onMapTap(tap, day),
               ),
             ),
           if (overlayHeight != null)
@@ -799,9 +829,11 @@ class _RouteMap extends ConsumerWidget {
     required this.padding,
     required this.logoLift,
     required this.draft,
+    required this.curveSegmentId,
     required this.onMarkerTap,
     required this.onLineTap,
     required this.onMapTap,
+    required this.onCurveChanged,
   });
 
   final Trip trip;
@@ -813,9 +845,14 @@ class _RouteMap extends ConsumerWidget {
 
   /// 임시 핀 자리. 카메라 맞춤에는 넣지 않는다.
   final MapTap? draft;
+
+  /// 곡선 핸들을 둘 구간. 없으면 null이다.
+  final String? curveSegmentId;
+
   final ValueChanged<String> onMarkerTap;
   final ValueChanged<String> onLineTap;
   final ValueChanged<MapTap> onMapTap;
+  final void Function(String id, double curvature) onCurveChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -824,10 +861,11 @@ class _RouteMap extends ConsumerWidget {
       mapProviderProvider(trip.mapProvider ?? MapProviderType.naver),
     );
     final colors = context.appColors;
-    final (:markers, :lines, :arrows, :lineIcons) = routeOverlays(
+    final (:markers, :lines, :arrows, :lineIcons, :curveHandle) = routeOverlays(
       route: route,
       view: view,
       colors: colors,
+      curveSegmentId: curveSegmentId,
     );
     final draft = this.draft;
     return map.buildMap(
@@ -840,6 +878,7 @@ class _RouteMap extends ConsumerWidget {
         lines: lines,
         arrows: arrows,
         lineIcons: lineIcons,
+        curveHandle: curveHandle,
         camera: MapCameraRequest(
           key: cameraKey,
           bounds: cameraBoundsFor(view.stops.map((stop) => stop.position)),
@@ -850,6 +889,7 @@ class _RouteMap extends ConsumerWidget {
       onMarkerTap: onMarkerTap,
       onLineTap: onLineTap,
       onMapTap: onMapTap,
+      onCurveChanged: onCurveChanged,
     );
   }
 }

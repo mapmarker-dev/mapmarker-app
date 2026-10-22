@@ -233,7 +233,7 @@
   "moveStopConfirm": "옮기기",
   "droppedTransportRoute": "{day}일차 {from} → {to}",
   "@droppedTransportRoute": {
-    "description": "이동 수단이 사라지는 구간. 같은 일차 안의 구간. 예: 2일차 용두암 → 동문시장",
+    "description": "이동 수단이 사라지는 구간. 같은 일차 안의 구간과, 전날 밤 숙소에서 그날 아침에 나오는 구간. 예: 2일차 용두암 → 동문시장, 3일차 제주시 숙소 → 성산일출봉",
     "placeholders": {
       "day": {"type": "int"},
       "from": {"type": "String", "example": "용두암"},
@@ -242,7 +242,7 @@
   },
   "droppedTransportRouteAcrossDays": "{fromDay}일차 {from} → {toDay}일차 {to}",
   "@droppedTransportRouteAcrossDays": {
-    "description": "이동 수단이 사라지는 구간. 일차를 넘는 구간(전날 숙소 → 다음 날 첫 장소). 예: 1일차 제주시 숙소 → 2일차 용두암",
+    "description": "이동 수단이 사라지는 구간. 숙소가 아닌 장소에서 다음 날로 넘어가는 구간. 예: 1일차 제주국제공항 → 2일차 용두암",
     "placeholders": {
       "fromDay": {"type": "int"},
       "from": {"type": "String", "example": "제주시 숙소"},

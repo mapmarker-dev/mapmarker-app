@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/core/map/geo.dart';
+import 'package:mapmarker_app/core/map/marker_icon.dart';
 import 'package:mapmarker_app/core/map/route_arrow.dart';
 
 const _jeju = LatLng(33.5, 126.5);
@@ -72,8 +73,8 @@ void main() {
 
     // 두 배 긴 선은 한 단계 멀리서도 보인다.
     expect(short.minZoom - long.minZoom, closeTo(1, 1e-9));
-    // 제주에서 동쪽으로 0.01도(약 0.93km)는 줌 13.3부터 화면에서 72px이 넘는다.
-    expect(short.minZoom, closeTo(13.3, 0.05));
+    // 제주에서 동쪽으로 0.01도(약 0.93km)는 줌 13.2부터 화면에서 68px이 넘는다.
+    expect(short.minZoom, closeTo(13.22, 0.05));
     expect(
       routeArrow(_jeju, _offset(_jeju, east: 150))!.minZoom,
       0,
@@ -103,22 +104,24 @@ void main() {
     test('shows up a little after the arrow, once it clears the marker', () {
       final to = _offset(_jeju, east: 0.01);
 
-      // 아이콘은 선이 화면에서 120px이 되어야 보인다(화살표는 72px). 줌으로 약 0.7단계 늦다.
+      // 아이콘은 선이 화면에서 114px이 되어야 보인다(화살표는 68px). 줌으로 약 0.7단계 늦다.
       expect(
         routeLineIcon(_jeju, to)!.minZoom - routeArrow(_jeju, to)!.minZoom,
-        closeTo(math.log(120 / 72) / math.ln2, 1e-9),
+        closeTo(math.log(114 / 68) / math.ln2, 1e-9),
       );
       expect(lineIconMinLineLength, greaterThan(arrowMinLineLength));
     });
 
     test('appears only when a quarter of the line clears the start marker', () {
-      // 1/4 지점의 아이콘이 출발 마커(반지름 14)와 화살표(18px)에 겹치지 않는다.
-      // 아이콘은 22px 네모라서, 선이 대각선으로 지나도 되게 대각선의 반으로 잰다.
-      final iconReach = 22 * math.sqrt2 / 2;
+      // 1/4 지점의 아이콘이 출발 마커(반지름 12)와 화살표(18px)에 겹치지 않는다.
+      // 아이콘과 화살표는 네모 그림이라, 선이 대각선으로 지나도 되게 대각선의 반으로 잰다.
+      // 출발 마커는 원(MarkerIcon, 지름 24)이라 반지름으로 잰다.
+      final iconReach = LineIconBadge.size.width * math.sqrt2 / 2;
+      final arrowReach = ArrowIcon.size.width * math.sqrt2 / 2;
       final quarter = lineIconMinLineLength / 4;
 
-      expect(quarter, greaterThanOrEqualTo(14 + iconReach));
-      expect(quarter, greaterThanOrEqualTo(18 * math.sqrt2 / 2 + iconReach));
+      expect(quarter, greaterThanOrEqualTo(12 + iconReach));
+      expect(quarter, greaterThanOrEqualTo(arrowReach + iconReach));
     });
 
     test('follows the curve of a curved segment', () {

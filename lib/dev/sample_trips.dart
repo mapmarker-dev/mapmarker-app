@@ -97,57 +97,66 @@ SampleTrips sampleTrips({
   return (
     trips: [jeju, gangneung, busan],
     // 제주: 선 모양 3갈래(실선·점선·파선)와 갈아타기, 미정 구간이 모두 보이게 이동 수단을 넣는다.
-    segments: _legs(jejuStops, {
-      ('제주국제공항', '용두암'): const [
-        TransportLeg(TransportMode.car, duration: Duration(minutes: 15)),
-      ],
-      ('용두암', '동문재래시장'): const [
-        TransportLeg(
-          TransportMode.bus,
-          stopCount: 4,
-          duration: Duration(minutes: 15),
-        ),
-        TransportLeg(TransportMode.walk, duration: Duration(minutes: 5)),
-      ],
-      ('동문재래시장', '제주시 숙소'): const [
-        TransportLeg(TransportMode.walk, duration: Duration(minutes: 10)),
-      ],
-      ('제주시 숙소', '협재해수욕장'): const [
-        TransportLeg(TransportMode.car, duration: Duration(minutes: 50)),
-      ],
-      // 오설록 → 제주시 숙소는 미정으로 둔다.
-      ('협재해수욕장', '오설록 티뮤지엄'): const [
-        TransportLeg(
-          TransportMode.bus,
-          stopCount: 2,
-          duration: Duration(minutes: 20),
-        ),
-      ],
-      ('제주시 숙소', '성산일출봉'): const [
-        TransportLeg(
-          TransportMode.car,
-          duration: Duration(hours: 1, minutes: 10),
-        ),
-      ],
-      ('성산일출봉', '우도'): const [
-        TransportLeg(TransportMode.walk, duration: Duration(minutes: 15)),
-        TransportLeg(TransportMode.ferry, duration: Duration(minutes: 15)),
-      ],
-      ('우도', '매일올레시장'): const [
-        TransportLeg(TransportMode.ferry, duration: Duration(minutes: 15)),
-        TransportLeg(
-          TransportMode.bus,
-          stopCount: 12,
-          duration: Duration(hours: 1, minutes: 20),
-        ),
-      ],
-      ('매일올레시장', '서귀포 숙소'): const [
-        TransportLeg(TransportMode.walk, duration: Duration(minutes: 5)),
-      ],
-      ('천지연폭포', '제주국제공항'): const [
-        TransportLeg(TransportMode.car, duration: Duration(hours: 1)),
-      ],
-    }),
+    segments: _legs(
+      jejuStops,
+      {
+        ('제주국제공항', '용두암'): const [
+          TransportLeg(TransportMode.car, duration: Duration(minutes: 15)),
+        ],
+        ('용두암', '동문재래시장'): const [
+          TransportLeg(
+            TransportMode.bus,
+            stopCount: 4,
+            duration: Duration(minutes: 15),
+          ),
+          TransportLeg(TransportMode.walk, duration: Duration(minutes: 5)),
+        ],
+        ('동문재래시장', '제주시 숙소'): const [
+          TransportLeg(TransportMode.walk, duration: Duration(minutes: 10)),
+        ],
+        ('제주시 숙소', '협재해수욕장'): const [
+          TransportLeg(TransportMode.car, duration: Duration(minutes: 50)),
+        ],
+        // 오설록 → 제주시 숙소는 미정으로 둔다.
+        ('협재해수욕장', '오설록 티뮤지엄'): const [
+          TransportLeg(
+            TransportMode.bus,
+            stopCount: 2,
+            duration: Duration(minutes: 20),
+          ),
+        ],
+        ('제주시 숙소', '성산일출봉'): const [
+          TransportLeg(
+            TransportMode.car,
+            duration: Duration(hours: 1, minutes: 10),
+          ),
+        ],
+        ('성산일출봉', '우도'): const [
+          TransportLeg(TransportMode.walk, duration: Duration(minutes: 15)),
+          TransportLeg(TransportMode.ferry, duration: Duration(minutes: 15)),
+        ],
+        ('우도', '매일올레시장'): const [
+          TransportLeg(TransportMode.ferry, duration: Duration(minutes: 15)),
+          TransportLeg(
+            TransportMode.bus,
+            stopCount: 12,
+            duration: Duration(hours: 1, minutes: 20),
+          ),
+        ],
+        ('매일올레시장', '서귀포 숙소'): const [
+          TransportLeg(TransportMode.walk, duration: Duration(minutes: 5)),
+        ],
+        ('천지연폭포', '제주국제공항'): const [
+          TransportLeg(TransportMode.car, duration: Duration(hours: 1)),
+        ],
+      },
+      curves: const {
+        // 곡선 구간. 미정 구간도 하나 휘어서 실선 곡선을 본다.
+        ('제주시 숙소', '협재해수욕장'): 0.25,
+        ('오설록 티뮤지엄', '제주시 숙소'): -0.2,
+        ('성산일출봉', '우도'): -0.4,
+      },
+    ),
     stops: [
       ...jejuStops,
       ..._stops(busan, [
@@ -182,19 +191,23 @@ class _Place {
   final StopKind kind;
 }
 
-/// 동선 순서로 놓인 [stops]에서 이웃한 두 장소의 이름이 [legs]에 있으면, 그 사이 구간에 이동 수단을 넣는다.
+/// 동선 순서로 놓인 [stops]에서 이웃한 두 장소의 이름이 [legs]나 [curves]에 있으면,
+/// 그 사이 구간에 이동 수단과 곡률을 넣는다.
 List<Segment> _legs(
   List<Stop> stops,
-  Map<(String, String), List<TransportLeg>> legs,
-) => [
+  Map<(String, String), List<TransportLeg>> legs, {
+  Map<(String, String), double> curves = const {},
+}) => [
   for (var i = 0; i + 1 < stops.length; i++)
-    if (legs[(stops[i].name, stops[i + 1].name)] case final chosen?)
+    if ((stops[i].name, stops[i + 1].name) case final pair
+        when legs.containsKey(pair) || curves.containsKey(pair))
       Segment(
         id: newId(),
         tripId: stops[i].tripId,
         fromStopId: stops[i].id,
         toStopId: stops[i + 1].id,
-        legs: chosen,
+        legs: legs[pair] ?? const [],
+        curvature: curves[pair] ?? 0,
       ),
 ];
 

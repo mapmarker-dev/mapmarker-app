@@ -28,8 +28,8 @@ class RouteArrow {
 
 /// 화살표가 보이려면 선이 화면에서 이만큼(논리 px) 길어야 한다.
 ///
-/// 양 끝 마커 반지름(14 + 14)과 화살표(18), 그 사이 여백을 더한 길이다.
-const arrowMinLineLength = 72.0;
+/// 양 끝 마커 반지름(12 + 12)과 화살표(18), 그 사이 여백(26)을 더한 길이다.
+const arrowMinLineLength = 68.0;
 
 /// 줌 0에서 세계 지도 한 변의 길이(논리 px). 줌이 1 오를 때마다 두 배가 된다.
 const _worldSizeAtZoom0 = 256.0;
@@ -41,7 +41,7 @@ const _maxZoom = 21.0;
 /// 화면에 그려지는 선과 맞추려고 메르카토르 좌표에서 계산한다. 위도·경도로 계산하면
 /// 위도가 높을수록 방향이 틀어진다.
 /// [curvature]는 곡선 구간의 곡률 k로, 곡선 가운데(t = 0.5)에 곡선 방향으로 놓는다.
-/// 지금은 선을 직선으로만 그려서 0만 넘긴다.
+/// 곡선 구간은 [routeCurvePoints](route_curve.dart)로 그린 선과 같은 곡선 위에 놓인다.
 RouteArrow? routeArrow(LatLng from, LatLng to, {double curvature = 0}) {
   final a = mercatorOf(from);
   final b = mercatorOf(to);
@@ -73,8 +73,10 @@ class RouteLineIconPlace {
 /// 선 아이콘이 보이려면 선이 화면에서 이만큼(논리 px) 길어야 한다.
 ///
 /// 아이콘은 1/4 지점이라 출발 마커와 화살표에서 각각 선 길이의 1/4만큼 떨어진다.
-/// 화살표([arrowMinLineLength])에 되도록 맞춰 나타나게 여백 없이 둔다(사용자 결정). 줌으로는 화살표보다 약 0.7단계 늦다.
-const lineIconMinLineLength = 120.0;
+/// 1/4 거리가 화살표 대각선의 반(약 12.7) + 아이콘 대각선의 반(약 15.6) = 28.3을 넘는 가장 짧은 길이다
+/// 화살표([arrowMinLineLength])에 되도록 맞춰 나타나게 여백 없이 둔다. 줌으로는 화살표보다 약 0.7단계 늦다.
+/// 더 줄이면 아이콘이 화살표나 출발 마커에 겹친다.
+const lineIconMinLineLength = 114.0;
 
 /// 선 아이콘을 놓는 자리(출발 장소에서 선 길이의 몇 분의 몇). 화살표가 가운데(0.5)라서 겹치지 않는다.
 const _lineIconAt = 0.25;

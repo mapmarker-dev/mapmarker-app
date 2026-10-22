@@ -93,13 +93,16 @@ extension ModelTexts on AppLocalizations {
       segment.legs.map(transportLegText).join(transportLegSeparator);
 
   /// 구간이 어느 일차의 어느 장소 사이인지. 이동 수단이 사라진다고 물을 때 보여 준다.
-  /// 예: "2일차 용두암 → 동문시장". 일차를 넘는 구간은 양쪽에 일차를 붙인다: "1일차 숙소 → 2일차 용두암".
+  /// 예: "2일차 용두암 → 동문시장".
+  /// 
+  /// 숙소가 아닌 장소에서 다음 날로 넘어가는 구간은 밤 이동인지 아침 이동인지 몰라서 양쪽에 일차를 붙인다: "1일차 제주국제공항 → 2일차 용두암".
+  ///
   /// 양 끝 장소가 [route]에 없으면 null이다.
   String? segmentRouteText(TripRoute route, Segment segment) {
     final from = route.stopById(segment.fromStopId);
     final to = route.stopById(segment.toStopId);
     if (from == null || to == null) return null;
-    return from.day == to.day
+    return from.day == to.day || from.isLodging
         ? droppedTransportRoute(to.day, from.name, to.name)
         : droppedTransportRouteAcrossDays(from.day, from.name, to.day, to.name);
   }

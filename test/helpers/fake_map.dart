@@ -13,11 +13,13 @@ class FakeMapProvider implements MapProvider {
     ValueChanged<String>? onMarkerTap,
     ValueChanged<String>? onLineTap,
     ValueChanged<MapTap>? onMapTap,
+    void Function(String id, double curvature)? onCurveChanged,
   }) => FakeMap(
     scene: scene,
     onMarkerTap: onMarkerTap,
     onLineTap: onLineTap,
     onMapTap: onMapTap,
+    onCurveChanged: onCurveChanged,
   );
 }
 
@@ -28,12 +30,14 @@ class FakeMap extends StatelessWidget {
     this.onMarkerTap,
     this.onLineTap,
     this.onMapTap,
+    this.onCurveChanged,
   });
 
   final MapScene scene;
   final ValueChanged<String>? onMarkerTap;
   final ValueChanged<String>? onLineTap;
   final ValueChanged<MapTap>? onMapTap;
+  final void Function(String id, double curvature)? onCurveChanged;
 
   @override
   Widget build(BuildContext context) => const SizedBox.expand();
@@ -94,4 +98,13 @@ Future<void> tapMap(
 extension MapSceneLabels on MapScene {
   /// 마커 이름. 예: `['제주시 숙소', '용두암']`.
   List<String> get captions => [for (final m in markers) m.caption];
+}
+
+/// 지도의 곡선 핸들을 끌어 [curvature]로 놓은 것처럼 한다. 핸들이 있어야 끌 수 있다.
+Future<void> dragCurveHandle(WidgetTester tester, double curvature) async {
+  final map = _fakeMap(tester);
+  final handle = map.scene.curveHandle;
+  expect(handle, isNotNull, reason: '곡선 핸들이 없으면 끌 수 없다');
+  map.onCurveChanged!(handle!.id, curvature);
+  await tester.pumpAndSettle();
 }

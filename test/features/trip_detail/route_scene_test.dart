@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/core/map/map_provider.dart';
 import 'package:mapmarker_app/core/map/route_arrow.dart';
+import 'package:mapmarker_app/core/map/route_curve.dart';
 import 'package:mapmarker_app/core/theme/app_colors.dart';
 import 'package:mapmarker_app/core/theme/app_theme.dart';
 import 'package:mapmarker_app/data/models/segment.dart';
@@ -230,5 +231,89 @@ void main() {
   test('keeps undecided routes as before: solid lines, no icons', () {
     expect(whole.lines.every((l) => l.style == MapLineStyle.solid), isTrue);
     expect(whole.lineIcons, isEmpty);
+  });
+
+  group('curves', () {
+    final stops = [
+      testStop('a'),
+      testStop('b', order: 1),
+      testStop('c', order: 2),
+    ];
+    final linked = linkStops(
+      tripId: 'trip',
+      stops: TripRoute(stops: stops).stops,
+      existing: const [],
+    );
+    final [ab, bc] = linked;
+    final trip = TripRoute(
+      stops: stops,
+      segments: [
+        ab.copyWith(
+          curvature: 0.4,
+          legs: const [TransportLeg(TransportMode.bus)],
+        ),
+        bc,
+      ],
+    );
+
+    ({
+      List<MapMarker> markers,
+      List<MapLine> lines,
+      List<MapArrow> arrows,
+      List<MapLineIcon> lineIcons,
+      MapCurveHandle? curveHandle,
+    })
+    overlaysOf({String? curveSegmentId}) => routeOverlays(
+      route: trip,
+      view: trip.view(day: 1),
+      colors: _colors,
+      curveSegmentId: curveSegmentId,
+    );
+
+    test('draws curved segments as points along the curve', () {
+      final [curved, straight] = overlaysOf().lines;
+      final a = trip.stopById('a')!.position;
+      final b = trip.stopById('b')!.position;
+
+      expect(curved.points, routeCurvePoints(a, b, 0.4));
+      expect(curved.points.length, greaterThan(2));
+      expect(straight.points, hasLength(2));
+    });
+
+    test('puts the arrow and the icon on the curve', () {
+      final overlays = overlaysOf();
+      final a = trip.stopById('a')!.position;
+      final b = trip.stopById('b')!.position;
+
+      expect(
+        overlays.arrows.first.position,
+        routeArrow(a, b, curvature: 0.4)!.position,
+      );
+      expect(
+        overlays.lineIcons.single.position,
+        routeLineIcon(a, b, curvature: 0.4)!.position,
+      );
+    });
+
+    test('has no handle unless a segment is picked in the list', () {
+      expect(overlaysOf().curveHandle, isNull);
+      expect(overlaysOf(curveSegmentId: 'missing').curveHandle, isNull);
+    });
+
+    test('puts the handle on the picked segment instead of its arrow', () {
+      final overlays = overlaysOf(curveSegmentId: ab.id);
+      final handle = overlays.curveHandle!;
+
+      expect(handle.id, ab.id);
+      expect(handle.from, trip.stopById('a')!.position);
+      expect(handle.to, trip.stopById('b')!.position);
+      expect(handle.curvature, 0.4);
+      expect(handle.color, _colors.routeDay(1).background);
+      expect(handle.outline, _colors.routeHalo);
+      // 핸들 안에 화살표가 있어서 그 구간의 화살표와 선 아이콘은 그리지 않는다. 선은 그대로다.
+      expect(overlays.arrows.map((a) => a.id), [bc.id]);
+      expect(overlays.lineIcons, isEmpty);
+      expect(overlays.lines.map((l) => l.id), [ab.id, bc.id]);
+    });
   });
 }

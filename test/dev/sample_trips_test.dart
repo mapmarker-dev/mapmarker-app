@@ -88,24 +88,33 @@ void main() {
     expect(busanRoute.stops.where((s) => s.day == 2), isEmpty);
   });
 
-  test('shows every line style, a transfer and an undecided segment', () async {
-    final (:trips, :stops, :segments) = _samples();
-    final repository = MemoryTripRepository(
-      seed: trips,
-      seedStops: stops,
-      seedSegments: segments,
-    );
-    addTearDown(repository.dispose);
+  test(
+    'shows every line style, a transfer, an undecided segment and curves',
+    () async {
+      final (:trips, :stops, :segments) = _samples();
+      final repository = MemoryTripRepository(
+        seed: trips,
+        seedStops: stops,
+        seedSegments: segments,
+      );
+      addTearDown(repository.dispose);
 
-    final jeju = await repository.watchRoute(trips.first.id).first;
-    final legs = [for (final s in jeju.segments) s.legs];
+      final jeju = await repository.watchRoute(trips.first.id).first;
+      final legs = [for (final s in jeju.segments) s.legs];
 
-    // 미리 넣은 구간은 모두 이웃한 장소 사이라서 저장소에 남는다.
-    expect(legs.where((l) => l.isNotEmpty), hasLength(segments.length));
-    expect({
-      for (final l in legs) lineStyleOf(representativeMode(l)),
-    }, unorderedEquals(MapLineStyle.values));
-    expect(legs.any((l) => l.length > 1), isTrue, reason: '갈아타기');
-    expect(legs.any((l) => l.isEmpty), isTrue, reason: '미정');
-  });
+      // 미리 넣은 구간은 모두 이웃한 장소 사이라서 저장소에 남는다.
+      expect(
+        jeju.segments.map((s) => s.id),
+        containsAll(segments.map((s) => s.id)),
+      );
+      final curvatures = [for (final s in jeju.segments) s.curvature];
+      expect(curvatures.any((k) => k > 0), isTrue, reason: '한쪽으로 휜 곡선');
+      expect(curvatures.any((k) => k < 0), isTrue, reason: '반대쪽으로 휜 곡선');
+      expect({
+        for (final l in legs) lineStyleOf(representativeMode(l)),
+      }, unorderedEquals(MapLineStyle.values));
+      expect(legs.any((l) => l.length > 1), isTrue, reason: '갈아타기');
+      expect(legs.any((l) => l.isEmpty), isTrue, reason: '미정');
+    },
+  );
 }

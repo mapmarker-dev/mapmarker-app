@@ -10,18 +10,18 @@ class MarkerIcon extends StatelessWidget {
   const MarkerIcon(this.look, {super.key});
 
   /// 원(지름 [_circle])과, 원 오른쪽 위에 걸친 배지(지름 [_badge])가 들어가는 크기.
-  static const size = Size.square(36);
+  static const size = Size.square(32);
 
-  static const _circle = 28.0;
+  static const _circle = 24.0;
   static const _border = 2.0;
-  static const _badge = 16.0;
+  static const _badge = 14.0;
 
   final MarkerLook look;
 
   @override
   Widget build(BuildContext context) {
     final labelStyle = Theme.of(context).textTheme.labelMedium?.copyWith(
-      fontSize: 13,
+      fontSize: 12,
       fontWeight: AppFont.extraBold,
       color: look.foreground,
       height: 1,
@@ -44,7 +44,7 @@ class MarkerIcon extends StatelessWidget {
               MarkerLook(:final label?) => Text(label, style: labelStyle),
               MarkerLook(:final icon?) => Icon(
                 icon,
-                size: 16,
+                size: 14,
                 color: look.foreground,
               ),
               _ => null,
@@ -63,7 +63,7 @@ class MarkerIcon extends StatelessWidget {
                   shape: BoxShape.circle,
                   border: Border.all(color: look.fill),
                 ),
-                child: Icon(badge, size: 11, color: look.foreground),
+                child: Icon(badge, size: 10, color: look.foreground),
               ),
             ),
         ],
@@ -95,6 +95,36 @@ class LineIconBadge extends StatelessWidget {
       border: Border.all(color: lineIcon.border, width: _border),
     ),
     child: Icon(lineIcon.icon, size: _icon, color: lineIcon.foreground),
+  );
+}
+
+/// 곡선 핸들 그림. 흰 원 안에 진행 방향 화살표가 있다. 위(북쪽)를 가리키고, 지도 구현이 곡선 방향만큼 돌린다.
+///
+/// 화살표 자리(곡선 가운데)에 놓여서, 고른 구간의 화살표가 "잡을 수 있는 화살표"로 바뀐 것처럼 보인다.
+class CurveHandleIcon extends StatelessWidget {
+  const CurveHandleIcon({
+    super.key,
+    required this.color,
+    required this.outline,
+  });
+
+  static const size = Size.square(32);
+  static const _border = 2.5;
+
+  final Color color;
+  final Color outline;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size.width,
+    height: size.height,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: outline,
+      shape: BoxShape.circle,
+      border: Border.all(color: color, width: _border),
+    ),
+    child: ArrowIcon(color: color, outline: outline),
   );
 }
 

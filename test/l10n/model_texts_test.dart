@@ -216,7 +216,12 @@ void main() {
   });
 
   group('segment route', () {
-    Stop stop(String id, String name, int day) => Stop(
+    Stop stop(
+      String id,
+      String name,
+      int day, {
+      StopKind kind = StopKind.other,
+    }) => Stop(
       id: id,
       tripId: 'trip-1',
       latitude: 33.5,
@@ -224,13 +229,15 @@ void main() {
       name: name,
       day: day,
       order: 0,
+      kind: kind,
     );
 
     final route = TripRoute(
       stops: [
         stop('a', '용두암', 2),
         stop('b', '동문시장', 2).copyWith(order: 1),
-        stop('hotel', '제주시 숙소', 1),
+        stop('hotel', '제주시 숙소', 1, kind: StopKind.lodging),
+        stop('airport', '제주국제공항', 1),
       ],
     );
 
@@ -245,12 +252,24 @@ void main() {
       expect(l10n.segmentRouteText(route, link('a', 'b')), '2일차 용두암 → 동문시장');
     });
 
-    test('names both days of a segment across days', () {
+    test('puts leaving last night'
+        's lodging on the morning it happens', () {
+      // 전날 밤 숙소에서 나오는 길은 도착한 날의 아침 이동이다(지도 선 색, 목록 자리와 같다).
       expect(
         l10n.segmentRouteText(route, link('hotel', 'a')),
-        '1일차 제주시 숙소 → 2일차 용두암',
+        '2일차 제주시 숙소 → 용두암',
       );
     });
+
+    test(
+      'names both days when crossing days from a place that is not lodging',
+      () {
+        expect(
+          l10n.segmentRouteText(route, link('airport', 'a')),
+          '1일차 제주국제공항 → 2일차 용두암',
+        );
+      },
+    );
 
     test('is null when a stop is missing', () {
       expect(l10n.segmentRouteText(route, link('a', 'gone')), isNull);

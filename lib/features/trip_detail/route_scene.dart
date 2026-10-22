@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/map/map_provider.dart';
 import '../../core/map/route_arrow.dart';
+import '../../core/map/route_curve.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/stop.dart';
 import '../../data/models/trip_route.dart';
@@ -25,19 +26,24 @@ IconData? kindBadge(StopKind kind) => switch (kind) {
 ///   마커는 동선에서 먼저 오는 장소의 것이다. 누르면 [stopsAtMarker]로 그 자리의 장소를 모두 찾는다.
 /// - 선: 도착 장소의 일차 색. 일차를 넘는 구간은 다음 날 아침의 이동이라 다음 날 색이다.
 ///   모양은 구간의 대표 수단으로 정한다([lineStyleOf], [representativeMode]). 미정은 실선이다.
+///   곡률이 있으면 곡선으로 그린다([routeCurvePoints]).
 /// - 화살표: 선 가운데에 가는 방향으로, 선과 같은 색. 선이 화면에서 짧으면 숨는다.
 /// - 선 아이콘: 대표 수단 아이콘을 선의 1/4 지점(출발 쪽)에 둔다. 화살표와 겹치지 않는다.
 ///   미정 구간에는 없고, 선이 화면에서 짧아지면 화살표보다 조금 먼저(출발 마커와 겹치기 전에) 숨는다.
+/// - 곡선 핸들: [curveSegmentId] 구간(일차 동선 목록에서 직접 고른 구간)의 가운데에 둔다.
+///   핸들 안에 진행 방향 화살표가 있어서, 그 구간의 화살표와 선 아이콘은 그리지 않는다.
 ({
   List<MapMarker> markers,
   List<MapLine> lines,
   List<MapArrow> arrows,
   List<MapLineIcon> lineIcons,
+  MapCurveHandle? curveHandle,
 })
 routeOverlays({
   required TripRoute route,
   required RouteView view,
   required AppColors colors,
+  String? curveSegmentId,
 }) {
   final markers = <MapMarker>[];
   final drawn = <Stop>[];
@@ -57,6 +63,7 @@ routeOverlays({
   final lines = <MapLine>[];
   final arrows = <MapArrow>[];
   final lineIcons = <MapLineIcon>[];
+  MapCurveHandle? curveHandle;
   for (final segment in view.segments) {
     final from = route.stopById(segment.fromStopId);
     final to = route.stopById(segment.toStopId);
@@ -65,17 +72,30 @@ routeOverlays({
     final dayColors = colors.routeDay(to.day);
     final color = dayColors.background;
     final mode = representativeMode(segment.legs);
+    final curvature = segment.curvature;
     lines.add(
       MapLine(
         id: segment.id,
-        points: [from.position, to.position],
+        points: routeCurvePoints(from.position, to.position, curvature),
         color: color,
         outline: colors.routeHalo,
         style: lineStyleOf(mode),
       ),
     );
+    if (segment.id == curveSegmentId) {
+      curveHandle = MapCurveHandle(
+        id: segment.id,
+        from: from.position,
+        to: to.position,
+        curvature: curvature,
+        color: color,
+        outline: colors.routeHalo,
+      );
+      continue;
+    }
     if (mode != null) {
-      if (routeLineIcon(from.position, to.position) case final place?) {
+      if (routeLineIcon(from.position, to.position, curvature: curvature)
+          case final place?) {
         lineIcons.add(
           MapLineIcon(
             id: segment.id,
@@ -89,8 +109,8 @@ routeOverlays({
         );
       }
     }
-    // 선을 아직 직선으로만 그려서 곡률은 넘기지 않는다. 곡선 단위에서 선과 함께 넘긴다.
-    if (routeArrow(from.position, to.position) case final arrow?) {
+    if (routeArrow(from.position, to.position, curvature: curvature)
+        case final arrow?) {
       arrows.add(
         MapArrow(
           id: segment.id,
@@ -103,7 +123,13 @@ routeOverlays({
       );
     }
   }
-  return (markers: markers, lines: lines, arrows: arrows, lineIcons: lineIcons);
+  return (
+    markers: markers,
+    lines: lines,
+    arrows: arrows,
+    lineIcons: lineIcons,
+    curveHandle: curveHandle,
+  );
 }
 
 /// 장소를 넣으려고 지도를 누른 자리의 임시 핀 ID. 장소 ID(UUID)와 겹치지 않는다.
