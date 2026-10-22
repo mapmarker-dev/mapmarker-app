@@ -15,6 +15,7 @@ class DayItinerary {
     final arrivals = {
       for (final segment in view.segments) segment.toStopId: segment,
     };
+    final viaArrivals = {for (final via in view.vias) via.to.id: via};
     Stop? start;
     final stops = <ItineraryStop>[];
     for (final stop in view.stops) {
@@ -27,6 +28,7 @@ class DayItinerary {
           stop: stop,
           number: route.numberOf(stop),
           arrival: arrivals[stop.id],
+          via: viaArrivals[stop.id],
         ),
       );
     }
@@ -78,7 +80,12 @@ class DayItinerary {
 /// 일차 동선 시트의 장소 한 줄과, 그 위에 붙는 앞 장소에서 오는 구간.
 @immutable
 class ItineraryStop {
-  const ItineraryStop({required this.stop, this.number, this.arrival});
+  const ItineraryStop({
+    required this.stop,
+    this.number,
+    this.arrival,
+    this.via,
+  });
 
   final Stop stop;
 
@@ -87,6 +94,10 @@ class ItineraryStop {
 
   /// 앞 장소에서 이 장소로 오는 구간. 그날 첫 장소이고 출발 장소가 없거나, 앞 장소가 숨었으면 null이다.
   final Segment? arrival;
+
+  /// 숙소를 끈 보기에서 앞 장소가 낮에 들른 숙소라 숨었을 때, 그 숙소를 건너 이은 것.
+  /// 시트는 구간 줄 대신 "숙소를 거쳐 감" 줄을 둔다.
+  final RouteVia? via;
 }
 
 /// 시트에서 장소를 끌어 옮긴 뒤 저장소에 넘길 일차 안 순서([Stop.order]).

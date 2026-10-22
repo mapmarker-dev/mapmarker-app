@@ -198,6 +198,33 @@ void main() {
       }
     });
 
+    test(
+      'draw a faint line thin, without an outline or taps, under others',
+      () {
+        final faint = naverLinesOf(
+          styled(MapLineStyle.faint),
+          onTap: () {},
+        ).single;
+        final [halo, dashes] = naverPatternLinesOf(styled(MapLineStyle.dashed));
+        final payload = (faint as NPolylineOverlay).payload;
+
+        expect(faint.info.id, 'segment');
+        expect(
+          payload['width'] as double,
+          lessThan(dashes.payload['width'] as double),
+        );
+        expect(payload['pattern'], isA<List<Object?>>());
+        expect(payload['pattern'], isNot(dashes.pattern));
+        expect(payload['coords'], isA<List<Object?>>());
+        expect(payload['hasOnTapListener'], isFalse);
+        // 다른 선의 테두리보다도 아래에 깔린다.
+        expect(
+          payload['globalZIndex'] as int,
+          lessThan(halo.payload['globalZIndex'] as int),
+        );
+      },
+    );
+
     test('skip lines without length', () {
       expect(
         naverLinesOf(

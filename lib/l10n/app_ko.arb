@@ -204,6 +204,26 @@
   },
   "itineraryOpenFailed": "네이버 지도를 열지 못했습니다.",
   "itineraryTransportUndecided": "이동 수단 미정",
+  "lodgingHiddenShow": "숙소 켜기",
+  "@lodgingHiddenShow": {
+    "description": "숙소를 끈 보기라서 할 수 없거나 보이지 않는다고 알리는 스낵바의 버튼. 누르면 숙소 필터를 켠다"
+  },
+  "lodgingHiddenReorder": "숙소를 켜면 순서를 바꿀 수 있습니다.",
+  "@lodgingHiddenReorder": {
+    "description": "숙소를 끈 시트에서 흐린 순서 손잡이를 눌렀을 때. 숨긴 숙소 사이의 자리가 보이지 않아서 끌어 옮기기를 막는다"
+  },
+  "lodgingHiddenSaved": "숙소가 꺼져 있어 지도에 보이지 않습니다.",
+  "@lodgingHiddenSaved": {
+    "description": "숙소를 끈 보기에서 숙소를 추가하거나 종류를 숙소로 바꿔 저장했을 때"
+  },
+  "lodgingHiddenVia": "숙소를 켜면 이 사이의 이동 수단을 볼 수 있습니다.",
+  "@lodgingHiddenVia": {
+    "description": "숙소를 끈 시트에서 '숙소를 거쳐 감' 줄을 눌렀을 때"
+  },
+  "itineraryViaLodging": "숙소를 거쳐 감",
+  "@itineraryViaLodging": {
+    "description": "숙소를 끈 일차 동선 시트에서, 앞 장소와 이 장소 사이에 숨긴 숙소(그날 낮에 들른 숙소)가 있을 때 구간 줄 대신 두는 가는 줄. 숙소 이름은 쓰지 않는다"
+  },
   "itineraryEditTransport": "이동 수단 고치기",
   "@itineraryEditTransport": {
     "description": "구간 줄 오른쪽 연필 아이콘의 설명. 줄을 누르면 이동 수단 입력 화면이 열린다"

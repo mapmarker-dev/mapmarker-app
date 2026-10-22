@@ -174,6 +174,9 @@ class _RouteBarPainter extends CustomPainter {
   /// 점 사이 간격(점 중심끼리). 점 지름은 선 두께다.
   static const _dotStep = AppSpace.sm;
 
+  /// 가는 파선(숙소를 거침)의 토막. 빈칸도 같은 길이다.
+  static const _faintDash = AppSpace.xs;
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = color;
@@ -193,6 +196,16 @@ class _RouteBarPainter extends CustomPainter {
       case MapLineStyle.dotted:
         for (var y = width / 2; y < size.height; y += _dotStep) {
           canvas.drawCircle(Offset(width / 2, y), width / 2, paint);
+        }
+      case MapLineStyle.faint:
+        // 지도처럼 가늘고 토막이 짧다. 굵기는 다른 선의 절반이다.
+        final half = width / 4;
+        for (var y = 0.0; y < size.height; y += _faintDash * 2) {
+          final end = (y + _faintDash).clamp(0.0, size.height);
+          canvas.drawRect(
+            Rect.fromLTRB(width / 2 - half, y, width / 2 + half, end),
+            paint,
+          );
         }
     }
   }
@@ -287,6 +300,64 @@ class _OpenMapLink extends StatelessWidget {
             const SizedBox(width: AppSpace.xs),
             Icon(Icons.open_in_new, size: 14, color: scheme.primary),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 숙소를 끈 시트에서 낮에 들른 숙소를 건너 이은 자리에 두는 가는 줄. 지도의 "숙소를 거침" 선과 같은 무늬다.
+///
+/// 실제 구간이 아니라서 고르지 않고 연필도 없다. 숙소 이름은 쓰지 않는다(숙소를 끈 보기라서).
+/// 누르면 [onTap]으로 숙소를 켜면 그 사이 이동 수단을 볼 수 있다고 알린다.
+class ItineraryViaTile extends StatelessWidget {
+  const ItineraryViaTile({super.key, required this.color, this.onTap});
+
+  /// 세로선 색. 도착 장소의 일차 색을 흐리게 쓴다.
+  final Color color;
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: AppRadius.md,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
+        child: SizedBox(
+          height: AppSpace.xl,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: _iconWidth,
+                child: Center(
+                  child: SizedBox(
+                    width: AppSpace.xs,
+                    height: double.infinity,
+                    child: CustomPaint(
+                      painter: _RouteBarPainter(
+                        color: color,
+                        style: MapLineStyle.faint,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpace.md),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  context.l10n.itineraryViaLodging,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: muted),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

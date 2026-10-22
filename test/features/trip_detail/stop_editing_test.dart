@@ -700,6 +700,209 @@ void main() {
     });
   });
 
+  group('passing a hidden lodging', () {
+    /// 1일차: a > 숙소, 2일차: q > 숙소B(체크인) > r.
+    final stops = [
+      testStop('a', tripId: 'jeju'),
+      testLodging('hotel', tripId: 'jeju', order: 1),
+      testStop('q', tripId: 'jeju', day: 2),
+      testStop('B', tripId: 'jeju', day: 2, order: 1, kind: StopKind.lodging),
+      testStop('r', tripId: 'jeju', day: 2, order: 2),
+    ];
+
+    List<MapLine> faintLines(WidgetTester tester) => [
+      for (final line in mapScene(tester).lines)
+        if (line.style == MapLineStyle.faint) line,
+    ];
+
+    testWidgets('links the places around it on the map and in the sheet', (
+      tester,
+    ) async {
+      await _pumpJeju(tester, stops: stops);
+      await _tapChip(tester, '2일차');
+      await _openSheet(tester);
+
+      expect(faintLines(tester), isEmpty);
+      expect(find.byType(ItineraryViaTile), findsNothing);
+
+      // 숙소를 끈다.
+      await _tapChip(tester, '숙소');
+
+      expect(_tileNames(tester), ['q', 'r']);
+      expect(faintLines(tester).map((l) => l.id), ['via:q>r']);
+      expect(find.text('숙소를 거쳐 감'), findsOneWidget);
+      // 구간 줄은 없다. 실제 구간은 숨긴 숙소에 닿아 있다.
+      expect(find.byType(ItinerarySegmentTile), findsNothing);
+
+      // 숙소를 다시 켜면 사라진다.
+      await _tapChip(tester, '숙소');
+
+      expect(faintLines(tester), isEmpty);
+      expect(find.byType(ItineraryViaTile), findsNothing);
+    });
+
+    testWidgets('does nothing when the line is tapped', (tester) async {
+      await _pumpJeju(tester, stops: stops);
+      await _tapChip(tester, '2일차');
+      await _tapChip(tester, '숙소');
+
+      await tapLine(tester, 'via:q>r');
+
+      expect(
+        tester
+            .widgetList<ItineraryStopTile>(
+              find.byType(ItineraryStopTile, skipOffstage: false),
+            )
+            .any((tile) => tile.highlighted),
+        isFalse,
+      );
+    });
+
+    /// 2일차를 펴고 숙소를 끈다.
+    Future<void> hideLodgingOnDay2(WidgetTester tester) async {
+      await _pumpJeju(tester, stops: stops);
+      await _tapChip(tester, '2일차');
+      await _openSheet(tester);
+      await _tapChip(tester, '숙소');
+    }
+
+    Future<void> tapShowLodging(WidgetTester tester) async {
+      await tester.tap(find.text('숙소 켜기'));
+      await tester.pumpAndSettle();
+    }
+
+    Finder handleOf(String name) => find.descendant(
+      of: find.byWidgetPredicate(
+        (w) => w is ItineraryStopTile && w.stop.name == name,
+      ),
+      matching: find.byIcon(Icons.drag_handle),
+    );
+
+    testWidgets('locks reordering until lodging is shown', (tester) async {
+      await hideLodgingOnDay2(tester);
+      await tester.tap(find.text('q'));
+      await tester.pumpAndSettle();
+
+      // 고른 줄에 손잡이는 뜨지만 끌리지 않는다.
+      expect(handleOf('q'), findsOneWidget);
+      expect(find.byType(ReorderableDragStartListener), findsNothing);
+      await tester.drag(handleOf('q'), const Offset(0, 200));
+      await tester.pumpAndSettle();
+      expect(_tileNames(tester), ['q', 'r']);
+
+      await tester.tap(handleOf('q'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('숙소를 켜면 순서를 바꿀 수 있습니다.'), findsOneWidget);
+
+      await tapShowLodging(tester);
+
+      // 숙소가 켜지고, 고른 줄은 그대로라 바로 끌 수 있다.
+      expect(_tileNames(tester), ['hotel', 'q', 'B', 'r']);
+      expect(
+        find.descendant(
+          of: find.byWidgetPredicate(
+            (w) => w is ItineraryStopTile && w.stop.name == 'q',
+          ),
+          matching: find.byType(ReorderableDragStartListener),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+      'tells where to find the transports when the via row is tapped',
+      (tester) async {
+        await hideLodgingOnDay2(tester);
+
+        await tester.tap(find.byType(ItineraryViaTile));
+        await tester.pumpAndSettle();
+
+        expect(find.text('숙소를 켜면 이 사이의 이동 수단을 볼 수 있습니다.'), findsOneWidget);
+
+        await tapShowLodging(tester);
+
+        expect(_tileNames(tester), ['hotel', 'q', 'B', 'r']);
+        expect(find.byType(ItineraryViaTile), findsNothing);
+      },
+    );
+
+    testWidgets('tells that lodging saved while hidden does not show', (
+      tester,
+    ) async {
+      await hideLodgingOnDay2(tester);
+      // 시트가 올라와 있어서 첫 탭은 시트만 접는다.
+      await tapMap(tester, _somewhere);
+      await _openAddForm(tester);
+      await tester.enterText(_nameField, '새 숙소');
+      await _chooseKind(tester, '숙소');
+      await _save(tester);
+
+      expect(find.text('숙소가 꺼져 있어 지도에 보이지 않습니다.'), findsOneWidget);
+      expect(_tileNames(tester), ['q', 'r']);
+
+      await tapShowLodging(tester);
+
+      expect(_tileNames(tester), ['hotel', 'q', 'B', 'r', '새 숙소']);
+      expect(_tile(tester, '새 숙소').highlighted, isTrue);
+    });
+
+    testWidgets('tells the same when a stop becomes lodging while hidden', (
+      tester,
+    ) async {
+      await hideLodgingOnDay2(tester);
+      await tester.tap(find.text('r'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('장소 편집'));
+      await tester.pumpAndSettle();
+
+      await _chooseKind(tester, '숙소');
+      await _save(tester);
+
+      expect(find.text('숙소가 꺼져 있어 지도에 보이지 않습니다.'), findsOneWidget);
+      expect(_tileNames(tester), ['q']);
+    });
+
+    testWidgets('closes the notice by itself after a while', (tester) async {
+      await hideLodgingOnDay2(tester);
+      await tester.tap(find.byType(ItineraryViaTile));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SnackBar), findsOneWidget);
+
+      // 버튼이 있는 스낵바도 알림이라 몇 초 뒤 닫힌다.
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SnackBar), findsNothing);
+    });
+
+    testWidgets('closes the notice when leaving the page', (tester) async {
+      await hideLodgingOnDay2(tester);
+      await tester.tap(find.byType(ItineraryViaTile));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+
+      // 여행 목록으로 나가면 스낵바도 닫힌다. 남아 있으면 [숙소 켜기]가 사라진 화면을 건드린다.
+      expect(find.byType(ItineraryViaTile), findsNothing);
+      expect(find.byType(SnackBar), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('says nothing while lodging is shown', (tester) async {
+      await _pumpJeju(tester, stops: stops);
+      await _tapChip(tester, '2일차');
+      await _openAddForm(tester);
+      await tester.enterText(_nameField, '새 숙소');
+      await _chooseKind(tester, '숙소');
+      await _save(tester);
+
+      expect(find.byType(SnackBar), findsNothing);
+    });
+  });
+
   group('staying another night', () {
     testWidgets('puts the lodging of the night before at the end of the day', (
       tester,

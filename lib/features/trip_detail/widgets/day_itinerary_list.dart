@@ -93,6 +93,9 @@ class DayItineraryList extends StatefulWidget {
     required this.onEditSegment,
     required this.onStayAgain,
     required this.onReorder,
+    this.reorderLocked = false,
+    this.onReorderLocked,
+    this.onViaTap,
     this.padding = EdgeInsets.zero,
   });
 
@@ -127,6 +130,15 @@ class DayItineraryList extends StatefulWidget {
     int newIndex,
   )
   onReorder;
+
+  /// 끌어 옮기기를 막는다(숙소를 끈 보기). 숨긴 숙소가 사이에 섞여 있어 놓은 자리가 숨긴 숙소 앞인지 뒤인지 보이지 않아서다.
+  /// 고른 줄에는 끌리지 않는 흐린 손잡이가 뜨고, 누르면 [onReorderLocked]를 부른다(왜 안 되는지 알린다).
+  /// 손잡이를 숨기지 않는 것은 "있는데 지금은 안 된다"를 보여 주려는 것이다.
+  final bool reorderLocked;
+  final VoidCallback? onReorderLocked;
+
+  /// "숙소를 거쳐 감" 줄을 눌렀다. 그 사이 구간은 숨긴 숙소에 닿아 있어서 고를 수 없고, 왜인지 알린다.
+  final VoidCallback? onViaTap;
 
   /// 목록 바깥 여백. 아래 시트는 시스템 여백을 더한다.
   final EdgeInsets padding;
@@ -248,6 +260,21 @@ class _DayItineraryListState extends State<DayItineraryList> {
         onEdit: active ? () => widget.onEdit(stop, canDelete: !fixed) : null,
         reorderHandle: !active || index == null || stops.length < 2
             ? null
+            : widget.reorderLocked
+            ? Tooltip(
+                message: l10n.itineraryReorder,
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: widget.onReorderLocked,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpace.sm),
+                    child: Icon(
+                      Icons.drag_handle,
+                      color: scheme.outlineVariant,
+                    ),
+                  ),
+                ),
+              )
             : ReorderableDragStartListener(
                 index: index,
                 child: Tooltip(
@@ -326,6 +353,12 @@ class _DayItineraryListState extends State<DayItineraryList> {
                       onEdit: selection.active == arrival.id
                           ? () => widget.onEditSegment(arrival)
                           : null,
+                    ),
+                  // 숙소를 끈 보기에서 낮에 들른 숙소를 건너왔다. 지도의 흐린 선과 같다.
+                  if (entry.via != null && _movedOrder == null)
+                    ItineraryViaTile(
+                      color: colors.routeVia(entry.stop.day),
+                      onTap: widget.onViaTap,
                     ),
                   stopTile(entry.stop, index: index),
                 ],

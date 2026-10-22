@@ -105,10 +105,26 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   RouteChoiceController get _choices =>
       ref.read(routeChoiceProvider(trip.id).notifier);
 
+  /// 띄워 둔 [숙소 켜기] 스낵바. 스낵바는 앱 전체의 `ScaffoldMessenger`에 떠서 이 화면을 나가도 남는다.
+  /// 그래서 화면을 나갈 때 닫는다.
+  ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? _lodgingNotice;
+
+  /// [_lodgingNotice]를 띄운 곳. 화면을 정리할 때는 위젯 트리에서 찾을 수 없어서 띄울 때 잡아 둔다.
+  ScaffoldMessengerState? _lodgingNoticeMessenger;
+
   @override
   void dispose() {
     _sheetController.dispose();
     _selection.dispose();
+    // 화면을 정리하는 중에는 다른 위젯(ScaffoldMessenger)을 바꿀 수 없어서, 이 프레임이 끝난 뒤에 닫는다.
+    // 앱 전체가 닫히는 중이면 ScaffoldMessenger도 함께 사라져서 닫을 것이 없다.
+    final notice = _lodgingNotice;
+    final messenger = _lodgingNoticeMessenger;
+    if (notice != null && messenger != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (messenger.mounted) notice.close();
+      });
+    }
     super.dispose();
   }
 
@@ -236,8 +252,18 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     await ref.read(tripDetailProvider(trip.id).notifier).addStop(stop);
     if (!mounted) return;
     setState(() => _draftPlace = null);
-    _showPlaced(stop.id, stop.day, moved: false);
+    _showPlaced(
+      stop.id,
+      stop.day,
+      moved: false,
+      hiddenLodging: _hidesLodging(stop.kind),
+    );
   }
+
+  /// [kind] 장소가 지금 보기에서 숨는지. 숙소를 끈 보기의 숙소다.
+  bool _hidesLodging(StopKind kind) =>
+      kind == StopKind.lodging &&
+      !ref.read(routeChoiceProvider(trip.id)).showLodging;
 
   /// [canDelete]가 false면(출발 장소) 입력 화면에 지우기가 없다.
   ///
@@ -260,13 +286,20 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     if (draft == null || draft == initial || !mounted) return;
     final controller = ref.read(tripDetailProvider(trip.id).notifier);
     await controller.updateStop(draft.applyTo(stop));
-    if (draft.day == stop.day || !mounted) return;
-    await controller.moveStop(
-      stop.id,
-      day: draft.day,
-      order: placedOrder(_latestRoute(route), draft, stopId: stop.id),
-    );
-    if (mounted) _showPlaced(stop.id, draft.day, moved: true);
+    final moved = draft.day != stop.day;
+    if (moved && mounted) {
+      await controller.moveStop(
+        stop.id,
+        day: draft.day,
+        order: placedOrder(_latestRoute(route), draft, stopId: stop.id),
+      );
+    }
+    if (!mounted) return;
+    // 숙소를 끈 보기에서 종류를 숙소로 바꾸면 저장하자마자 숨는다. 같은 일차여도 알린다.
+    final hidden = _hidesLodging(draft.kind);
+    if (moved || hidden) {
+      _showPlaced(stop.id, draft.day, moved: moved, hiddenLodging: hidden);
+    }
   }
 
   /// [stopId] 장소를 [day]일차의 [order] 자리로 옮기면 사라지는 구간 중, 이동 수단을 적어 둔 구간.
@@ -363,7 +396,22 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
 
   /// 넣거나 옮긴 장소를 보여 준다. 카메라는 움직이지 않는다.
   /// 일차 보기에서 그 일차면 시트에서 그 줄을 보여 주고, 다른 일차면 어디로 갔는지 알린다.
-  void _showPlaced(String stopId, int stopDay, {required bool moved}) {
+  ///
+  /// [hiddenLodging]이면(숙소를 끈 보기에 숙소를 저장함) 저장한 것이 보이지 않아서 먼저 그렇다고 알린다.
+  /// [숙소 켜기]를 누르면 숙소를 켜고 그다음에 그 줄을 보여 준다(보기 설정은 몰래 바꾸지 않는다).
+  void _showPlaced(
+    String stopId,
+    int stopDay, {
+    required bool moved,
+    bool hiddenLodging = false,
+  }) {
+    if (hiddenLodging) {
+      _showLodgingHiddenNotice(
+        context.l10n.lodgingHiddenSaved,
+        then: () => _showPlaced(stopId, stopDay, moved: moved),
+      );
+      return;
+    }
     final viewDay = ref.read(routeChoiceProvider(trip.id)).day;
     if (viewDay == null) return;
     if (viewDay == stopDay) {
@@ -378,6 +426,39 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
         ),
       ),
     );
+  }
+
+  /// 숙소를 끈 보기라서 할 수 없거나 보이지 않는 것을 알리고, [숙소 켜기]로 바로 켜게 한다.
+  /// [then]은 켠 뒤에 할 일이다(예: 저장한 숙소 줄 보여 주기).
+  ///
+  /// 막는 곳: 끌어 옮기기(숨긴 숙소 사이의 자리가 보이지 않음), "숙소를 거쳐 감" 줄(그 사이 구간이 숨음).
+  /// 알리는 곳: 숙소로 저장(저장하자마자 숨음).
+  ///
+  /// 버튼이 있는 스낵바는 Flutter가 기본으로 닫지 않는데(`persist`), 이건 알림이라 몇 초 뒤 닫는다.
+  /// 접근성 탐색을 켠 기기에서는 Flutter가 원래 저절로 닫지 않는다.
+  void _showLodgingHiddenNotice(String message, {VoidCallback? then}) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    final notice = messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        persist: false,
+        action: SnackBarAction(
+          label: context.l10n.lodgingHiddenShow,
+          onPressed: () {
+            // 닫히기 전에 화면을 나갔으면 켤 보기가 없다.
+            if (!mounted) return;
+            _choices.setShowLodging(true);
+            then?.call();
+          },
+        ),
+      ),
+    );
+    _lodgingNotice = notice;
+    _lodgingNoticeMessenger = messenger;
+    notice.closed.then((_) {
+      if (_lodgingNotice == notice) _lodgingNotice = null;
+    });
   }
 
   Future<void> _openMap(Stop stop) async {
@@ -711,6 +792,10 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     onStayAgain: (lodging) => _stayAgain(route, itinerary.day, lodging),
     onReorder: (visibleIds, oldIndex, newIndex) =>
         _reorder(route, itinerary.day, visibleIds, oldIndex, newIndex),
+    reorderLocked: !choice.showLodging,
+    onReorderLocked: () =>
+        _showLodgingHiddenNotice(context.l10n.lodgingHiddenReorder),
+    onViaTap: () => _showLodgingHiddenNotice(context.l10n.lodgingHiddenVia),
   );
 
   /// 기기를 돌려 목록 자리가 바뀌었다. 펼친 줄과 고른 줄은 [_selection]에 남아 있다.

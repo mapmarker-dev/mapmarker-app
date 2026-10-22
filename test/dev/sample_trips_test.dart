@@ -110,9 +110,15 @@ void main() {
       final curvatures = [for (final s in jeju.segments) s.curvature];
       expect(curvatures.any((k) => k > 0), isTrue, reason: '한쪽으로 휜 곡선');
       expect(curvatures.any((k) => k < 0), isTrue, reason: '반대쪽으로 휜 곡선');
-      expect({
-        for (final l in legs) lineStyleOf(representativeMode(l)),
-      }, unorderedEquals(MapLineStyle.values));
+      // 이동 수단의 선 모양 3갈래. 가는 파선(숙소를 거침)은 이동 수단이 아니다.
+      expect(
+        {for (final l in legs) lineStyleOf(representativeMode(l))},
+        unorderedEquals([
+          MapLineStyle.solid,
+          MapLineStyle.dashed,
+          MapLineStyle.dotted,
+        ]),
+      );
       expect(legs.any((l) => l.length > 1), isTrue, reason: '갈아타기');
       expect(legs.any((l) => l.isEmpty), isTrue, reason: '미정');
     },

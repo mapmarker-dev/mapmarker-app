@@ -162,6 +162,52 @@ void main() {
     });
   });
 
+  group('via a hidden lodging', () {
+    // 2일차: q > 숙소B(체크인) > r. 숙소를 끄면 q → r을 흐린 선으로 바로 잇는다.
+    final trip = _route([
+      testStop('a'),
+      testLodging('hotel', order: 1),
+      testStop('q', day: 2),
+      testStop('b', day: 2, order: 1, kind: StopKind.lodging),
+      testStop('r', day: 2, order: 2),
+    ]);
+    final overlays = routeOverlays(
+      route: trip,
+      view: trip.view(day: 2, showLodging: false),
+      colors: _colors,
+    );
+
+    test('draws one faint straight line in the arrival day color', () {
+      final via = overlays.lines.single;
+      final q = trip.stopById('q')!;
+      final r = trip.stopById('r')!;
+
+      expect(via.id, 'via:q>r');
+      expect(via.style, MapLineStyle.faint);
+      expect(via.points, [q.position, r.position]);
+      expect(via.color, _colors.routeVia(2));
+      expect(via.color, isNot(_colors.routeDay(2).background));
+    });
+
+    test('has no arrow or transport icon', () {
+      expect(overlays.arrows, isEmpty);
+      expect(overlays.lineIcons, isEmpty);
+    });
+
+    test('is gone while lodging is shown', () {
+      final shown = routeOverlays(
+        route: trip,
+        view: trip.view(day: 2),
+        colors: _colors,
+      );
+
+      expect(
+        shown.lines.map((l) => l.style),
+        isNot(contains(MapLineStyle.faint)),
+      );
+    });
+  });
+
   group('transport', () {
     // 1일차: a > b > c > d > 숙소. 구간마다 이동 수단이 다르다.
     final stops = [

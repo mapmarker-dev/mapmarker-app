@@ -32,6 +32,7 @@ IconData? kindBadge(StopKind kind) => switch (kind) {
 ///   미정 구간에는 없고, 선이 화면에서 짧아지면 화살표보다 조금 먼저(출발 마커와 겹치기 전에) 숨는다.
 /// - 곡선 핸들: [curveSegmentId] 구간(일차 동선 목록에서 직접 고른 구간)의 가운데에 둔다.
 ///   핸들 안에 진행 방향 화살표가 있어서, 그 구간의 화살표와 선 아이콘은 그리지 않는다.
+/// - 숙소를 거침([RouteView.vias]): 흐린 가는 파선([MapLineStyle.faint]) 직선 하나. 선 목록 맨 앞이다.
 ({
   List<MapMarker> markers,
   List<MapLine> lines,
@@ -60,7 +61,18 @@ routeOverlays({
     );
   }
 
-  final lines = <MapLine>[];
+  // 숙소를 거침: 숙소를 끈 보기에서 낮에 들른 숙소 앞뒤를 흐린 가는 파선으로 바로 잇는다.
+  // 실제 구간이 아니라서 화살표·선 아이콘·곡선이 없고 누를 수 없다. 색은 도착 장소의 일차 색을 흐리게 쓴다.
+  final lines = <MapLine>[
+    for (final via in view.vias)
+      MapLine(
+        id: via.id,
+        points: [via.from.position, via.to.position],
+        color: colors.routeVia(via.to.day),
+        outline: colors.routeHalo,
+        style: MapLineStyle.faint,
+      ),
+  ];
   final arrows = <MapArrow>[];
   final lineIcons = <MapLineIcon>[];
   MapCurveHandle? curveHandle;

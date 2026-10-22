@@ -181,6 +181,65 @@ void main() {
     expect(_ids(repeated.view(day: 2)), ['hotel2', 'b']);
   });
 
+  group('vias with lodging hidden', () {
+    List<String> vias(TripRoute route, {int? day}) => [
+      for (final via in route.view(day: day, showLodging: false).vias)
+        '${via.from.id}>${via.to.id}',
+    ];
+
+    test('link the places around a lodging visited that day', () {
+      // 1일차: a > 숙소, 2일차: q > 숙소B(체크인) > r > 숙소C > 숙소D > s.
+      final trip = _route([
+        testStop('a'),
+        testLodging('hotel', order: 1),
+        testStop('q', day: 2),
+        testStop('b', day: 2, order: 1, kind: StopKind.lodging),
+        testStop('r', day: 2, order: 2),
+        testStop('c', day: 2, order: 3, kind: StopKind.lodging),
+        testStop('d', day: 2, order: 4, kind: StopKind.lodging),
+        testStop('s', day: 2, order: 5),
+      ]);
+
+      expect(vias(trip, day: 2), ['q>r', 'r>s']);
+      // 1일차 밤 숙소를 거쳐 다음 날로 넘어가는 곳(a > 숙소 > q)은 잇지 않는다.
+      expect(vias(trip), ['q>r', 'r>s']);
+      // 숙소를 켜면 없다.
+      expect(trip.view(day: 2).vias, isEmpty);
+    });
+
+    test('start from a place that is not lodging', () {
+      // 1일차: 공항, 2일차: 숙소B(짐 맡김) > e.
+      final trip = _route([
+        testStop('airport'),
+        testStop('b', day: 2, kind: StopKind.lodging),
+        testStop('e', day: 2, order: 1),
+      ]);
+
+      expect(vias(trip, day: 2), ['airport>e']);
+    });
+
+    test('are none from the lodging of the night before', () {
+      // 2일차 보기는 숨긴 출발 숙소에서 시작해서, 앞에 보이는 장소가 없다.
+      final trip = _route([
+        testStop('a'),
+        testLodging('hotel', order: 1),
+        testStop('q', day: 2),
+      ]);
+
+      expect(vias(trip, day: 2), isEmpty);
+    });
+
+    test('are none between the same place', () {
+      final trip = _route([
+        testStop('a', latitude: 35.3, longitude: 129.3),
+        testStop('b', order: 1, kind: StopKind.lodging),
+        testStop('a-again', order: 2, latitude: 35.3, longitude: 129.3),
+      ]);
+
+      expect(vias(trip, day: 1), isEmpty);
+    });
+  });
+
   test('the first day has no lodging before it', () {
     expect(route.startOf(1), isNull);
     expect(TripRoute().view(day: 1).stops, isEmpty);

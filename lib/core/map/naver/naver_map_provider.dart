@@ -57,6 +57,10 @@ const _dashPattern = [12, 8];
 /// 둥근 점선(도보). 아주 짧은 선에 둥근 끝을 붙여 점으로 만든다. 점 지름은 선 두께쯤이다.
 const _dotPattern = [1, 11];
 
+/// 가는 짧은 파선([MapLineStyle.faint], 숙소를 거침). 긴 파선(비행기·배)보다 토막이 짧고, 선이 가늘다.
+const _faintPattern = [6, 6];
+const _faintLineWidth = 3.0;
+
 class NaverMapView extends StatefulWidget {
   const NaverMapView({
     super.key,
@@ -555,13 +559,31 @@ class _PreviewHandle extends StatelessWidget {
 ///
 /// - 실선: 테두리가 있는 경로선([naverPathOf]) 하나.
 /// - 점선·파선: 경로선에는 점선이 없어서 무늬가 있는 폴리라인([naverPatternLinesOf]) 두 개.
+/// - 가는 파선: 테두리 없는 폴리라인([naverFaintLineOf]) 하나. 누를 수 없어서 [onTap]을 쓰지 않는다.
 @visibleForTesting
 List<NAddableOverlay> naverLinesOf(MapLine line, {VoidCallback? onTap}) =>
     switch (line.style) {
       MapLineStyle.solid => [?naverPathOf(line, onTap: onTap)],
       MapLineStyle.dashed ||
       MapLineStyle.dotted => naverPatternLinesOf(line, onTap: onTap),
+      MapLineStyle.faint => [?naverFaintLineOf(line)],
     };
+
+/// 가는 짧은 파선. 테두리가 없고, 다른 선(테두리 포함)보다 아래에 그린다.
+/// 탭 리스너를 달지 않아서 누르면 지도 탭으로 지나간다.
+@visibleForTesting
+NPolylineOverlay? naverFaintLineOf(MapLine line) {
+  if (line.points.toSet().length < 2) return null;
+  return NPolylineOverlay(
+    id: line.id,
+    coords: [for (final point in line.points) _nLatLng(point)],
+    color: line.color,
+    width: _faintLineWidth,
+    lineCap: NLineCap.butt,
+    lineJoin: NLineJoin.round,
+    pattern: [..._faintPattern],
+  )..setGlobalZIndex(_lineGlobalZIndex - 2);
+}
 
 /// 점선·파선.
 @visibleForTesting
