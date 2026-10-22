@@ -650,6 +650,56 @@ void main() {
     });
   });
 
+  group('starting where the day before ended', () {
+    /// 1일차: a > 공항(야간 비행기를 탄다), 2일차: q > r. 공항 → q는 비행기다.
+    final stops = [
+      testStop('a', tripId: 'jeju'),
+      testStop('airport', tripId: 'jeju', order: 1),
+      testStop('q', tripId: 'jeju', day: 2),
+      testStop('r', tripId: 'jeju', day: 2, order: 1),
+    ];
+    const flight = [TransportLeg(TransportMode.flight)];
+
+    testWidgets('starts from a last place that is not lodging', (tester) async {
+      await _pumpJeju(tester, stops: stops, legs: {('airport', 'q'): flight});
+      await _tapChip(tester, '2일차');
+      await _openSheet(tester);
+
+      expect(_tileNames(tester), ['airport', 'q', 'r']);
+      expect(find.text('전날 마지막 장소에서 출발'), findsOneWidget);
+      expect(find.text('전날 묵은 숙소에서 출발'), findsNothing);
+      // 일차를 넘는 구간이 목록과 지도에 보인다.
+      expect(
+        find.descendant(
+          of: find.byType(ItinerarySegmentTile),
+          matching: find.text('비행기'),
+        ),
+        findsOneWidget,
+      );
+      expect(mapScene(tester).captions, ['airport', 'q', 'r']);
+      // 출발 장소가 숙소가 아니라 연박 버튼은 없다.
+      expect(find.textContaining('에서 묵기'), findsNothing);
+    });
+
+    testWidgets('shows the segment across days tapped on the whole map', (
+      tester,
+    ) async {
+      final container = await _pumpJeju(tester, stops: stops);
+      final across = _segmentOf(_savedSegments(container), 'airport', 'q');
+
+      await tapLine(tester, across.id);
+
+      // 도착 장소의 일차(2일차) 목록에서 그 구간 줄을 보여 준다.
+      expect(mapScene(tester).captions, ['airport', 'q', 'r']);
+      final highlighted = tester
+          .widgetList<ItinerarySegmentTile>(
+            find.byType(ItinerarySegmentTile, skipOffstage: false),
+          )
+          .where((tile) => tile.highlighted);
+      expect(highlighted, hasLength(1));
+    });
+  });
+
   group('staying another night', () {
     testWidgets('puts the lodging of the night before at the end of the day', (
       tester,

@@ -145,7 +145,11 @@ void main() {
         'leave',
       ]);
       expect(stopsAtMarker(trip.view(), 'sight').map((s) => s.id), ['sight']);
-      expect(stopsAtMarker(trip.view(day: 2), 'sight'), isEmpty);
+      // sight는 1일차 마지막 장소라 2일차 보기의 출발 장소다.
+      expect(stopsAtMarker(trip.view(day: 2), 'sight').map((s) => s.id), [
+        'sight',
+      ]);
+      expect(stopsAtMarker(trip.view(day: 2), 'arrive'), isEmpty);
     });
 
     test('finds the lodging of both nights in a day view', () {

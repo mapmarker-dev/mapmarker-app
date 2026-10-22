@@ -42,28 +42,29 @@ class TripRoute {
   /// 숙소를 끄고 켜도 번호가 바뀌지 않게, 보이는 장소가 아니라 동선 전체로 센다.
   int? numberOf(Stop stop) => _numbers[stop.id];
 
-  /// [day]일차의 출발 숙소. 앞 일차의 마지막 장소가 숙소면 그 숙소다.
+  /// [day]일차의 출발 장소. 앞 일차의 마지막 장소다.
   ///
-  /// 그날 밤 묵는 숙소를 그 일차 마지막에 한 번만 넣어도, 다음 날 보기는 그 숙소에서 출발한다.
-  Stop? startLodgingOf(int day) {
+  /// - 그날 밤 묵는 숙소를 그 일차 마지막에 한 번만 넣어도, 다음 날 보기는 그 숙소에서 출발한다.
+  /// - 숙소가 아닌 곳(공항, 야간 이동, 숙소를 아직 넣지 않음)에서 끝난 날도 다음 날 보기는 거기서 출발한다.
+  ///   그래야 일차를 넘는 구간(그 장소 → 다음 날 첫 장소)이 다음 날 보기와 목록에 보여 이동 수단을 적을 수 있다.
+  /// - 그날 첫 장소가 같은 자리면(같은 숙소를 다시 넣음) 같은 곳이 두 번 보이지 않게 없다.
+  Stop? startOf(int day) {
     final before = stops.where((stop) => stop.day < day).lastOrNull;
-    if (before == null || !before.isLodging) return null;
+    if (before == null) return null;
     final first = stops.where((stop) => stop.day == day).firstOrNull;
-    if (first != null && first.isLodging && first.isSamePlaceAs(before)) {
-      return null;
-    }
+    if (first != null && first.isSamePlaceAs(before)) return null;
     return before;
   }
 
   /// 지도에 보일 장소와 구간. [day]가 null이면 여행 전체다.
   ///
-  /// - 일차 보기는 그 일차 장소 앞에 출발 숙소([startLodgingOf])를 붙인다.
+  /// - 일차 보기는 그 일차 장소 앞에 출발 장소([startOf])를 붙인다.
   /// - [showLodging]이 false면 숙소를 뺀다. 숙소에 닿는 구간도 함께 빠진다.
   /// - 구간은 양 끝 장소가 모두 보일 때만 넣는다.
   RouteView view({int? day, bool showLodging = true}) {
     Iterable<Stop> visible = day == null
         ? stops
-        : [?startLodgingOf(day), ...stops.where((stop) => stop.day == day)];
+        : [?startOf(day), ...stops.where((stop) => stop.day == day)];
     if (!showLodging) visible = visible.where((stop) => !stop.isLodging);
     final visibleStops = List<Stop>.unmodifiable(visible);
     final ids = {for (final stop in visibleStops) stop.id};

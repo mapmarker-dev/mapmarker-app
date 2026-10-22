@@ -110,7 +110,7 @@ class DayItineraryList extends StatefulWidget {
   final ValueChanged<Stop> onOpenMap;
 
   /// 장소 줄의 연필 아이콘을 눌렀다(장소 입력 화면을 연다). 연필은 목록에서 누른 줄에만 보인다.
-  /// 출발 숙소는 앞 일차의 장소라서 이 일차에서 지울 수 없다([canDelete]가 false).
+  /// 출발 장소는 앞 일차의 장소라서 이 일차에서 지울 수 없다([canDelete]가 false).
   final void Function(Stop stop, {required bool canDelete}) onEdit;
 
   /// 구간 줄의 연필 아이콘을 눌렀다(이동 수단 입력 화면을 연다). 연필은 목록에서 누른 줄에만 보인다.
@@ -119,7 +119,7 @@ class DayItineraryList extends StatefulWidget {
   /// "오늘 밤도 여기서 묵기"를 누른 전날 밤 숙소.
   final ValueChanged<Stop> onStayAgain;
 
-  /// 끌어서 옮긴 장소. [visibleIds]는 옮기기 전 순서다(출발 숙소 제외). [newIndex]는 옮긴 뒤 자리다.
+  /// 끌어서 옮긴 장소. [visibleIds]는 옮기기 전 순서다(출발 장소 제외). [newIndex]는 옮긴 뒤 자리다.
   /// 옮겼으면 true, 취소했으면(이동 수단이 지워져서 묻고 취소) false다. false면 옮기기 전 순서로 돌아간다.
   final Future<bool> Function(
     List<String> visibleIds,
@@ -276,7 +276,9 @@ class _DayItineraryListState extends State<DayItineraryList> {
             sliver: SliverToBoxAdapter(
               child: stopTile(
                 start,
-                caption: l10n.itineraryStartLodging,
+                caption: start.isLodging
+                    ? l10n.itineraryStartLodging
+                    : l10n.itineraryStartPlace,
                 fixed: true,
               ),
             ),

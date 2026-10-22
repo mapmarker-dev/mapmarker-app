@@ -177,14 +177,18 @@
   },
   "itineraryStopCount": "{count, plural, =0{장소 없음} other{장소 {count}곳}}",
   "@itineraryStopCount": {
-    "description": "일차 동선 시트 제목 옆. 출발 숙소는 세지 않는다",
+    "description": "일차 동선 시트 제목 옆. 출발 장소는 세지 않는다",
     "placeholders": {
       "count": {"type": "int"}
     }
   },
   "itineraryStartLodging": "전날 묵은 숙소에서 출발",
   "@itineraryStartLodging": {
-    "description": "일차 동선 시트 맨 위의 출발 숙소 줄"
+    "description": "일차 동선 시트 맨 위의 출발 장소 줄. 전날 마지막 장소가 숙소일 때"
+  },
+  "itineraryStartPlace": "전날 마지막 장소에서 출발",
+  "@itineraryStartPlace": {
+    "description": "일차 동선 시트 맨 위의 출발 장소 줄. 전날 마지막 장소가 숙소가 아닐 때(공항, 야간 이동 등)"
   },
   "itineraryKindAndTime": "{kind} · {time}",
   "@itineraryKindAndTime": {

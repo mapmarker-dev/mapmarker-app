@@ -239,7 +239,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     _showPlaced(stop.id, stop.day, moved: false);
   }
 
-  /// [canDelete]가 false면(출발 숙소) 입력 화면에 지우기가 없다.
+  /// [canDelete]가 false면(출발 장소) 입력 화면에 지우기가 없다.
   ///
   /// 다른 일차로 옮기면 입력 화면에 넣을 자리 칸이 생기고, 지워질 이동 수단을 칸 아래에 미리 보여 준다.
   /// 그걸 보고 저장한 것이라 따로 묻지 않는다.

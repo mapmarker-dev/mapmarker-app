@@ -70,7 +70,7 @@ class StopFormDialog extends StatefulWidget {
   /// 편집할 장소. null이면 새 장소다.
   final Stop? stop;
 
-  /// 확인을 받아 장소를 지운다. 지웠으면 true다. null이면 지우기가 없다(새 장소, 출발 숙소).
+  /// 확인을 받아 장소를 지운다. 지웠으면 true다. null이면 지우기가 없다(새 장소, 출발 장소).
   ///
   /// 지우기는 일차 동선 목록이 아니라 여기에 둔다. 목록은 깔끔하게 두고, 지우기는 자주 쓰지 않아서다.
   final Future<bool> Function()? onDelete;

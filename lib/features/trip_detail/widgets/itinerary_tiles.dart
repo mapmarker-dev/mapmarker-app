@@ -43,7 +43,7 @@ class ItineraryStopTile extends StatelessWidget {
   /// 연필 아이콘을 눌렀다. 장소 입력 화면을 연다. null이면 연필이 없다(목록에서 누른 줄에만 뜬다).
   final VoidCallback? onEdit;
 
-  /// 이름 위의 작은 글자. 예: 출발 숙소 표시.
+  /// 이름 위의 작은 글자. 예: 출발 장소 표시.
   final String? caption;
 
   /// 끌어서 순서를 바꾸는 손잡이. null이면 옮길 수 없다.

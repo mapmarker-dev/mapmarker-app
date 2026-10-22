@@ -770,7 +770,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(mapScene(tester).captions, ['cafe', 'leave']);
+      // 2일차가 비어서 3일차는 1일차 마지막 장소(sight)에서 출발한다.
+      expect(mapScene(tester).captions, ['sight', 'cafe', 'leave']);
       expect(_tile(tester, 'leave').highlighted, isTrue);
     });
 

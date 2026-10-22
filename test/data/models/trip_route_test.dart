@@ -146,11 +146,27 @@ void main() {
     expect(_ids(withEmptyDay.view(day: 3)), ['hotel', 'b']);
   });
 
-  test('does not start from a place that is not lodging', () {
-    final noLodging = _route([testStop('a'), testStop('b', day: 2)]);
+  test('starts from the last place of the day before, lodging or not', () {
+    // 1일차가 공항에서 끝난다(야간 비행기 등). 일차를 넘는 구간이 2일차 보기에 보인다.
+    final noLodging = _route([testStop('airport'), testStop('b', day: 2)]);
 
-    expect(noLodging.startLodgingOf(2), isNull);
-    expect(_ids(noLodging.view(day: 2)), ['b']);
+    expect(noLodging.startOf(2)?.id, 'airport');
+    expect(_ids(noLodging.view(day: 2)), ['airport', 'b']);
+    expect(_lines(noLodging, noLodging.view(day: 2)), ['airport>b']);
+    // 숙소를 꺼도 숙소가 아닌 출발 장소는 남는다.
+    expect(_ids(noLodging.view(day: 2, showLodging: false)), ['airport', 'b']);
+  });
+
+  test('does not repeat a place the day already starts at', () {
+    // 전날 마지막 장소 T를 다음 날 첫 장소로 또 넣었다.
+    final same = _route([
+      testStop('t', latitude: 35.2, longitude: 129.2),
+      testStop('t-again', day: 2, latitude: 35.2, longitude: 129.2),
+      testStop('b', day: 2, order: 1),
+    ]);
+
+    expect(same.startOf(2), isNull);
+    expect(_ids(same.view(day: 2)), ['t-again', 'b']);
   });
 
   test('does not repeat the lodging when the day already starts there', () {
@@ -161,12 +177,12 @@ void main() {
       testStop('b', day: 2, order: 1),
     ]);
 
-    expect(repeated.startLodgingOf(2), isNull);
+    expect(repeated.startOf(2), isNull);
     expect(_ids(repeated.view(day: 2)), ['hotel2', 'b']);
   });
 
   test('the first day has no lodging before it', () {
-    expect(route.startLodgingOf(1), isNull);
+    expect(route.startOf(1), isNull);
     expect(TripRoute().view(day: 1).stops, isEmpty);
   });
 }

@@ -39,25 +39,25 @@ class DayItinerary {
 
   final int day;
 
-  /// 출발 숙소. 앞 일차의 마지막 장소라서 이 일차에서 옮기거나 지우지 않는다.
+  /// 출발 장소. 앞 일차의 마지막 장소라서 이 일차에서 옮기거나 지우지 않는다.
   final Stop? start;
 
   /// 이 일차의 장소. 동선 순서다.
   final List<ItineraryStop> stops;
 
-  /// 화면에 보이는 장소의 ID. 출발 숙소부터 동선 순서다.
+  /// 화면에 보이는 장소의 ID. 출발 장소부터 동선 순서다.
   List<String> get stopIds => [?start?.id, for (final s in stops) s.stop.id];
 
   /// 이 일차 밤 숙소로 맨 뒤에 다시 넣을 수 있는 숙소. 시트 맨 아래에 숙소마다 버튼이 뜬다.
   ///
   /// 이 일차 마지막이 숙소가 아닐 때(이 일차의 밤 숙소를 아직 넣지 않았을 때)만 있다.
-  /// - 이 일차에 들른 숙소(예: 체크인하고 저녁 먹으러 나감)와 출발 숙소(전날 밤 숙소, 연박)다.
+  /// - 이 일차에 들른 숙소(예: 체크인하고 저녁 먹으러 나감)와, 출발 장소가 숙소면 그 숙소(전날 밤 숙소, 연박)다.
   /// - 늦게 들른 숙소가 먼저이고 출발 숙소가 맨 끝이다. 늦게 들른 숙소일수록 그날 밤 묵을 곳일 가능성이 크다.
   /// - 같은 자리의 숙소는 하나만 둔다. 출발 숙소와 같은 자리면 출발 숙소로 둔다(어젯밤에 이어 묵는 것이라서).
   /// - 숙소를 끈 보기에는 숙소가 없어서 버튼도 없다.
   List<Stop> get lodgingsToStayAgain {
     if (stops.lastOrNull?.stop.isLodging ?? false) return const [];
-    final start = this.start;
+    final start = (this.start?.isLodging ?? false) ? this.start : null;
     final lodgings = <Stop>[];
     for (final entry in stops.reversed) {
       final stop = entry.stop;
@@ -85,13 +85,13 @@ class ItineraryStop {
   /// 지도 마커와 같은 번호. 숙소는 null이다.
   final int? number;
 
-  /// 앞 장소에서 이 장소로 오는 구간. 그날 첫 장소이고 출발 숙소가 없거나, 앞 장소가 숨었으면 null이다.
+  /// 앞 장소에서 이 장소로 오는 구간. 그날 첫 장소이고 출발 장소가 없거나, 앞 장소가 숨었으면 null이다.
   final Segment? arrival;
 }
 
 /// 시트에서 장소를 끌어 옮긴 뒤 저장소에 넘길 일차 안 순서([Stop.order]).
 ///
-/// [visibleIds]는 옮기기 전 시트의 장소 순서다(출발 숙소 제외).
+/// [visibleIds]는 옮기기 전 시트의 장소 순서다(출발 장소 제외).
 /// [dayStops]는 그 일차의 모든 장소다. 숙소를 끄면 시트에 보이지 않는 숙소가 섞여 있어서,
 /// 옮긴 장소를 시트에서 바로 앞에 놓인 장소 뒤에 넣는다. 맨 앞으로 옮기면 바로 뒤 장소 앞에 넣는다.
 ///
