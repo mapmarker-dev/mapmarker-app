@@ -48,11 +48,25 @@ class DayItinerary {
   /// 화면에 보이는 장소의 ID. 출발 숙소부터 동선 순서다.
   List<String> get stopIds => [?start?.id, for (final s in stops) s.stop.id];
 
-  /// "오늘 밤도 여기서 묵기"로 이 일차 밤에 다시 넣을 수 있는 전날 밤 숙소.
-  /// 출발 숙소가 있고, 이 일차 마지막이 숙소가 아닐 때(이 일차의 밤 숙소를 아직 넣지 않았을 때)다.
-  Stop? get lodgingToStayAgain {
-    if (stops.lastOrNull?.stop.isLodging ?? false) return null;
-    return start;
+  /// 이 일차 밤 숙소로 맨 뒤에 다시 넣을 수 있는 숙소. 시트 맨 아래에 숙소마다 버튼이 뜬다.
+  ///
+  /// 이 일차 마지막이 숙소가 아닐 때(이 일차의 밤 숙소를 아직 넣지 않았을 때)만 있다.
+  /// - 이 일차에 들른 숙소(예: 체크인하고 저녁 먹으러 나감)와 출발 숙소(전날 밤 숙소, 연박)다.
+  /// - 늦게 들른 숙소가 먼저이고 출발 숙소가 맨 끝이다. 늦게 들른 숙소일수록 그날 밤 묵을 곳일 가능성이 크다.
+  /// - 같은 자리의 숙소는 하나만 둔다. 출발 숙소와 같은 자리면 출발 숙소로 둔다(어젯밤에 이어 묵는 것이라서).
+  /// - 숙소를 끈 보기에는 숙소가 없어서 버튼도 없다.
+  List<Stop> get lodgingsToStayAgain {
+    if (stops.lastOrNull?.stop.isLodging ?? false) return const [];
+    final start = this.start;
+    final lodgings = <Stop>[];
+    for (final entry in stops.reversed) {
+      final stop = entry.stop;
+      if (!stop.isLodging) continue;
+      if (start != null && stop.isSamePlaceAs(start)) continue;
+      if (lodgings.any(stop.isSamePlaceAs)) continue;
+      lodgings.add(stop);
+    }
+    return List.unmodifiable([...lodgings, ?start]);
   }
 
   /// [id] 장소나 구간이 이 목록에 있는지.

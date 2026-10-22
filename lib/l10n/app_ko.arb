@@ -222,7 +222,7 @@
   "deleteStopMessage": "앞뒤 장소는 바로 이어집니다. 이 장소에 닿은 구간의 이동 수단은 사라집니다.",
   "moveStopDropsTransportTitle": "이동 수단이 사라집니다",
   "@moveStopDropsTransportTitle": {
-    "description": "장소를 끌어 옮기면 이웃이 바뀌는 구간에 적어 둔 이동 수단이 있을 때 묻는 대화상자 제목"
+    "description": "장소를 끌어 옮기거나 연박 숙소를 넣으면 이웃이 바뀌는 구간에 적어 둔 이동 수단이 있을 때 묻는 대화상자 제목"
   },
   "moveStopDropsTransportMessage": "‘{name}’ 장소를 옮기면 아래 구간의 이동 수단이 지워집니다. 옮길까요?",
   "@moveStopDropsTransportMessage": {
@@ -257,6 +257,21 @@
       "name": {"type": "String", "example": "제주시 숙소"}
     }
   },
+  "stayTonight": "오늘 밤은 ‘{name}’에서 묵기",
+  "@stayTonight": {
+    "description": "일차 동선 시트 맨 아래 버튼. 그날 들른 숙소(체크인하고 다시 나간 경우 등)를 이 일차 밤 숙소로 맨 뒤에 한 번 더 넣는다",
+    "placeholders": {
+      "name": {"type": "String", "example": "서귀포 숙소"}
+    }
+  },
+  "stayAgainDropsTransportMessage": "‘{name}’에서 묵으면 아래 구간의 이동 수단이 지워집니다. 넣을까요?",
+  "@stayAgainDropsTransportMessage": {
+    "description": "밤 숙소(연박이나 그날 들른 숙소)를 그날 맨 뒤에 넣으면 그날 마지막 장소에서 다음 날로 가는 구간의 이동 수단이 지워질 때",
+    "placeholders": {
+      "name": {"type": "String", "example": "제주시 숙소"}
+    }
+  },
+  "stayAgainConfirm": "넣기",
 
   "addStopHere": "여기에 장소 추가",
   "@addStopHere": {
@@ -290,6 +305,43 @@
   "stopNameLabel": "이름",
   "stopKindLabel": "종류",
   "stopDayLabel": "일차",
+  "stopSlotLabel": "넣을 자리",
+  "@stopSlotLabel": {
+    "description": "장소 입력 화면에서 그 일차의 어느 장소 사이에 넣을지 고르는 칸. 장소를 추가할 때와 다른 일차로 옮길 때 보인다"
+  },
+  "stopSlotOnly": "첫 장소",
+  "@stopSlotOnly": {
+    "description": "넣을 자리 칸. 장소가 없는 일차라 고를 자리가 하나뿐일 때"
+  },
+  "stopSlotBefore": "‘{name}’ 앞",
+  "@stopSlotBefore": {
+    "description": "넣을 자리 칸의 선택지. 맨 앞이거나 바로 뒤가 숙소인 자리",
+    "placeholders": {
+      "name": {"type": "String", "example": "제주시 숙소"}
+    }
+  },
+  "stopSlotAfter": "‘{name}’ 뒤",
+  "@stopSlotAfter": {
+    "description": "넣을 자리 칸의 선택지. 바로 앞 장소로 가리키는 자리",
+    "placeholders": {
+      "name": {"type": "String", "example": "동문시장"}
+    }
+  },
+  "stopSlotDefault": "{slot} (기본)",
+  "@stopSlotDefault": {
+    "description": "넣을 자리 칸에서 기본 자리(맨 뒤, 마지막이 숙소면 숙소 앞)에 붙인다",
+    "placeholders": {
+      "slot": {"type": "String", "example": "‘제주시 숙소’ 앞"}
+    }
+  },
+  "stopSlotDropsTransportAdd": "이 자리에 넣으면 아래 이동 수단이 지워집니다.",
+  "@stopSlotDropsTransportAdd": {
+    "description": "장소 추가 화면의 넣을 자리 칸 아래 미리 알림"
+  },
+  "stopSlotDropsTransportMove": "이 자리로 옮기면 아래 이동 수단이 지워집니다.",
+  "@stopSlotDropsTransportMove": {
+    "description": "장소 편집 화면에서 일차를 바꿨을 때 넣을 자리 칸 아래 미리 알림"
+  },
   "stopTimeLabel": "예정 시각",
   "stopTimeNone": "정하지 않음",
   "stopTimeClear": "예정 시각 지우기",

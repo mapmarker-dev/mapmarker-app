@@ -46,27 +46,46 @@ List<Segment> segmentsDroppedByMove({
   required int day,
   required int order,
 }) {
-  final moved = stops.where((stop) => stop.id == stopId).firstOrNull;
-  if (moved == null) return const [];
+  if (!stops.any((stop) => stop.id == stopId)) return const [];
   final others = [
     for (final stop in stops)
-      if (stop.id != stopId) stop,
+      if (stop.id != stopId) stop.id,
   ];
-  final dayOthers = [
-    for (final stop in others)
-      if (stop.day == day) stop,
+  final at = _placeIndex(stops, others, day, order);
+  return _droppedBy([...others]..insert(at, stopId), segments);
+}
+
+/// 새 장소를 [day]일차의 [order] 자리에 넣으면 사라지는 구간. 끼어드는 자리의 구간(A와 B 사이에 넣으면 A→B)이다.
+///
+/// 넣는 방법은 저장소의 `addStop`과 같다. 화면이 넣기 전에 이동 수단이 지워지는지 알리는 데 쓴다.
+List<Segment> segmentsDroppedByInsert({
+  required List<Stop> stops,
+  required Iterable<Segment> segments,
+  required int day,
+  required int order,
+}) {
+  final ids = [for (final stop in stops) stop.id];
+  final at = _placeIndex(stops, ids, day, order);
+  return _droppedBy([...ids]..insert(at, null), segments);
+}
+
+/// [day]일차의 [order] 자리가 동선 [ids]의 몇 번째인지. 장소 수보다 크면 그 일차 맨 뒤다.
+int _placeIndex(List<Stop> stops, List<String> ids, int day, int order) {
+  final days = {for (final stop in stops) stop.id: stop.day};
+  final dayIds = [
+    for (final id in ids)
+      if (days[id] == day) id,
   ];
   final index = order < 0 ? 0 : order;
-  final int at;
-  if (index < dayOthers.length) {
-    at = others.indexOf(dayOthers[index]);
-  } else {
-    final after = others.indexWhere((stop) => stop.day > day);
-    at = after == -1 ? others.length : after;
-  }
-  final next = [...others]..insert(at, moved);
+  if (index < dayIds.length) return ids.indexOf(dayIds[index]);
+  final after = ids.indexWhere((id) => days[id]! > day);
+  return after == -1 ? ids.length : after;
+}
+
+/// 장소가 [next] 순서로 늘어서면 더는 이웃하지 않는 쌍의 구간. null은 새 장소다.
+List<Segment> _droppedBy(List<String?> next, Iterable<Segment> segments) {
   final pairs = {
-    for (var i = 0; i + 1 < next.length; i++) (next[i].id, next[i + 1].id),
+    for (var i = 0; i + 1 < next.length; i++) (next[i], next[i + 1]),
   };
   return [
     for (final segment in segments)

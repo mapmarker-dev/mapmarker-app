@@ -75,22 +75,69 @@ void main() {
         testLodging('hotel', order: 1),
         testStop('c', day: 2),
       ]);
-      DayItinerary dayOf(TripRoute route, int day, {bool lodging = true}) =>
-          DayItinerary.of(
-            route,
-            route.view(day: day, showLodging: lodging),
-            day,
-          );
+      List<String> offered(TripRoute route, int day, {bool lodging = true}) => [
+        for (final stop in DayItinerary.of(
+          route,
+          route.view(day: day, showLodging: lodging),
+          day,
+        ).lodgingsToStayAgain)
+          stop.id,
+      ];
 
       // 전날 숙소가 없다.
-      expect(dayOf(trip, 1).lodgingToStayAgain, isNull);
-      expect(dayOf(trip, 2).lodgingToStayAgain?.id, 'hotel');
+      expect(offered(trip, 1), isEmpty);
+      expect(offered(trip, 2), ['hotel']);
       // 2일차 밤 숙소가 없어서 3일차는 숙소에서 출발하지 않는다.
-      expect(dayOf(trip, 3).lodgingToStayAgain, isNull);
+      expect(offered(trip, 3), isEmpty);
       // 숙소를 끄면 출발 숙소도 보이지 않는다.
-      expect(dayOf(trip, 2, lodging: false).lodgingToStayAgain, isNull);
+      expect(offered(trip, 2, lodging: false), isEmpty);
       // 그날 밤 숙소가 있다.
-      expect(dayOf(route, 2).lodgingToStayAgain, isNull);
+      expect(offered(route, 2), isEmpty);
+    });
+
+    test('offers the lodging visited that day, latest first', () {
+      // 1일차: a > 숙소, 2일차: q > 숙소B(체크인) > r > 숙소C > s.
+      final trip = _route([
+        testStop('a'),
+        testLodging('hotel', order: 1),
+        testStop('q', day: 2),
+        testStop('b', day: 2, order: 1, kind: StopKind.lodging),
+        testStop('r', day: 2, order: 2),
+        testStop('c', day: 2, order: 3, kind: StopKind.lodging),
+        testStop('s', day: 2, order: 4),
+      ]);
+
+      final day2 = DayItinerary.of(trip, trip.view(day: 2), 2);
+
+      // 늦게 들른 숙소일수록 그날 밤 묵을 곳일 가능성이 커서 먼저다. 전날 숙소는 맨 끝이다.
+      expect(day2.lodgingsToStayAgain.map((s) => s.id), ['c', 'b', 'hotel']);
+    });
+
+    test('offers each place once', () {
+      // 1일차: a > 숙소, 2일차: q > 숙소(낮에 쉼, 같은 자리) > 숙소B > r > 숙소B(다시 들름) > s.
+      final b = testStop('b', day: 2, order: 2, kind: StopKind.lodging);
+      final trip = _route([
+        testStop('a'),
+        testLodging('hotel', order: 1),
+        testStop('q', day: 2),
+        testLodging('rest', day: 2, order: 1),
+        b,
+        testStop('r', day: 2, order: 3),
+        testStop(
+          'b-again',
+          day: 2,
+          order: 4,
+          kind: StopKind.lodging,
+          latitude: b.latitude,
+          longitude: b.longitude,
+        ),
+        testStop('s', day: 2, order: 5),
+      ]);
+
+      final day2 = DayItinerary.of(trip, trip.view(day: 2), 2);
+
+      // 같은 자리 숙소B는 늦게 들른 쪽 하나만, 전날 숙소와 같은 자리는 전날 숙소로 둔다.
+      expect(day2.lodgingsToStayAgain.map((s) => s.id), ['b-again', 'hotel']);
     });
 
     test('knows its stops and segments', () {

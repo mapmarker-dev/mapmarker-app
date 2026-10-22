@@ -331,8 +331,8 @@ class _DayItineraryListState extends State<DayItineraryList> {
             },
           ),
         ),
-        // 연박: 그날 밤 숙소를 아직 넣지 않았으면 전날 숙소를 한 번에 다시 넣는다.
-        if (itinerary.lodgingToStayAgain case final lodging?)
+        // 그날 밤 숙소를 아직 넣지 않았으면, 그날 들른 숙소나 전날 숙소(연박)를 한 번에 다시 넣는다.
+        for (final lodging in itinerary.lodgingsToStayAgain)
           SliverPadding(
             padding: side.add(const EdgeInsets.only(top: AppSpace.sm)),
             sliver: SliverToBoxAdapter(
@@ -341,7 +341,12 @@ class _DayItineraryListState extends State<DayItineraryList> {
                 child: OutlinedButton.icon(
                   onPressed: () => widget.onStayAgain(lodging),
                   icon: const Icon(Icons.bed_outlined),
-                  label: Text(l10n.stayAgain(lodging.name)),
+                  // 전날 밤 숙소는 이어서 묵는 것이라 "오늘 밤도", 그날 들른 숙소는 "오늘 밤은"이다.
+                  label: Text(
+                    lodging.id == itinerary.start?.id
+                        ? l10n.stayAgain(lodging.name)
+                        : l10n.stayTonight(lodging.name),
+                  ),
                 ),
               ),
             ),

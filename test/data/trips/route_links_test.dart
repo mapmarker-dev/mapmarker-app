@@ -123,4 +123,46 @@ void main() {
       expect(dropped('x', 1, 0), isEmpty);
     });
   });
+
+  group('segments dropped by adding a stop', () {
+    // 1일차: a > b, 2일차: 없음, 3일차: c.
+    final stops = [
+      testStop('a'),
+      testStop('b', order: 1),
+      testStop('c', day: 3),
+    ];
+    final segments = linkStops(
+      tripId: 'trip',
+      stops: stops,
+      existing: const [],
+      createId: createId,
+    );
+
+    List<(String, String)> dropped(int day, int order) => pairs(
+      segmentsDroppedByInsert(
+        stops: stops,
+        segments: segments,
+        day: day,
+        order: order,
+      ),
+    );
+
+    test('are the one across the gap it fills', () {
+      expect(dropped(1, 1), [('a', 'b')]);
+    });
+
+    test('include the link across days at the end of a day', () {
+      expect(dropped(1, 2), [('b', 'c')]);
+      expect(dropped(1, 9), [('b', 'c')]);
+    });
+
+    test('include the link across an empty day', () {
+      expect(dropped(2, 0), [('b', 'c')]);
+    });
+
+    test('are none at either end of the trip', () {
+      expect(dropped(1, 0), isEmpty);
+      expect(dropped(3, 1), isEmpty);
+    });
+  });
 }

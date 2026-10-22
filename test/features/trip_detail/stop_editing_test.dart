@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/app/routes.dart';
 import 'package:mapmarker_app/core/map/geo.dart';
 import 'package:mapmarker_app/core/map/map_provider.dart';
 import 'package:mapmarker_app/core/time/local_time.dart';
+import 'package:mapmarker_app/data/models/segment.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/features/trip_detail/route_scene.dart';
+import 'package:mapmarker_app/features/trip_detail/trip_detail_controller.dart';
 import 'package:mapmarker_app/features/trip_detail/widgets/itinerary_tiles.dart';
 
 import '../../helpers/fake_map.dart';
@@ -36,19 +39,45 @@ final _stops = [
 const _somewhere = LatLng(33.40, 126.60);
 const _elsewhere = LatLng(33.30, 126.70);
 
-Future<void> _pumpJeju(WidgetTester tester) async {
+const _subway = [TransportLeg(TransportMode.subway, stopCount: 2)];
+const _walk = [TransportLeg(TransportMode.walk)];
+
+/// [legs]는 (출발 장소, 도착 장소) 구간에 미리 적어 둘 이동 수단이다.
+Future<ProviderContainer> _pumpJeju(
+  WidgetTester tester, {
+  List<Stop>? stops,
+  Map<(String, String), List<TransportLeg>> legs = const {},
+}) async {
   // 입력 화면과 펼친 시트가 모두 보이게 화면을 키운다.
   tester.view.physicalSize =
       const Size(800, 1800) * tester.view.devicePixelRatio;
   addTearDown(tester.view.reset);
-  await pumpTestApp(
+  final repository = testRepository([
+    testTrip(id: 'jeju', region: '제주', nights: 2),
+  ], stops ?? _stops);
+  if (legs.isNotEmpty) {
+    final route = (await tester.runAsync(
+      () => repository.watchRoute('jeju').first,
+    ))!;
+    for (final MapEntry(key: (from, to), value: written) in legs.entries) {
+      await repository.updateSegment(
+        _segmentOf(route.segments, from, to).copyWith(legs: written),
+      );
+    }
+  }
+  return pumpTestApp(
     tester,
-    repository: testRepository([
-      testTrip(id: 'jeju', region: '제주', nights: 2),
-    ], _stops),
+    repository: repository,
     location: Routes.trip('jeju'),
   );
 }
+
+Segment _segmentOf(Iterable<Segment> segments, String from, String to) =>
+    segments.singleWhere((s) => s.fromStopId == from && s.toStopId == to);
+
+/// 저장소에 있는 구간.
+Iterable<Segment> _savedSegments(ProviderContainer container) =>
+    container.read(tripRouteProvider('jeju')).value!.segments;
 
 Future<void> _tapChip(WidgetTester tester, String label) async {
   await tester.tap(
@@ -94,8 +123,42 @@ Future<void> _chooseKind(WidgetTester tester, String kind) =>
 
 /// 입력 화면의 일차를 고른다.
 Future<void> _chooseDay(WidgetTester tester, String day) async {
-  await _tapInForm(tester, _inForm(find.byType(DropdownButtonFormField<int>)));
+  await _tapInForm(
+    tester,
+    _inForm(find.widgetWithText(DropdownButtonFormField<int>, '일차')),
+  );
   await tester.tap(find.text(day).last);
+  await tester.pumpAndSettle();
+}
+
+Finder get _slotField =>
+    _inForm(find.widgetWithText(DropdownButtonFormField<int>, '넣을 자리'));
+
+/// 입력 화면의 넣을 자리를 고른다.
+Future<void> _chooseSlot(WidgetTester tester, String slot) async {
+  await _tapInForm(tester, _slotField);
+  await tester.tap(find.text(slot).last);
+  await tester.pumpAndSettle();
+}
+
+/// 넣을 자리 칸이 고르고 있는 일차 안 순서.
+int? _slotOrder(WidgetTester tester) => tester
+    .widget<DropdownButton<int>>(
+      find.descendant(
+        of: _slotField,
+        matching: find.byType(DropdownButton<int>),
+      ),
+    )
+    .value;
+
+/// 넣을 자리 칸에 [slot] 선택지가 있는지. 칸은 모든 선택지를 그려 두고 고른 것만 보여 준다.
+Finder _slotOption(String slot) =>
+    find.descendant(of: _slotField, matching: find.text(slot));
+
+/// 임시 핀을 꽂고 입력 화면을 연다.
+Future<void> _openAddForm(WidgetTester tester) async {
+  await tapMap(tester, _somewhere);
+  await tester.tap(find.widgetWithText(FilledButton, '추가'));
   await tester.pumpAndSettle();
 }
 
@@ -341,6 +404,147 @@ void main() {
     });
   });
 
+  group('choosing where a new stop goes', () {
+    const preview = '이 자리에 넣으면 아래 이동 수단이 지워집니다.';
+
+    testWidgets('starts before the lodging of the night', (tester) async {
+      await _pumpJeju(tester);
+      await _tapChip(tester, '1일차');
+      await _openAddForm(tester);
+
+      expect(_slotOrder(tester), 2);
+      expect(_slotOption('‘hotel’ 앞 (기본)'), findsOneWidget);
+      expect(_inForm(find.text(preview)), findsNothing);
+
+      await _tapInForm(tester, _slotField);
+
+      // 펼친 선택지는 맨 앞부터 그날 밤 숙소 앞까지다. 숙소 뒤에 넣으면 다음 날이 숙소에서 출발하지 않아서 없다.
+      // b 뒤와 숙소 앞은 같은 자리라 숙소 앞으로만 쓴다.
+      final options = [
+        for (final item in tester.widgetList<DropdownMenuItem<int>>(
+          find.descendant(
+            of: find.byType(Scrollable).last,
+            matching: find.byType(DropdownMenuItem<int>),
+          ),
+        ))
+          (item.child as Text).data,
+      ];
+      expect(options, ['‘a’ 앞', '‘a’ 뒤', '‘hotel’ 앞 (기본)']);
+    });
+
+    testWidgets('puts the stop where it is chosen', (tester) async {
+      await _pumpJeju(tester);
+      await _tapChip(tester, '1일차');
+      await _openAddForm(tester);
+
+      await tester.enterText(_nameField, '오름');
+      await _chooseSlot(tester, '‘a’ 앞');
+      await _save(tester);
+
+      expect(_tileNames(tester), ['오름', 'a', 'b', 'hotel']);
+    });
+
+    testWidgets('shows the transport the slot would drop', (tester) async {
+      await _pumpJeju(tester, legs: {('b', 'hotel'): _walk});
+      await _tapChip(tester, '1일차');
+      await _openAddForm(tester);
+
+      expect(_inForm(find.text(preview)), findsOneWidget);
+      expect(_inForm(find.text('1일차 b → hotel')), findsOneWidget);
+      expect(_inForm(find.text('도보')), findsOneWidget);
+
+      await _chooseSlot(tester, '‘a’ 뒤');
+
+      expect(_inForm(find.text(preview)), findsNothing);
+    });
+
+    testWidgets('drops the shown transport without asking again', (
+      tester,
+    ) async {
+      final container = await _pumpJeju(
+        tester,
+        legs: {('a', 'b'): _subway, ('b', 'hotel'): _walk},
+      );
+      await _tapChip(tester, '1일차');
+      await _openAddForm(tester);
+      await tester.enterText(_nameField, '오름');
+      await tester.pump();
+
+      await _save(tester);
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(_tileNames(tester), ['a', 'b', '오름', 'hotel']);
+      final segments = _savedSegments(container);
+      expect(_segmentOf(segments, 'a', 'b').legs, _subway);
+      expect(segments.where((s) => s.fromStopId == 'b').single.legs, isEmpty);
+    });
+
+    testWidgets('follows the kind until a slot is chosen', (tester) async {
+      await _pumpJeju(tester);
+      await _tapChip(tester, '1일차');
+      await _openAddForm(tester);
+
+      await _chooseKind(tester, '숙소');
+
+      // 숙소는 맨 뒤가 기본이다.
+      expect(_slotOrder(tester), 3);
+      expect(_slotOption('‘hotel’ 뒤 (기본)'), findsOneWidget);
+
+      await _chooseSlot(tester, '‘a’ 뒤');
+      await _chooseKind(tester, '음식');
+
+      expect(_slotOrder(tester), 1);
+    });
+
+    testWidgets('leaves the lodging of the night last for other kinds', (
+      tester,
+    ) async {
+      await _pumpJeju(tester);
+      await _tapChip(tester, '1일차');
+      await _openAddForm(tester);
+      await tester.enterText(_nameField, '새 숙소');
+      await _chooseKind(tester, '숙소');
+      await _chooseSlot(tester, '‘hotel’ 뒤 (기본)');
+
+      // 숙소 뒤는 숙소만 고를 수 있다. 종류를 바꾸면 기본 자리로 돌아간다.
+      await _chooseKind(tester, '음식');
+
+      expect(_slotOrder(tester), 2);
+
+      await _save(tester);
+
+      expect(_tileNames(tester), ['a', 'b', '새 숙소', 'hotel']);
+    });
+
+    testWidgets('goes back to the default slot on another day', (tester) async {
+      await _pumpJeju(tester);
+      await _tapChip(tester, '1일차');
+      await _openAddForm(tester);
+      await _chooseSlot(tester, '‘a’ 앞');
+
+      await _chooseDay(tester, '2일차');
+
+      expect(_slotOrder(tester), 2);
+      expect(_slotOption('‘hotel2’ 앞 (기본)'), findsOneWidget);
+
+      await _chooseDay(tester, '3일차');
+
+      // 장소가 없는 일차는 자리가 하나뿐이라 고를 수 없다.
+      expect(_slotOption('첫 장소'), findsWidgets);
+      expect(
+        tester
+            .widget<DropdownButton<int>>(
+              find.descendant(
+                of: _slotField,
+                matching: find.byType(DropdownButton<int>),
+              ),
+            )
+            .onChanged,
+        isNull,
+      );
+    });
+  });
+
   group('editing', () {
     /// 목록에서 장소 줄을 누르고, 그 줄에 뜬 연필 아이콘을 누른다.
     Future<void> openEditor(WidgetTester tester, String name) async {
@@ -409,6 +613,30 @@ void main() {
       expect(_tileNames(tester), ['a', 'b', 'c', 'hotel']);
     });
 
+    testWidgets('chooses the slot only when moving to another day', (
+      tester,
+    ) async {
+      await _pumpJeju(tester);
+      await _tapChip(tester, '2일차');
+      await _openSheet(tester);
+      await openEditor(tester, 'c');
+
+      expect(_slotField, findsNothing);
+
+      await _chooseDay(tester, '1일차');
+
+      expect(_slotOrder(tester), 2);
+      expect(_slotOption('‘hotel’ 앞 (기본)'), findsOneWidget);
+
+      await _chooseSlot(tester, '‘a’ 뒤');
+      await _save(tester);
+
+      await _tapChip(tester, '1일차');
+      await _openSheet(tester);
+
+      expect(_tileNames(tester), ['a', 'c', 'b', 'hotel']);
+    });
+
     testWidgets('does nothing when saved without changes', (tester) async {
       await _pumpJeju(tester);
       await _tapChip(tester, '2일차');
@@ -449,6 +677,115 @@ void main() {
       expect(mapScene(tester).captions, ['hotel2']);
       // 그날 밤 숙소가 생겨서 버튼은 사라진다.
       expect(find.textContaining('오늘 밤도'), findsNothing);
+    });
+
+    group('across a written transport', () {
+      /// 1일차: a > 숙소, 2일차: c, 3일차: e. c → e는 지하철이다.
+      final stops = [
+        testStop('a', tripId: 'jeju'),
+        testLodging('hotel', tripId: 'jeju', order: 1),
+        testStop('c', tripId: 'jeju', day: 2),
+        testStop('e', tripId: 'jeju', day: 3),
+      ];
+
+      Future<ProviderContainer> stayOnDay2(WidgetTester tester) async {
+        final container = await _pumpJeju(
+          tester,
+          stops: stops,
+          legs: {('c', 'e'): _subway},
+        );
+        await _tapChip(tester, '2일차');
+        await _openSheet(tester);
+        await tester.tap(find.text('오늘 밤도 ‘hotel’에서 묵기'));
+        await tester.pumpAndSettle();
+        return container;
+      }
+
+      testWidgets('asks before dropping it', (tester) async {
+        await stayOnDay2(tester);
+
+        expect(find.text('이동 수단이 사라집니다'), findsOneWidget);
+        expect(
+          find.text('‘hotel’에서 묵으면 아래 구간의 이동 수단이 지워집니다. 넣을까요?'),
+          findsOneWidget,
+        );
+        expect(find.text('2일차 c → 3일차 e'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.text('지하철 2정류장'),
+          ),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('leaves the day as it was when cancelled', (tester) async {
+        final container = await stayOnDay2(tester);
+
+        await tester.tap(find.text('취소'));
+        await tester.pumpAndSettle();
+
+        expect(_tileNames(tester), ['hotel', 'c']);
+        expect(_segmentOf(_savedSegments(container), 'c', 'e').legs, _subway);
+      });
+
+      testWidgets('stays and drops it when confirmed', (tester) async {
+        final container = await stayOnDay2(tester);
+
+        await tester.tap(find.text('넣기'));
+        await tester.pumpAndSettle();
+
+        expect(_tileNames(tester), ['hotel', 'c', 'hotel']);
+        expect(_savedSegments(container).every((s) => s.legs.isEmpty), isTrue);
+      });
+    });
+
+    group('at a lodging visited that day', () {
+      /// 1일차: a > 숙소, 2일차: q > 숙소B(체크인) > r, 3일차: e.
+      final stops = [
+        testStop('a', tripId: 'jeju'),
+        testLodging('hotel', tripId: 'jeju', order: 1),
+        testStop('q', tripId: 'jeju', day: 2),
+        testStop('B', tripId: 'jeju', day: 2, order: 1, kind: StopKind.lodging),
+        testStop('r', tripId: 'jeju', day: 2, order: 2),
+        testStop('e', tripId: 'jeju', day: 3),
+      ];
+      const tonightAtB = '오늘 밤은 ‘B’에서 묵기';
+      const againAtHotel = '오늘 밤도 ‘hotel’에서 묵기';
+
+      testWidgets('offers it before the lodging of the night before', (
+        tester,
+      ) async {
+        await _pumpJeju(tester, stops: stops);
+        await _tapChip(tester, '2일차');
+        await _openSheet(tester);
+
+        expect(find.text(tonightAtB), findsOneWidget);
+        expect(find.text(againAtHotel), findsOneWidget);
+        expect(
+          tester.getTopLeft(find.text(tonightAtB)).dy,
+          lessThan(tester.getTopLeft(find.text(againAtHotel)).dy),
+        );
+      });
+
+      testWidgets('ends the day there and starts the next day from it', (
+        tester,
+      ) async {
+        await _pumpJeju(tester, stops: stops);
+        await _tapChip(tester, '2일차');
+        await _openSheet(tester);
+
+        await tester.tap(find.text(tonightAtB));
+        await tester.pumpAndSettle();
+
+        expect(_tileNames(tester), ['hotel', 'q', 'B', 'r', 'B']);
+        expect(find.textContaining('에서 묵기'), findsNothing);
+
+        await _tapChip(tester, '3일차');
+        await _openSheet(tester);
+
+        expect(_tileNames(tester), ['B', 'e']);
+      });
     });
 
     testWidgets('is offered only when the night has no lodging yet', (

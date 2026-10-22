@@ -657,22 +657,29 @@ void main() {
   group('moving a stop to another day in its form', () {
     const legs = [TransportLeg(TransportMode.subway, stopCount: 2)];
 
-    /// 1일차 목록에서 b의 입력 화면을 열고 일차를 2일차로 바꾼 뒤 저장을 누른다.
+    const preview = '이 자리로 옮기면 아래 이동 수단이 지워집니다.';
+
+    /// 입력 화면의 일차를 고른다.
+    Future<void> chooseDay(WidgetTester tester, String day) async {
+      final dayField = _inForm(
+        find.widgetWithText(DropdownButtonFormField<int>, '일차'),
+      );
+      await tester.ensureVisible(dayField);
+      await tester.pumpAndSettle();
+      await tester.tap(dayField);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(day).last);
+      await tester.pumpAndSettle();
+    }
+
+    /// 1일차 목록에서 b의 입력 화면을 열고 일차를 2일차로 바꾼다. 저장은 누르지 않는다.
     Future<void> moveBToDay2(WidgetTester tester) async {
       await _openDay1(tester);
       await tester.tap(find.text('b'));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('장소 편집'));
       await tester.pumpAndSettle();
-      final dayField = _inForm(find.byType(DropdownButtonFormField<int>));
-      await tester.ensureVisible(dayField);
-      await tester.pumpAndSettle();
-      await tester.tap(dayField);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('2일차').last);
-      await tester.pumpAndSettle();
-      await tester.tap(_saveButton.first);
-      await tester.pumpAndSettle();
+      await chooseDay(tester, '2일차');
     }
 
     List<(String, int)> savedDays(ProviderContainer container) => [
@@ -680,36 +687,41 @@ void main() {
         (stop.id, stop.day),
     ];
 
-    testWidgets('asks before dropping a chosen transport', (tester) async {
+    testWidgets('shows the transport it would drop under the slot', (
+      tester,
+    ) async {
       await _pumpJeju(tester, firstLegs: legs);
 
       await moveBToDay2(tester);
 
-      expect(find.text('이동 수단이 사라집니다'), findsOneWidget);
-      expect(find.text('1일차 a → b'), findsOneWidget);
+      expect(_inForm(find.text('넣을 자리')), findsOneWidget);
+      // 2일차는 비어 있어서 자리가 하나뿐이다.
+      expect(_inForm(find.text('첫 장소')), findsOneWidget);
+      expect(_inForm(find.text(preview)), findsOneWidget);
+      expect(_inForm(find.text('1일차 a → b')), findsOneWidget);
+      expect(_inForm(find.text('지하철 2정류장')), findsOneWidget);
     });
 
-    testWidgets('stays in the form when cancelled', (tester) async {
+    testWidgets('hides the slot when the day goes back', (tester) async {
+      await _pumpJeju(tester, firstLegs: legs);
+      await moveBToDay2(tester);
+
+      await chooseDay(tester, '1일차');
+
+      expect(_inForm(find.text('넣을 자리')), findsNothing);
+      expect(_inForm(find.text(preview)), findsNothing);
+    });
+
+    testWidgets('moves the stop without asking again when saved', (
+      tester,
+    ) async {
       final (_, container) = await _pumpJeju(tester, firstLegs: legs);
       await moveBToDay2(tester);
 
-      await tester.tap(find.text('취소'));
+      await tester.tap(_saveButton.first);
       await tester.pumpAndSettle();
 
-      // 입력 화면에 남아 일차를 다시 고칠 수 있다. 저장소는 그대로다.
-      expect(find.text('장소 편집'), findsWidgets);
       expect(find.byType(AlertDialog), findsNothing);
-      expect(savedDays(container), [('a', 1), ('b', 1), ('hotel', 1)]);
-      expect(_savedLegs(container), legs);
-    });
-
-    testWidgets('moves the stop when confirmed', (tester) async {
-      final (_, container) = await _pumpJeju(tester, firstLegs: legs);
-      await moveBToDay2(tester);
-
-      await tester.tap(find.text('옮기기'));
-      await tester.pumpAndSettle();
-
       expect(find.text('장소 편집'), findsNothing);
       expect(savedDays(container), [('a', 1), ('hotel', 1), ('b', 2)]);
       final segments = container
@@ -719,14 +731,17 @@ void main() {
       expect(segments.every((s) => s.legs.isEmpty), isTrue);
     });
 
-    testWidgets('moves without asking when no transport is chosen', (
-      tester,
-    ) async {
+    testWidgets('shows nothing when no transport is chosen', (tester) async {
       final (_, container) = await _pumpJeju(tester);
 
       await moveBToDay2(tester);
 
-      expect(find.byType(AlertDialog), findsNothing);
+      expect(_inForm(find.text('넣을 자리')), findsOneWidget);
+      expect(_inForm(find.text(preview)), findsNothing);
+
+      await tester.tap(_saveButton.first);
+      await tester.pumpAndSettle();
+
       expect(savedDays(container), [('a', 1), ('hotel', 1), ('b', 2)]);
     });
   });

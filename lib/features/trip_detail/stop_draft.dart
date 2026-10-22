@@ -14,6 +14,7 @@ class StopDraft {
     this.plannedTime,
     this.description = '',
     this.memo = '',
+    this.slotOrder,
   });
 
   factory StopDraft.of(Stop stop) => StopDraft(
@@ -38,6 +39,10 @@ class StopDraft {
   final String description;
   final String memo;
 
+  /// "넣을 자리" 칸에서 고른 일차 안 순서([Stop.order]). null이면 고르지 않은 것이라 기본 자리다
+  /// (`stop_placement.dart`의 `insertionOrder`). 기본 자리는 종류에 따라 바뀌어서 저장할 때 정한다.
+  final int? slotOrder;
+
   /// 저장할 수 있는지. 이름은 앞뒤 공백을 빼고 1자 이상이어야 한다.
   bool get isValid {
     final trimmed = name.trim();
@@ -54,6 +59,7 @@ class StopDraft {
     LocalTime? Function()? plannedTime,
     String? description,
     String? memo,
+    int? Function()? slotOrder,
   }) => StopDraft(
     name: name ?? this.name,
     kind: kind ?? this.kind,
@@ -61,6 +67,7 @@ class StopDraft {
     plannedTime: plannedTime == null ? this.plannedTime : plannedTime(),
     description: description ?? this.description,
     memo: memo ?? this.memo,
+    slotOrder: slotOrder == null ? this.slotOrder : slotOrder(),
   );
 
   /// 새 장소. 일차 안 순서는 [order]다.
@@ -100,9 +107,10 @@ class StopDraft {
       other.day == day &&
       other.plannedTime == plannedTime &&
       other.description == description &&
-      other.memo == memo;
+      other.memo == memo &&
+      other.slotOrder == slotOrder;
 
   @override
   int get hashCode =>
-      Object.hash(name, kind, day, plannedTime, description, memo);
+      Object.hash(name, kind, day, plannedTime, description, memo, slotOrder);
 }
