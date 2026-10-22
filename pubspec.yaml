@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.9.2
+  sdk: ^3.12.0
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -38,6 +40,12 @@ dependencies:
   image_picker: ^1.2.2
   image_picker_android: ^0.8.13+17
   image_picker_platform_interface: ^2.11.1
+  flutter_riverpod: ^3.4.3
+  go_router: ^17.5.0
+  uuid: ^4.6.0
+  # gen-l10n이 만든 코드가 쓴다. 버전은 flutter_localizations가 정한다.
+  intl: any
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:
@@ -60,6 +68,23 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # 다국어: l10n.yaml 설정으로 lib/l10n/*.arb에서 코드를 만든다.
+  generate: true
+
+  # 글꼴 라이선스(OFL). main.dart에서 라이선스 화면에 등록한다.
+  assets:
+    - assets/fonts/OFL.txt
+
+  # 나눔스퀘어라운드(네이버, OFL). 원본 그대로 넣고, 쓰는 굵기만 넣는다.
+  fonts:
+    - family: NanumSquareRound
+      fonts:
+        - asset: assets/fonts/NanumSquareRoundR.ttf
+        - asset: assets/fonts/NanumSquareRoundB.ttf
+          weight: 700
+        - asset: assets/fonts/NanumSquareRoundEB.ttf
+          weight: 800
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -1,108 +1,63 @@
 import 'dart:developer';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker_android/image_picker_android.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 
+import 'app/app.dart';
 import 'config/env.dart';
-import 'prototype/snapshot_lab_screen.dart';
-
-/// 네이버 지도 SDK는 Android와 iOS만 지원한다.
-bool get isMapSupported =>
-    !kIsWeb &&
-    (defaultTargetPlatform == TargetPlatform.android ||
-        defaultTargetPlatform == TargetPlatform.iOS);
+import 'core/time/local_date.dart';
+import 'data/trips/memory_trip_repository.dart';
+import 'data/trips/trip_repository.dart';
+import 'dev/sample_trips.dart';
+import 'l10n/l10n.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _registerFontLicense();
   // Android 10에서는 시스템 사진 선택기를 쓴다.
   final imagePicker = ImagePickerPlatform.instance;
   if (imagePicker is ImagePickerAndroid) {
     imagePicker.useAndroidPhotoPicker = true;
   }
-  if (isMapSupported && Env.naverMapClientId.isNotEmpty) {
+  if (Env.naverMapClientId.isNotEmpty) {
     await FlutterNaverMap().init(
       clientId: Env.naverMapClientId,
       onAuthFailed: (ex) => log('네이버 지도 인증 실패: $ex'),
     );
   }
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: !isMapSupported
-          ? const UnsupportedPlatformScreen()
-          : Env.naverMapClientId.isEmpty
-          ? const MissingEnvScreen()
-          : const SnapshotLabScreen(),
-    );
-  }
-}
-
-class UnsupportedPlatformScreen extends StatelessWidget {
-  const UnsupportedPlatformScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: Text('네이버 지도는 Android·iOS에서만 실행됩니다.')),
-    );
-  }
-}
-
-class MissingEnvScreen extends StatelessWidget {
-  const MissingEnvScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text(
-            'NAVER_MAP_CLIENT_ID가 없습니다.\n'
-            '.env를 채우고 flutter run --dart-define-from-file=.env 로 실행하세요.',
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class MapScreen extends StatelessWidget {
-  const MapScreen({super.key});
-
-  static const _seoulCityHall = NLatLng(37.5666, 126.979);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: NaverMap(
-        options: NaverMapViewOptions(
-          contentPadding: MediaQuery.paddingOf(context),
-          initialCameraPosition: const NCameraPosition(
-            target: _seoulCityHall,
-            zoom: 14,
-          ),
-        ),
-        onMapReady: (controller) {
-          controller.addOverlay(
-            NMarker(
-              id: 'city_hall',
-              position: _seoulCityHall,
-              caption: const NOverlayCaption(text: '서울시청'),
+  final now = DateTime.now();
+  final samples = sampleTrips(
+    today: LocalDate.fromDateTime(now),
+    now: now,
+    l10n: lookupAppLocalizations(appLocale),
+  );
+  runApp(
+    ProviderScope(
+      overrides: [
+        // 서버가 생기기 전에는 디버그 빌드에서 샘플 여행을 미리 넣는다.
+        if (kDebugMode)
+          tripRepositoryProvider.overrideWithValue(
+            MemoryTripRepository(
+              seed: samples.trips,
+              seedStops: samples.stops,
+              seedSegments: samples.segments,
             ),
-          );
-        },
-      ),
-    );
-  }
+          ),
+      ],
+      child: const MapMarkerApp(),
+    ),
+  );
+}
+
+/// 글꼴 라이선스(OFL)는 글꼴과 함께 보여 줘야 한다. 앱의 라이선스 화면에 나온다.
+void _registerFontLicense() {
+  LicenseRegistry.addLicense(() async* {
+    final license = await rootBundle.loadString('assets/fonts/OFL.txt');
+    yield LicenseEntryWithLineBreaks(const ['NanumSquareRound'], license);
+  });
 }

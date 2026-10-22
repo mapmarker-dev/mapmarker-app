@@ -1,0 +1,466 @@
+{
+  "@@locale": "ko",
+
+  "tripListEmpty": "아직 여행이 없습니다.\n+ 버튼으로 첫 여행을 만들어 보세요.",
+  "@tripListEmpty": {
+    "description": "여행 목록이 비었을 때 안내"
+  },
+  "tripListLoadFailed": "여행 목록을 불러오지 못했습니다.",
+  "createTripTooltip": "여행 만들기",
+  "@createTripTooltip": {
+    "description": "여행 목록의 + 버튼"
+  },
+
+  "phaseBefore": "여행 전",
+  "phaseDuring": "여행 중",
+  "phaseAfter": "여행 후",
+  "phaseManual": "{phase} · 직접",
+  "@phaseManual": {
+    "description": "사용자가 직접 바꾼 상태의 칩. 예: 여행 중 · 직접",
+    "placeholders": {
+      "phase": {"type": "String", "example": "여행 중"}
+    }
+  },
+  "changePhaseTooltip": "상태 바꾸기",
+  "revertPhaseToAuto": "자동으로 되돌리기 (자동: {phase})",
+  "@revertPhaseToAuto": {
+    "description": "상태 메뉴. 직접 바꾼 상태를 기간으로 판단한 상태로 되돌린다",
+    "placeholders": {
+      "phase": {"type": "String", "example": "여행 전"}
+    }
+  },
+
+  "seasonSpring": "봄",
+  "seasonSummer": "여름",
+  "seasonAutumn": "가을",
+  "seasonWinter": "겨울",
+
+  "tripLength": "{nights, plural, =0{당일치기} other{{nights}박 {days}일}}",
+  "@tripLength": {
+    "description": "일정. days는 nights + 1이다. 예: 당일치기, 2박 3일",
+    "placeholders": {
+      "nights": {"type": "int"},
+      "days": {"type": "int"}
+    }
+  },
+  "tripTitle": "{region} {length} {season} 여행",
+  "@tripTitle": {
+    "description": "기본 제목. 예: 부산 2박 3일 봄 여행",
+    "placeholders": {
+      "region": {"type": "String", "example": "부산"},
+      "length": {"type": "String", "example": "2박 3일"},
+      "season": {"type": "String", "example": "봄"}
+    }
+  },
+  "tripTitleWithoutSeason": "{region} {length} 여행",
+  "@tripTitleWithoutSeason": {
+    "description": "여행을 만드는 중 계절을 아직 고르지 않았을 때의 기본 제목. 예: 부산 2박 3일 여행",
+    "placeholders": {
+      "region": {"type": "String", "example": "부산"},
+      "length": {"type": "String", "example": "2박 3일"}
+    }
+  },
+
+  "tripDatesUndecided": "날짜 미정",
+  "tripDatesOneDay": "{date}",
+  "@tripDatesOneDay": {
+    "description": "당일치기 기간. 예: 2026.10.14",
+    "placeholders": {
+      "date": {"type": "DateTime", "format": "yyyy.MM.dd", "isCustomDateFormat": "true"}
+    }
+  },
+  "tripDatesSameYear": "{start} – {end}",
+  "@tripDatesSameYear": {
+    "description": "같은 해 안의 기간. 예: 2026.10.14 – 10.17",
+    "placeholders": {
+      "start": {"type": "DateTime", "format": "yyyy.MM.dd", "isCustomDateFormat": "true"},
+      "end": {"type": "DateTime", "format": "MM.dd", "isCustomDateFormat": "true"}
+    }
+  },
+  "tripDatesAcrossYears": "{start} – {end}",
+  "@tripDatesAcrossYears": {
+    "description": "해를 넘기는 기간. 예: 2026.12.30 – 2027.01.02",
+    "placeholders": {
+      "start": {"type": "DateTime", "format": "yyyy.MM.dd", "isCustomDateFormat": "true"},
+      "end": {"type": "DateTime", "format": "yyyy.MM.dd", "isCustomDateFormat": "true"}
+    }
+  },
+  "tripSummary": "{dates} · {length}",
+  "@tripSummary": {
+    "description": "여행 목록의 기간과 일정. 예: 2026.10.14 – 10.17 · 3박 4일",
+    "placeholders": {
+      "dates": {"type": "String", "example": "2026.10.14 – 10.17"},
+      "length": {"type": "String", "example": "3박 4일"}
+    }
+  },
+
+  "createTripScreenTitle": "새 여행",
+  "regionLabel": "지역",
+  "regionHint": "예: 부산",
+  "datesSectionTitle": "기간 (선택)",
+  "pickDates": "날짜 고르기",
+  "clearDates": "날짜 지우기",
+  "phasePreviewUndated": "상태: {phase} (날짜 미정)",
+  "@phasePreviewUndated": {
+    "placeholders": {
+      "phase": {"type": "String", "example": "여행 전"}
+    }
+  },
+  "phasePreviewFromDates": "상태: {phase} (기간으로 자동)",
+  "@phasePreviewFromDates": {
+    "placeholders": {
+      "phase": {"type": "String", "example": "여행 중"}
+    }
+  },
+  "lengthSectionTitle": "일정",
+  "removeNight": "1박 줄이기",
+  "addNight": "1박 늘리기",
+  "seasonSectionTitle": "계절",
+  "titleLabel": "제목",
+  "titleHelperOnCreate": "비우면 기본 제목으로 만듭니다.",
+  "createTripButton": "만들기",
+
+  "renameTrip": "제목 바꾸기",
+  "renameTripHelper": "비우면 기본 제목으로 돌아갑니다.",
+  "tripNotFound": "여행을 찾을 수 없습니다.",
+  "tripLoadFailed": "여행을 불러오지 못했습니다.",
+  "tripRouteSubtitle": "{phase} · {summary}",
+  "@tripRouteSubtitle": {
+    "description": "동선 페이지 제목 아래 줄. 예: 여행 중 · 2026.10.14 – 10.17 · 3박 4일",
+    "placeholders": {
+      "phase": {"type": "String", "example": "여행 중"},
+      "summary": {"type": "String", "example": "2026.10.14 – 10.17 · 3박 4일"}
+    }
+  },
+  "routeAllDays": "전체",
+  "@routeAllDays": {
+    "description": "동선 페이지의 일차 칩. 여행 전체 동선을 본다"
+  },
+  "routeDay": "{day}일차",
+  "@routeDay": {
+    "description": "동선 페이지의 일차 칩. 예: 2일차",
+    "placeholders": {
+      "day": {"type": "int"}
+    }
+  },
+  "routeShowLodging": "숙소",
+  "@routeShowLodging": {
+    "description": "동선 페이지에서 숙소를 지도에 보일지 켜고 끄는 칩"
+  },
+  "routeFitTooltip": "동선에 맞추기",
+  "@routeFitTooltip": {
+    "description": "지금 보이는 장소가 모두 들어오게 지도를 다시 맞추는 버튼"
+  },
+  "routeEmpty": "아직 장소가 없습니다.\n지도를 눌러 첫 장소를 넣어 보세요.",
+  "routeDayEmpty": "{day}일차에는 장소가 없습니다.",
+  "@routeDayEmpty": {
+    "placeholders": {
+      "day": {"type": "int"}
+    }
+  },
+  "routeNothingVisible": "보이는 장소가 없습니다.",
+  "@routeNothingVisible": {
+    "description": "숙소를 끈 전체 보기에서 숙소 말고는 장소가 없을 때"
+  },
+  "routeChooseDay": "어느 일차를 볼까요?",
+  "@routeChooseDay": {
+    "description": "여러 일차에 넣은 같은 자리의 마커(예: 처음과 끝이 같은 공항)를 눌렀을 때 대화상자 제목"
+  },
+
+  "itineraryTitleWithDate": "{day}일차 · {date}",
+  "@itineraryTitleWithDate": {
+    "description": "일차 동선 시트 제목. 기간이 있는 여행. 예: 2일차 · 10월 21일 (수)",
+    "placeholders": {
+      "day": {"type": "int"},
+      "date": {"type": "DateTime", "format": "MMMEd"}
+    }
+  },
+  "itineraryStopCount": "{count, plural, =0{장소 없음} other{장소 {count}곳}}",
+  "@itineraryStopCount": {
+    "description": "일차 동선 시트 제목 옆. 출발 장소는 세지 않는다",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "itineraryStartLodging": "전날 묵은 숙소에서 출발",
+  "@itineraryStartLodging": {
+    "description": "일차 동선 시트 맨 위의 출발 장소 줄. 전날 마지막 장소가 숙소일 때"
+  },
+  "itineraryStartPlace": "전날 마지막 장소에서 출발",
+  "@itineraryStartPlace": {
+    "description": "일차 동선 시트 맨 위의 출발 장소 줄. 전날 마지막 장소가 숙소가 아닐 때(공항, 야간 이동 등)"
+  },
+  "itineraryKindAndTime": "{kind} · {time}",
+  "@itineraryKindAndTime": {
+    "description": "장소 줄의 종류와 예정 시각. 예: 음식 · 오후 12:30",
+    "placeholders": {
+      "kind": {"type": "String", "example": "음식"},
+      "time": {"type": "String", "example": "오후 12:30"}
+    }
+  },
+  "itineraryOpenNaverMap": "네이버 지도에서 영업시간·리뷰 보기",
+  "@itineraryOpenNaverMap": {
+    "description": "장소 줄 아래 칸. 누르면 네이버 지도에서 이름과 좌표로 장소를 찾는다"
+  },
+  "itineraryOpenFailed": "네이버 지도를 열지 못했습니다.",
+  "itineraryTransportUndecided": "이동 수단 미정",
+  "lodgingHiddenShow": "숙소 켜기",
+  "@lodgingHiddenShow": {
+    "description": "숙소를 끈 보기라서 할 수 없거나 보이지 않는다고 알리는 스낵바의 버튼. 누르면 숙소 필터를 켠다"
+  },
+  "lodgingHiddenReorder": "숙소를 켜면 순서를 바꿀 수 있습니다.",
+  "@lodgingHiddenReorder": {
+    "description": "숙소를 끈 시트에서 흐린 순서 손잡이를 눌렀을 때. 숨긴 숙소 사이의 자리가 보이지 않아서 끌어 옮기기를 막는다"
+  },
+  "lodgingHiddenSaved": "숙소가 꺼져 있어 지도에 보이지 않습니다.",
+  "@lodgingHiddenSaved": {
+    "description": "숙소를 끈 보기에서 숙소를 추가하거나 종류를 숙소로 바꿔 저장했을 때"
+  },
+  "lodgingHiddenVia": "숙소를 켜면 이 사이의 이동 수단을 볼 수 있습니다.",
+  "@lodgingHiddenVia": {
+    "description": "숙소를 끈 시트에서 '숙소를 거쳐 감' 줄을 눌렀을 때"
+  },
+  "itineraryViaLodging": "숙소를 거쳐 감",
+  "@itineraryViaLodging": {
+    "description": "숙소를 끈 일차 동선 시트에서, 앞 장소와 이 장소 사이에 숨긴 숙소(그날 낮에 들른 숙소)가 있을 때 구간 줄 대신 두는 가는 줄. 숙소 이름은 쓰지 않는다"
+  },
+  "itineraryEditTransport": "이동 수단 고치기",
+  "@itineraryEditTransport": {
+    "description": "구간 줄 오른쪽 연필 아이콘의 설명. 줄을 누르면 이동 수단 입력 화면이 열린다"
+  },
+  "itineraryMemo": "메모",
+  "itineraryReorder": "끌어서 순서 바꾸기",
+  "@itineraryReorder": {
+    "description": "장소 줄 오른쪽 손잡이의 설명"
+  },
+  "deleteStop": "지우기",
+  "@deleteStop": {
+    "description": "장소 지우기 확인 대화상자의 버튼"
+  },
+  "deleteStopTitle": "‘{name}’ 지우기",
+  "@deleteStopTitle": {
+    "placeholders": {
+      "name": {"type": "String", "example": "성산일출봉"}
+    }
+  },
+  "deleteStopMessage": "앞뒤 장소는 바로 이어집니다. 이 장소에 닿은 구간의 이동 수단은 사라집니다.",
+  "moveStopDropsTransportTitle": "이동 수단이 사라집니다",
+  "@moveStopDropsTransportTitle": {
+    "description": "장소를 끌어 옮기거나 연박 숙소를 넣으면 이웃이 바뀌는 구간에 적어 둔 이동 수단이 있을 때 묻는 대화상자 제목"
+  },
+  "moveStopDropsTransportMessage": "‘{name}’ 장소를 옮기면 아래 구간의 이동 수단이 지워집니다. 옮길까요?",
+  "@moveStopDropsTransportMessage": {
+    "placeholders": {
+      "name": {"type": "String", "example": "용두암"}
+    }
+  },
+  "moveStopConfirm": "옮기기",
+  "droppedTransportRoute": "{day}일차 {from} → {to}",
+  "@droppedTransportRoute": {
+    "description": "이동 수단이 사라지는 구간. 같은 일차 안의 구간과, 전날 밤 숙소에서 그날 아침에 나오는 구간. 예: 2일차 용두암 → 동문시장, 3일차 제주시 숙소 → 성산일출봉",
+    "placeholders": {
+      "day": {"type": "int"},
+      "from": {"type": "String", "example": "용두암"},
+      "to": {"type": "String", "example": "동문시장"}
+    }
+  },
+  "droppedTransportRouteAcrossDays": "{fromDay}일차 {from} → {toDay}일차 {to}",
+  "@droppedTransportRouteAcrossDays": {
+    "description": "이동 수단이 사라지는 구간. 숙소가 아닌 장소에서 다음 날로 넘어가는 구간. 예: 1일차 제주국제공항 → 2일차 용두암",
+    "placeholders": {
+      "fromDay": {"type": "int"},
+      "from": {"type": "String", "example": "제주시 숙소"},
+      "toDay": {"type": "int"},
+      "to": {"type": "String", "example": "용두암"}
+    }
+  },
+  "stayAgain": "오늘 밤도 ‘{name}’에서 묵기",
+  "@stayAgain": {
+    "description": "일차 동선 시트 맨 아래 버튼. 전날 밤 숙소를 이 일차 밤 숙소로 한 번 더 넣는다(연박)",
+    "placeholders": {
+      "name": {"type": "String", "example": "제주시 숙소"}
+    }
+  },
+  "stayTonight": "오늘 밤은 ‘{name}’에서 묵기",
+  "@stayTonight": {
+    "description": "일차 동선 시트 맨 아래 버튼. 그날 들른 숙소(체크인하고 다시 나간 경우 등)를 이 일차 밤 숙소로 맨 뒤에 한 번 더 넣는다",
+    "placeholders": {
+      "name": {"type": "String", "example": "서귀포 숙소"}
+    }
+  },
+  "stayAgainDropsTransportMessage": "‘{name}’에서 묵으면 아래 구간의 이동 수단이 지워집니다. 넣을까요?",
+  "@stayAgainDropsTransportMessage": {
+    "description": "밤 숙소(연박이나 그날 들른 숙소)를 그날 맨 뒤에 넣으면 그날 마지막 장소에서 다음 날로 가는 구간의 이동 수단이 지워질 때",
+    "placeholders": {
+      "name": {"type": "String", "example": "제주시 숙소"}
+    }
+  },
+  "stayAgainConfirm": "넣기",
+
+  "addStopHere": "여기에 장소 추가",
+  "@addStopHere": {
+    "description": "지도 빈 곳을 누르면 뜨는 카드"
+  },
+  "addNamedStop": "‘{name}’ 추가",
+  "@addNamedStop": {
+    "description": "네이버 지도의 장소 이름(심볼)을 누르면 뜨는 카드",
+    "placeholders": {
+      "name": {"type": "String", "example": "성산일출봉"}
+    }
+  },
+  "addStop": "추가",
+  "stopAddedToDay": "{day}일차에 넣었습니다.",
+  "@stopAddedToDay": {
+    "description": "일차 보기에서 다른 일차에 장소를 넣었을 때",
+    "placeholders": {
+      "day": {"type": "int"}
+    }
+  },
+  "stopMovedToDay": "{day}일차로 옮겼습니다.",
+  "@stopMovedToDay": {
+    "description": "일차 보기에서 장소를 편집해 다른 일차로 옮겼을 때",
+    "placeholders": {
+      "day": {"type": "int"}
+    }
+  },
+
+  "stopFormAddTitle": "장소 추가",
+  "stopFormEditTitle": "장소 편집",
+  "stopNameLabel": "이름",
+  "stopKindLabel": "종류",
+  "stopDayLabel": "일차",
+  "stopSlotLabel": "넣을 자리",
+  "@stopSlotLabel": {
+    "description": "장소 입력 화면에서 그 일차의 어느 장소 사이에 넣을지 고르는 칸. 장소를 추가할 때와 다른 일차로 옮길 때 보인다"
+  },
+  "stopSlotOnly": "첫 장소",
+  "@stopSlotOnly": {
+    "description": "넣을 자리 칸. 장소가 없는 일차라 고를 자리가 하나뿐일 때"
+  },
+  "stopSlotBefore": "‘{name}’ 앞",
+  "@stopSlotBefore": {
+    "description": "넣을 자리 칸의 선택지. 맨 앞이거나 바로 뒤가 숙소인 자리",
+    "placeholders": {
+      "name": {"type": "String", "example": "제주시 숙소"}
+    }
+  },
+  "stopSlotAfter": "‘{name}’ 뒤",
+  "@stopSlotAfter": {
+    "description": "넣을 자리 칸의 선택지. 바로 앞 장소로 가리키는 자리",
+    "placeholders": {
+      "name": {"type": "String", "example": "동문시장"}
+    }
+  },
+  "stopSlotDefault": "{slot} (기본)",
+  "@stopSlotDefault": {
+    "description": "넣을 자리 칸에서 기본 자리(맨 뒤, 마지막이 숙소면 숙소 앞)에 붙인다",
+    "placeholders": {
+      "slot": {"type": "String", "example": "‘제주시 숙소’ 앞"}
+    }
+  },
+  "stopSlotDropsTransportAdd": "이 자리에 넣으면 아래 이동 수단이 지워집니다.",
+  "@stopSlotDropsTransportAdd": {
+    "description": "장소 추가 화면의 넣을 자리 칸 아래 미리 알림"
+  },
+  "stopSlotDropsTransportMove": "이 자리로 옮기면 아래 이동 수단이 지워집니다.",
+  "@stopSlotDropsTransportMove": {
+    "description": "장소 편집 화면에서 일차를 바꿨을 때 넣을 자리 칸 아래 미리 알림"
+  },
+  "stopTimeLabel": "예정 시각",
+  "stopTimeNone": "정하지 않음",
+  "stopTimeClear": "예정 시각 지우기",
+  "stopDescriptionLabel": "설명",
+  "stopDescriptionHelper": "공유하면 다른 사람도 봅니다.",
+  "stopMemoLabel": "메모",
+  "stopMemoHelper": "나만 봅니다. 공유해도 보이지 않습니다.",
+  "stopFormDelete": "장소 지우기",
+  "@stopFormDelete": {
+    "description": "장소 편집 화면 맨 아래 버튼. 누르면 확인 대화상자를 거쳐 지운다"
+  },
+  "discardChangesTitle": "고친 내용을 버릴까요?",
+  "discardChanges": "버리기",
+
+  "transportFormTitle": "이동 수단",
+  "transportFormRoute": "{from} → {to}",
+  "@transportFormRoute": {
+    "description": "이동 수단 입력 화면 제목 아래 줄. 출발 장소와 도착 장소",
+    "placeholders": {
+      "from": {"type": "String", "example": "제주시 숙소"},
+      "to": {"type": "String", "example": "용두암"}
+    }
+  },
+  "transportFormEmpty": "고르지 않으면 이동 수단 미정으로 둡니다.",
+  "@transportFormEmpty": {
+    "description": "이동 수단 입력 화면에 토막이 하나도 없을 때 안내"
+  },
+  "transportPickFirst": "이동 수단 고르기",
+  "@transportPickFirst": {
+    "description": "토막이 없을 때 수단 칩 위 제목. 칩을 누르면 그 수단이 들어간다"
+  },
+  "transportAddTransfer": "갈아타기 추가",
+  "@transportAddTransfer": {
+    "description": "토막이 있을 때 수단 칩 위 제목. 칩을 누르면 그 수단이 맨 뒤에 이어진다"
+  },
+  "transportMaxLegs": "한 구간에는 수단을 {count}개까지 이을 수 있습니다.",
+  "@transportMaxLegs": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "transportChangeMode": "수단 바꾸기",
+  "transportMoveLegUp": "앞으로 옮기기",
+  "transportMoveLegDown": "뒤로 옮기기",
+  "transportDeleteLeg": "이 수단 지우기",
+  "transportStopsLabel": "정류장 수",
+  "transportStopsSuffix": "정류장",
+  "transportHoursLabel": "시간",
+  "transportMinutesLabel": "분",
+  "transportNumberRange": "{min}~{max} 사이로 적어 주세요.",
+  "@transportNumberRange": {
+    "description": "정류장 수·시간·분 칸의 오류. 분은 0~59라서 60분 이상은 시간 칸에 적는다",
+    "placeholders": {
+      "min": {"type": "int"},
+      "max": {"type": "int"}
+    }
+  },
+  "transportDurationLabel": "걸리는 시간 (선택)",
+
+  "stopKindLodging": "숙소",
+  "stopKindFood": "음식",
+  "stopKindTour": "관광",
+  "stopKindOther": "기타",
+
+  "transportWalk": "도보",
+  "transportSubway": "지하철",
+  "transportBus": "버스",
+  "transportTrain": "기차",
+  "transportCar": "차",
+  "transportFlight": "비행기",
+  "transportFerry": "배",
+  "transportStops": "{count, plural, other{{count}정류장}}",
+  "@transportStops": {
+    "description": "지나는 정류장 수. 예: 지하철 4정류장의 4정류장",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "durationMinutes": "{minutes}분",
+  "@durationMinutes": {
+    "placeholders": {
+      "minutes": {"type": "int"}
+    }
+  },
+  "durationHours": "{hours}시간",
+  "@durationHours": {
+    "placeholders": {
+      "hours": {"type": "int"}
+    }
+  },
+  "durationHoursMinutes": "{hours}시간 {minutes}분",
+  "@durationHoursMinutes": {
+    "placeholders": {
+      "hours": {"type": "int"},
+      "minutes": {"type": "int"}
+    }
+  }
+}
