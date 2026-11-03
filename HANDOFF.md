@@ -1,14 +1,15 @@
 # HANDOFF
 
-> 최종 갱신: 2026-11-02 · 브랜치: dev
+> 최종 갱신: 2026-11-04 · 브랜치: dev
 
 ## 지금 하는 일
 
-앱 작업은 쉬고 있다. 1-2단계 지도·동선 편집은 갤럭시 휴대폰·탭에서 확인하고 `main`에 병합했다(PR #2). 지금은 서버 1-1단계를 `mapmarker-server`에서 한다(`../mapmarker-server/HANDOFF.md`). 앱 CI는 서버가 좀 개발된 뒤에 넣는다(`.github` HANDOFF).
+앱 작업은 쉬고 있다. 1-2단계 지도·동선 편집은 갤럭시 휴대폰·탭에서 확인하고 `main`에 병합했다(PR #2). 서버 1-1단계(로그인 포함)는 서버 `dev`에서 마쳤고 `main` 병합(PR)이 남았다(`../mapmarker-server/HANDOFF.md`). 그다음이 이 저장소의 서버 연동·로그인 단위다. 앱 CI는 서버가 좀 개발된 뒤에 넣는다(`.github` HANDOFF).
 
 ## 다음에 할 첫 단계
 
-1. **다음 앱 단위: 서버 연동·로그인**(PLAN 1-2 마지막 항목). 서버에 로그인과 Trip/Stop/Segment API(PLAN 1-1)가 생긴 뒤에 한다. 시작 전에 PLAN·OVERVIEW와 서버 `HANDOFF.md`를 보고 범위·순서를 사용자와 정한다.
+1. **다음 앱 단위: 서버 연동·로그인**(PLAN 1-2 마지막 항목). 서버의 로그인·재발급·로그아웃과 Trip/Stop/Segment API(PLAN 1-1)는 준비됐다(서버 `main` 병합 뒤). 시작 전에 PLAN·OVERVIEW와 서버 `HANDOFF.md`를 보고 범위·순서를 사용자와 정한다.
+   - 로그인: 카카오는 SDK의 `idToken`(콘솔에서 OpenID Connect를 켜 두었다), 네이버는 access token을 서버에 보낸다. 카카오 콘솔에는 지금 개발 PC 한 대의 debug 키 해시만 있어서, 다른 PC에서 빌드하면 그 PC의 키 해시를 "앱 → 플랫폼 키 → 네이티브 앱 키"에 더한다. 토큰 재발급은 한 번에 하나만 보낸다. 자세한 것은 서버 `HANDOFF.md` "다음 단위로 넘길 것".
    - `TripRepository`는 화면이 구독하는 스트림과 쓰기 메서드로 되어 있다. 서버 구현은 받아 온 여행을 기억해 두고, 이 앱에서 바꾼 내용을 반영해 다시 내보내야 한다. 이 부분은 2-2단계 오프라인 보기와 함께 설계한다.
    - 1단계에 더할 경로: `/login`, `/trips/:tripId/export`, `/settings`. 3단계에 `/shared/:shareId`(공유 링크 `/trip/<공유ID>`를 redirect로 연결). 지금 경로는 `app/router.dart`에 있다.
    - 디버그 빌드의 샘플 여행은 메모리 저장소가 앱을 끄면 비어서 넣는 것이다. 서버 저장소로 바꿀 때 어떻게 할지 정한다.
@@ -22,6 +23,7 @@
 
 ## 결론이 안 난 논의
 
+- **네이버 로그인 Client Secret:** 네이버 네이티브 SDK(`flutter_naver_login` 2.1.1)는 Client ID와 함께 Client Secret을 앱에 넣어야 한다(`AndroidManifest`의 `com.naver.sdk.clientSecret`). 앱 `CLAUDE.md`의 "비밀값은 앱 코드에서 읽지 않는다"와 부딪혀서 서버 연동 단위를 시작할 때 사용자와 정한다. 커밋은 하지 않는다(`.env` 등). 이 플러그인은 Android에서 Client Secret을 `println`으로 로그에 찍으니 다른 방법(플러그인 수정·다른 패키지)도 그때 본다. 서버는 이 값이 필요 없다.
 - 미룬 후보: 구간 줄에서 "이 사이에 장소 넣기"(지도 탭 흐름 손질이 커서), 지워진 이동 수단 되살리기(OVERVIEW 규칙 변경과 서버 저장 설계가 필요하다. 대안은 [실행 취소] 스낵바), 가까운 자리로 자동 넣기(틀릴 때 이유를 알 수 없어 권하지 않는다).
 - 카드에 동선 미리보기나 사진을 넣을지는 1-5단계(이미지 내보내기) 때 다시 본다.
 - 영어를 넣는 시점과 언어를 고르는 방식은 아직 정하지 않았다(PLAN "아직 확인할 것"). 지금은 `appLocale`(ko)로 고정했다. 넣을 때 `MaterialApp`의 `locale`과 `l10nProvider`가 같은 언어를 쓰게 맞추고, iOS `Info.plist`에 `CFBundleLocalizations`(ko, en)를 더한다.
