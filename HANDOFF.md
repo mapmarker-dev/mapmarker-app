@@ -4,11 +4,11 @@
 
 ## 지금 하는 일
 
-앱 작업은 쉬고 있다. 1-2단계 지도·동선 편집은 갤럭시 휴대폰·탭에서 확인하고 `main`에 병합했다(PR #2). 서버 1-1단계(로그인 포함)는 서버 `dev`에서 마쳤고 `main` 병합(PR)이 남았다(`../mapmarker-server/HANDOFF.md`). 그다음이 이 저장소의 서버 연동·로그인 단위다. 앱 CI는 서버가 좀 개발된 뒤에 넣는다(`.github` HANDOFF).
+앱 작업은 쉬고 있다. 1-2단계 지도·동선 편집은 갤럭시 휴대폰·탭에서 확인하고 `main`에 병합했다(PR #2). 서버 1-1단계(로그인 포함)는 서버 `main`에 병합했다(서버 PR #4, `../mapmarker-server/HANDOFF.md`). 다음은 이 저장소의 서버 연동·로그인 단위다. 앱 CI는 서버가 좀 개발된 뒤에 넣는다(`.github` HANDOFF).
 
 ## 다음에 할 첫 단계
 
-1. **다음 앱 단위: 서버 연동·로그인**(PLAN 1-2 마지막 항목). 서버의 로그인·재발급·로그아웃과 Trip/Stop/Segment API(PLAN 1-1)는 준비됐다(서버 `main` 병합 뒤). 시작 전에 PLAN·OVERVIEW와 서버 `HANDOFF.md`를 보고 범위·순서를 사용자와 정한다.
+1. **다음 앱 단위: 서버 연동·로그인**(PLAN 1-2 마지막 항목). 서버의 로그인·재발급·로그아웃과 Trip/Stop/Segment API(PLAN 1-1)는 서버 `main`에 있다. 시작 전에 PLAN·OVERVIEW와 서버 `HANDOFF.md`를 보고 범위·순서를 사용자와 정한다.
    - 로그인: 카카오는 SDK의 `idToken`(콘솔에서 OpenID Connect를 켜 두었다), 네이버는 access token을 서버에 보낸다. 카카오 콘솔에는 지금 개발 PC 한 대의 debug 키 해시만 있어서, 다른 PC에서 빌드하면 그 PC의 키 해시를 "앱 → 플랫폼 키 → 네이티브 앱 키"에 더한다. 토큰 재발급은 한 번에 하나만 보낸다. 자세한 것은 서버 `HANDOFF.md` "다음 단위로 넘길 것".
    - `TripRepository`는 화면이 구독하는 스트림과 쓰기 메서드로 되어 있다. 서버 구현은 받아 온 여행을 기억해 두고, 이 앱에서 바꾼 내용을 반영해 다시 내보내야 한다. 이 부분은 2-2단계 오프라인 보기와 함께 설계한다.
    - 1단계에 더할 경로: `/login`, `/trips/:tripId/export`, `/settings`. 3단계에 `/shared/:shareId`(공유 링크 `/trip/<공유ID>`를 redirect로 연결). 지금 경로는 `app/router.dart`에 있다.
