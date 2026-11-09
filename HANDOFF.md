@@ -1,20 +1,23 @@
 # HANDOFF
 
-> 최종 갱신: 2026-11-04 · 브랜치: dev
+> 최종 갱신: 2026-11-05 · 브랜치: dev
 
 ## 지금 하는 일
 
-서버 연동·로그인 단위(PLAN 1-2 마지막 항목)를 설계했다. 결정은 아래 "아직 문서에 없는 결정"에 있고, 코드는 아직 고치지 않았다. 범위 밖: 회원 탈퇴(1-6), 사진(1-3), AWS 배포(1-7), Apple·구글 로그인, 오프라인 저장(2-2), 장소 검색·주소, 앱 CI. 서버 API와 토큰 방식은 바꾸지 않고, 서버를 꼭 고쳐야 하면 먼저 묻는다. 앱 CI는 서버가 좀 개발된 뒤에 넣는다(`.github` HANDOFF).
+서버 연동·로그인 단위(PLAN 1-2 마지막 항목)를 구현한다. 사용자가 설계를 승인했고, 결정은 아래 "아직 문서에 없는 결정"에 있다. 커밋 6개 중 커밋 1(토큰·API 클라이언트)을 끝냈다. 아직 어느 화면도 이 코드를 쓰지 않아 앱 동작은 그대로다. 범위 밖: 회원 탈퇴(1-6), 사진(1-3), AWS 배포(1-7), Apple·구글 로그인, 오프라인 저장(2-2), 장소 검색·주소, 앱 CI. 서버 API와 토큰 방식은 바꾸지 않고, 서버를 꼭 고쳐야 하면 먼저 묻는다. 앱 CI는 서버가 좀 개발된 뒤에 넣는다(`.github` HANDOFF).
 
 ## 다음에 할 첫 단계
 
-1. 사용자가 전체 설계를 승인하면 커밋 1(토큰·API 클라이언트)부터 구현한다. 승인 전에는 구현하지 않는다.
+1. 커밋 2(로그인)를 시작한다. `kakao_flutter_sdk_user`·`naver_login_flutter`를 넣고 **네이티브 SDK 빌드부터** 확인한다. `android.builtInKotlin=false`에서 빌드되지 않으면 멈추고 묻는다. `MainActivity`를 `FlutterFragmentActivity`로 바꿔야 하는지도 이때 본다.
+   - 진행 방식: 커밋마다 `flutter analyze`·`flutter test` → 이 파일 수정 → 커밋 메시지를 주고 멈춘다. 실기기 확인 전에는 사용자가 넣을 값과 파일(앱 `.env`, `android/local.properties`, 서버 `.env`)과 버튼 이미지를 안내한다.
+   - 끝나면 PLAN·OVERVIEW·`CLAUDE.md`·각 HANDOFF를 고치고 dev → main을 PR(merge commit)로 합친다.
    - 로그인: 카카오는 SDK의 `idToken`(콘솔에서 OpenID Connect를 켜 두었다), 네이버는 access token을 서버에 보낸다. 카카오 콘솔에는 지금 개발 PC 한 대의 debug 키 해시만 있어서, 다른 PC에서 빌드하면 그 PC의 키 해시를 "앱 → 플랫폼 키 → 네이티브 앱 키"에 더한다. 토큰 재발급은 한 번에 하나만 보낸다. 자세한 것은 서버 `HANDOFF.md` "다음 단위로 넘길 것".
    - 이후 단계에 더할 경로: `/trips/:tripId/export`, `/settings`. 3단계에 `/shared/:shareId`(공유 링크 `/trip/<공유ID>`를 redirect로 연결).
 
 ## 현재 상태
 
-- `flutter analyze` 문제 0건, `flutter test` 407개 통과.
+- `flutter analyze` 문제 0건, `flutter test` 467개 통과, `flutter build apk --debug` 성공(`flutter_secure_storage` 포함). 토큰 코드는 실기기에서 아직 돌려 보지 않았다.
+- `lib/data/api/`(`ApiClient`, `ApiException`), `lib/data/auth/`(`AuthSession`, `AuthApi`, `TokenStore`)가 있다. `authSessionProvider`는 커밋 2에서 `main.dart`가 끼운다. 그 전에 읽으면 던진다.
 - 디버그 빌드는 시작할 때 샘플 여행 3개를 넣는다(`lib/dev/sample_trips.dart`). 제주(중: 연박, 숙소 옮김, 종류 4개, 선 모양 3갈래·갈아타기·미정, 곡선), 강릉(전: 날짜 미정, 장소 없음), 부산(후: 2일차 비움). 테스트는 빈 저장소로 시작한다.
 - 끌어 옮기기는 아직 그날 밤 숙소 뒤로도 갈 수 있다(장소 입력 화면의 "넣을 자리" 칸은 막는다).
 - 내보내기 합성(`features/export/route_composer.dart`, 0단계 프로토타입)은 아직 자기 색(#1E6FFF)과 글꼴 크기를 쓴다. 1-5단계에서 토큰으로 바꾸고, "숙소 포함" 끄기는 `RouteView.vias`("숙소를 거침" 선)로 그린다.
@@ -41,6 +44,20 @@
   8. 개발 중 서버 주소: 같은 Wi-Fi의 PC IP를 기본으로 한다(`API_BASE_URL=http://<PC IP>:3000`, `/v1`은 코드가 붙인다). 사용자에게 익숙하고, 케이블 없이 쓰며, 휴대폰과 탭을 함께 확인할 수 있어서다. 공용 Wi-Fi에서는 쓰지 않고 `adb reverse tcp:3000 tcp:3000` + `http://127.0.0.1:3000`으로 바꾼다.
      - 값 위치: `API_BASE_URL`·`KAKAO_NATIVE_APP_KEY`는 `.env`(Gradle도 카카오 스킴용으로 읽는다), `naver.client_id`·`naver.client_secret`·`naver.client_name`은 `android/local.properties`. 서버 `.env`의 `KAKAO_NATIVE_APP_KEY`도 실제 키여야 한다. 비어 있으면 `MissingEnvScreen`을 보여 준다.
      - `main` 매니페스트에 INTERNET 권한을 명시한다. `http://`가 막히면 `src/debug/AndroidManifest.xml`에만 허용을 넣는다.
+- **세부 결정(사용자, 2026-11-04):**
+  - 토큰: access·refresh 모두 `flutter_secure_storage`. 읽지 못하면 로그아웃 상태. 재발급은 dio 기능에 맡기지 않고 직접 만들어 진행 중인 하나를 함께 기다리고, 받은 두 토큰을 저장한 뒤 다시 보낸다. 재발급의 401에서만 로그아웃한다.
+  - 로그인 화면: 앱 이름과 카카오·네이버 버튼만. 환영 화면 없이 바로 여행 목록. 카카오는 카카오톡이 있으면 카카오톡, 없으면 카카오 계정.
+  - 로그인 실패 표시: 사용자 취소는 표시 없음, 503 "잠시 후 다시 시도", 401 "다시 시도", 네트워크 실패는 연결 확인 안내.
+  - 네이버 설정: `naver_login_flutter`의 configure CLI는 쓰지 않는다(Secret이 셸 기록에 남는다). 손으로 설정한다.
+  - 쓰기 응답: 장소·구간 수정 응답에는 여행이 없다. `updatedAt`은 앱 시각으로 맞추고 다음 조회에서 서버 값으로 바로잡는다.
+  - 서버 코드: `naver-token.verifier.ts` 주석의 패키지 이름만 고친다. 동작은 바꾸지 않는다.
+  - 문서: OVERVIEW에 Secret 예외, 제주 샘플, 휴지통의 결정과 이유. PLAN에 제주 샘플·여행 삭제(1-2), 휴지통(1-3 앞), 개발·운영 앱 분리(1-7)를 더하고 로그아웃(1-6)과 서버 연동(1-2)을 체크. 앱 `CLAUDE.md`에 Secret 예외, `/login` 경로 예외, 값 위치, 실행 순서(Wi-Fi IP와 `adb reverse`).
+- **토큰 구현(커밋 1):**
+  - 두 토큰을 한 키에 JSON으로 저장한다. 따로 두면 저장 중에 앱이 죽었을 때 짝이 어긋난다.
+  - 재발급 응답의 저장에 실패해도 새 토큰을 메모리에 두고 계속한다. 예전 refresh 토큰은 이미 무효라서, 버리면 바로 로그아웃된다.
+  - 200인데 토큰이 없는 응답(공용 Wi-Fi 안내 페이지 등)은 `server` 실패로 보고 토큰을 지우지 않는다.
+  - 502·504도 503처럼 `unavailable`로 본다(1-7 이후 서버 앞단이 답한다).
+  - `AuthSession.generation`이 로그인·로그아웃마다 바뀐다. 보낸 뒤 세대가 바뀐 요청의 401은 재발급하지 않고 다시 보내지도 않는다(다른 사용자 토큰으로 나가면 안 된다). 사용자별 저장소도 이 값을 쓸 수 있다.
 
 ## 결론이 안 난 논의
 

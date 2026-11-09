@@ -46,6 +46,8 @@ dependencies:
   # gen-l10n이 만든 코드가 쓴다. 버전은 flutter_localizations가 정한다.
   intl: any
   url_launcher: ^6.3.3
+  dio: ^5.11.1
+  flutter_secure_storage: ^11.2.0
 
 dev_dependencies:
   flutter_test:
