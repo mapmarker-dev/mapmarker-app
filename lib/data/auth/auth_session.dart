@@ -12,11 +12,7 @@ import 'token_store.dart';
 ///
 /// 기기에 토큰이 있으면 로그인 상태다. 켤 때 서버에 묻지 않는다(오프라인에서도 켜져야 한다).
 class AuthSession extends ChangeNotifier {
-  AuthSession({
-    required this._store,
-    required this._api,
-    this._tokens,
-  });
+  AuthSession({required this._store, required this._api, this._tokens});
 
   static Future<AuthSession> restore({
     required TokenStore store,

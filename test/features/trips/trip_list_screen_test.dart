@@ -3,12 +3,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/core/theme/app_tokens.dart';
 import 'package:mapmarker_app/core/time/local_date.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
+import 'package:mapmarker_app/features/login/login_screen.dart';
 import 'package:mapmarker_app/features/trip_detail/trip_detail_screen.dart';
 import 'package:mapmarker_app/features/trips/trip_create_screen.dart';
 import 'package:mapmarker_app/features/trips/trip_list_controller.dart';
 import 'package:mapmarker_app/features/trips/trip_list_screen.dart';
 import 'package:mapmarker_app/features/trips/widgets/trip_card.dart';
 
+import '../../helpers/fake_auth.dart';
 import '../../helpers/test_app.dart';
 
 /// 메뉴 항목. 메뉴가 열려 있으면 칩과 메뉴에 같은 글자가 있어서 메뉴 항목으로 좁힌다.
@@ -205,6 +207,56 @@ void main() {
       final card = tester.widget<Card>(find.byType(Card));
       final shape = card.shape! as RoundedRectangleBorder;
       expect(shape.side.color, AppPalette.coral);
+    });
+  });
+
+  group('log out', () {
+    Future<void> openLogOut(WidgetTester tester) async {
+      await tester.tap(find.byTooltip(testL10n.moreMenuTooltip));
+      await tester.pumpAndSettle();
+      await tester.tap(_menuItem(testL10n.logOut));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('asks first and goes to login', (tester) async {
+      final sdk = FakeSocialSdk();
+      final server = fakeAuthServer();
+      await pumpTestApp(
+        tester,
+        repository: testRepository(),
+        socialSdk: sdk,
+        session: testSession(http: server),
+      );
+
+      await openLogOut(tester);
+      expect(find.text(testL10n.logOutConfirmTitle), findsOneWidget);
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text(testL10n.logOut),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(LoginScreen), findsOneWidget);
+      expect(server.requestsTo('/auth/logout'), hasLength(1));
+      expect(sdk.calls, ['signOut']);
+    });
+
+    testWidgets('stays logged in when cancelled', (tester) async {
+      final server = fakeAuthServer();
+      await pumpTestApp(
+        tester,
+        repository: testRepository(),
+        session: testSession(http: server),
+      );
+
+      await openLogOut(tester);
+      await tester.tap(find.text('취소'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TripListScreen), findsOneWidget);
+      expect(server.requests, isEmpty);
     });
   });
 }

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/routes.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/time/today.dart';
+import '../../data/auth/account.dart';
 import '../../l10n/l10n.dart';
 import 'trip_list_controller.dart';
 import 'widgets/trip_card.dart';
@@ -16,6 +17,9 @@ int tripGridColumns(double width) => switch (width) {
   >= 600 => 3,
   _ => 2,
 };
+
+/// 앱 바 ⋮ 메뉴의 항목.
+enum _Menu { logOut }
 
 /// 여행 목록. 로그인 후 첫 화면이다. 여행이 정사각형 카드로 놓인다.
 class TripListScreen extends ConsumerWidget {
@@ -38,6 +42,16 @@ class TripListScreen extends ConsumerWidget {
               icon: const Icon(Icons.science_outlined),
               onPressed: () => context.go(Routes.snapshotLab),
             ),
+          // 설정 화면(1-6단계)이 생기면 그리로 옮긴다.
+          PopupMenuButton<_Menu>(
+            tooltip: l10n.moreMenuTooltip,
+            onSelected: (item) => switch (item) {
+              _Menu.logOut => _confirmLogOut(context, ref),
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(value: _Menu.logOut, child: Text(l10n.logOut)),
+            ],
+          ),
         ],
       ),
       body: switch (ref.watch(tripListProvider)) {
@@ -82,5 +96,30 @@ class TripListScreen extends ConsumerWidget {
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  /// 확인을 받아 로그아웃한다. 로그아웃하면 경로 표가 로그인 화면으로 보낸다.
+  Future<void> _confirmLogOut(BuildContext context, WidgetRef ref) async {
+    final account = ref.read(accountProvider);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        final l10n = context.l10n;
+        return AlertDialog(
+          title: Text(l10n.logOutConfirmTitle),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(l10n.logOut),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed == true) await account.logOut();
   }
 }

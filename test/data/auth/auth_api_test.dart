@@ -4,9 +4,8 @@ import 'package:mapmarker_app/data/auth/auth_api.dart';
 
 import '../../helpers/fake_http.dart';
 
-Matcher _failsWith(ApiFailure failure) => throwsA(
-  isA<ApiException>().having((e) => e.failure, 'failure', failure),
-);
+Matcher _failsWith(ApiFailure failure) =>
+    throwsA(isA<ApiException>().having((e) => e.failure, 'failure', failure));
 
 void main() {
   test('재발급은 refresh 토큰을 보내고 두 토큰을 받는다', () async {

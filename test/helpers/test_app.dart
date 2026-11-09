@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/app/router.dart';
 import 'package:mapmarker_app/core/links/open_link.dart';
 import 'package:mapmarker_app/core/map/map_registry.dart';
 import 'package:mapmarker_app/core/theme/app_theme.dart';
 import 'package:mapmarker_app/core/time/today.dart';
+import 'package:mapmarker_app/data/api/api_client.dart';
+import 'package:mapmarker_app/data/auth/auth_api.dart';
+import 'package:mapmarker_app/data/auth/auth_session.dart';
+import 'package:mapmarker_app/data/auth/social_sdk.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
 import 'package:mapmarker_app/data/trips/memory_trip_repository.dart';
 import 'package:mapmarker_app/data/trips/trip_repository.dart';
 import 'package:mapmarker_app/l10n/l10n.dart';
 
+import 'fake_auth.dart';
+import 'fake_http.dart';
 import 'fake_map.dart';
 
 /// 테스트의 지금. 오늘은 2026-10-15다.
@@ -96,13 +103,33 @@ MemoryTripRepository testRepository([
 /// 링크를 열지 못하는 기기. 테스트에서 실제 앱이나 브라우저를 열지 않게 기본으로 쓴다.
 Future<bool> refuseLinks(Uri uri) async => false;
 
+/// 로그인 상태와 인증 서버·소셜 SDK를 가짜로 바꾸는 덮어쓰기.
+/// [authServer]는 로그인·재발급·로그아웃 요청에 답한다.
+List<Override> authOverrides({
+  AuthSession? session,
+  SocialSdk? socialSdk,
+  FakeHttp? authServer,
+}) {
+  final server = authServer ?? fakeAuthServer();
+  return [
+    authSessionProvider.overrideWithValue(session ?? testSession(http: server)),
+    authApiProvider.overrideWithValue(AuthApi(fakeDio(server))),
+    socialSdkProvider.overrideWithValue(socialSdk ?? FakeSocialSdk()),
+  ];
+}
+
 /// 앱과 같은 경로 표와 로캘로 띄운다. 시각은 [testNow]로 고정하고, 지도는 가짜 지도([FakeMap])다.
 /// 앱 밖으로 여는 링크는 [openLink]가 받는다.
+///
+/// 기본으로 로그인 상태다. 로그인 화면은 [session]에 `testSession(loggedIn: false)`를 넘겨 띄운다.
 Future<ProviderContainer> pumpTestApp(
   WidgetTester tester, {
   required TripRepository repository,
   String? location,
   OpenLink openLink = refuseLinks,
+  AuthSession? session,
+  SocialSdk? socialSdk,
+  FakeHttp? authServer,
 }) async {
   final container = ProviderContainer.test(
     overrides: [
@@ -110,6 +137,11 @@ Future<ProviderContainer> pumpTestApp(
       tripRepositoryProvider.overrideWithValue(repository),
       mapProviderProvider.overrideWith((ref, type) => const FakeMapProvider()),
       openLinkProvider.overrideWithValue(openLink),
+      ...authOverrides(
+        session: session,
+        socialSdk: socialSdk,
+        authServer: authServer,
+      ),
     ],
   );
   final router = container.read(routerProvider);

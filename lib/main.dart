@@ -7,10 +7,16 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker_android/image_picker_android.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart'
+    show KakaoSdk;
 
 import 'app/app.dart';
 import 'config/env.dart';
 import 'core/time/local_date.dart';
+import 'data/api/api_client.dart';
+import 'data/auth/auth_api.dart';
+import 'data/auth/auth_session.dart';
+import 'data/auth/token_store.dart';
 import 'data/trips/memory_trip_repository.dart';
 import 'data/trips/trip_repository.dart';
 import 'dev/sample_trips.dart';
@@ -30,6 +36,15 @@ Future<void> main() async {
       onAuthFailed: (ex) => log('네이버 지도 인증 실패: $ex'),
     );
   }
+  if (Env.kakaoNativeAppKey.isNotEmpty) {
+    await KakaoSdk.init(nativeAppKey: Env.kakaoNativeAppKey);
+  }
+  // 첫 화면(로그인 또는 여행 목록)을 정하려고 토큰을 먼저 읽는다. 로그인 화면이 깜빡이지 않는다.
+  final authApi = AuthApi(createDio(Env.apiBaseUrl));
+  final session = await AuthSession.restore(
+    store: const SecureTokenStore(),
+    api: authApi,
+  );
   final now = DateTime.now();
   final samples = sampleTrips(
     today: LocalDate.fromDateTime(now),
@@ -39,6 +54,8 @@ Future<void> main() async {
   runApp(
     ProviderScope(
       overrides: [
+        authSessionProvider.overrideWithValue(session),
+        authApiProvider.overrideWithValue(authApi),
         // 서버가 생기기 전에는 디버그 빌드에서 샘플 여행을 미리 넣는다.
         if (kDebugMode)
           tripRepositoryProvider.overrideWithValue(

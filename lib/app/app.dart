@@ -13,11 +13,12 @@ class MapMarkerApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = AppTheme.light();
-    if (Env.naverMapClientId.isEmpty) {
+    final missing = Env.missing;
+    if (missing.isNotEmpty) {
       return MaterialApp(
         title: 'MapMarker',
         theme: theme,
-        home: const MissingEnvScreen(),
+        home: MissingEnvScreen(names: missing),
       );
     }
     return MaterialApp.router(

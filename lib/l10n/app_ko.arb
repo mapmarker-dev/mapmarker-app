@@ -10,6 +10,27 @@
   "@createTripTooltip": {
     "description": "여행 목록의 + 버튼"
   },
+  "moreMenuTooltip": "더 보기",
+  "@moreMenuTooltip": {
+    "description": "여행 목록 앱 바의 ⋮ 메뉴"
+  },
+
+  "loginWithKakao": "카카오 로그인",
+  "@loginWithKakao": {
+    "description": "로그인 버튼. 카카오 버튼 규칙의 문구다"
+  },
+  "loginWithNaver": "네이버 로그인",
+  "@loginWithNaver": {
+    "description": "로그인 버튼. 네이버 버튼 규칙의 문구다"
+  },
+  "loginFailedNetwork": "인터넷에 연결되지 않았습니다. 연결을 확인하고 다시 시도해 주세요.",
+  "loginFailedUnavailable": "지금은 로그인할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+  "@loginFailedUnavailable": {
+    "description": "서버가 카카오·네이버에 닿지 못했을 때"
+  },
+  "loginFailedRetry": "로그인하지 못했습니다. 다시 시도해 주세요.",
+  "logOut": "로그아웃",
+  "logOutConfirmTitle": "로그아웃할까요?",
 
   "phaseBefore": "여행 전",
   "phaseDuring": "여행 중",

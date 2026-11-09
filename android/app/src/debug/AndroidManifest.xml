@@ -4,4 +4,6 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 개발 서버(http://<PC IP>:3000, http://127.0.0.1:3000)에 붙는다. 출시 빌드는 https만 쓴다. -->
+    <application android:usesCleartextTraffic="true"/>
 </manifest>

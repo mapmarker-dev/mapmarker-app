@@ -35,7 +35,10 @@ void main() {
   });
 
   test('글자로 바꿔도 토큰 값이 나오지 않는다', () {
-    const tokens = AuthTokens(accessToken: 'SECRET-A', refreshToken: 'SECRET-R');
+    const tokens = AuthTokens(
+      accessToken: 'SECRET-A',
+      refreshToken: 'SECRET-R',
+    );
 
     expect(tokens.toString(), isNot(contains('SECRET')));
   });

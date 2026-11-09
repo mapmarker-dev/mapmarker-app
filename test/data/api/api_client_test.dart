@@ -11,9 +11,8 @@ import 'package:mapmarker_app/data/auth/auth_tokens.dart';
 import '../../helpers/fake_auth.dart';
 import '../../helpers/fake_http.dart';
 
-Matcher _failsWith(ApiFailure failure) => throwsA(
-  isA<ApiException>().having((e) => e.failure, 'failure', failure),
-);
+Matcher _failsWith(ApiFailure failure) =>
+    throwsA(isA<ApiException>().having((e) => e.failure, 'failure', failure));
 
 void main() {
   const first = AuthTokens(accessToken: 'a1', refreshToken: 'r1');

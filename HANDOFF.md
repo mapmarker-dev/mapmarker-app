@@ -1,14 +1,15 @@
 # HANDOFF
 
-> 최종 갱신: 2026-11-05 · 브랜치: dev
+> 최종 갱신: 2026-11-09 · 브랜치: dev
 
 ## 지금 하는 일
 
-서버 연동·로그인 단위(PLAN 1-2 마지막 항목)를 구현한다. 사용자가 설계를 승인했고, 결정은 아래 "아직 문서에 없는 결정"에 있다. 커밋 6개 중 커밋 1(토큰·API 클라이언트)을 끝냈다. 아직 어느 화면도 이 코드를 쓰지 않아 앱 동작은 그대로다. 범위 밖: 회원 탈퇴(1-6), 사진(1-3), AWS 배포(1-7), Apple·구글 로그인, 오프라인 저장(2-2), 장소 검색·주소, 앱 CI. 서버 API와 토큰 방식은 바꾸지 않고, 서버를 꼭 고쳐야 하면 먼저 묻는다. 앱 CI는 서버가 좀 개발된 뒤에 넣는다(`.github` HANDOFF).
+서버 연동·로그인 단위(PLAN 1-2 마지막 항목)를 구현한다. 사용자가 설계를 승인했고, 결정은 아래 "아직 문서에 없는 결정"에 있다. 커밋 6개 중 커밋 1(토큰·API 클라이언트)은 커밋했고, 커밋 2(로그인·로그아웃)는 코드와 테스트를 마치고 실기기 확인을 기다린다. 여행은 아직 메모리 저장소다. 범위 밖: 회원 탈퇴(1-6), 사진(1-3), AWS 배포(1-7), Apple·구글 로그인, 오프라인 저장(2-2), 장소 검색·주소, 앱 CI. 서버 API와 토큰 방식은 바꾸지 않고, 서버를 꼭 고쳐야 하면 먼저 묻는다. 앱 CI는 서버가 좀 개발된 뒤에 넣는다(`.github` HANDOFF).
 
 ## 다음에 할 첫 단계
 
-1. 커밋 2(로그인)를 시작한다. `kakao_flutter_sdk_user`·`naver_login_flutter`를 넣고 **네이티브 SDK 빌드부터** 확인한다. `android.builtInKotlin=false`에서 빌드되지 않으면 멈추고 묻는다. `MainActivity`를 `FlutterFragmentActivity`로 바꿔야 하는지도 이때 본다.
+1. 커밋 3(JSON·API 호출)을 시작한다. 커밋 2(로그인·로그아웃)는 태블릿(카카오톡 없음, 네이버 앱 있음)에서 확인했다: 카카오 계정·네이버 로그인, 다시 켜도 유지(서버가 꺼져 있어도 켤 때 묻지 않는다), 로그아웃, 카카오 로그인 취소(안내 없음), 서버 끔일 때 연결 확인 안내, 사용자를 지운 뒤 다시 가입.
+   - 네이버는 로그아웃 뒤 다시 누르면 같은 계정으로 바로 들어간다(네이버 앱의 로그인 상태를 쓴다). 지금처럼 둔다: 계정은 네이버 앱에서 바꾼다. `reauthenticate`는 브라우저 로그인에만 걸리는 것으로 보이고, 매번 로그인 화면을 띄우면 번거롭다.
    - 진행 방식: 커밋마다 `flutter analyze`·`flutter test` → 이 파일 수정 → 커밋 메시지를 주고 멈춘다. 실기기 확인 전에는 사용자가 넣을 값과 파일(앱 `.env`, `android/local.properties`, 서버 `.env`)과 버튼 이미지를 안내한다.
    - 끝나면 PLAN·OVERVIEW·`CLAUDE.md`·각 HANDOFF를 고치고 dev → main을 PR(merge commit)로 합친다.
    - 로그인: 카카오는 SDK의 `idToken`(콘솔에서 OpenID Connect를 켜 두었다), 네이버는 access token을 서버에 보낸다. 카카오 콘솔에는 지금 개발 PC 한 대의 debug 키 해시만 있어서, 다른 PC에서 빌드하면 그 PC의 키 해시를 "앱 → 플랫폼 키 → 네이티브 앱 키"에 더한다. 토큰 재발급은 한 번에 하나만 보낸다. 자세한 것은 서버 `HANDOFF.md` "다음 단위로 넘길 것".
@@ -16,8 +17,11 @@
 
 ## 현재 상태
 
-- `flutter analyze` 문제 0건, `flutter test` 467개 통과, `flutter build apk --debug` 성공(`flutter_secure_storage` 포함). 토큰 코드는 실기기에서 아직 돌려 보지 않았다.
-- `lib/data/api/`(`ApiClient`, `ApiException`), `lib/data/auth/`(`AuthSession`, `AuthApi`, `TokenStore`)가 있다. `authSessionProvider`는 커밋 2에서 `main.dart`가 끼운다. 그 전에 읽으면 던진다.
+- `flutter analyze` 문제 0건, `flutter test` 497개 통과, `flutter build apk --debug` 성공. 카카오·네이버 SDK는 `android.builtInKotlin=false` 그대로 빌드된다. 여행은 아직 메모리 저장소라 앱을 끄면 사라지고, 계정을 바꿔도 같은 여행이 보인다(커밋 4·5에서 서버 저장소와 사용자별 저장소로 바꾼다).
+- `lib/data/api/`(`ApiClient`), `lib/data/auth/`(`AuthSession` 토큰·재발급, `Account` 로그인·로그아웃 순서, `SocialSdk` 카카오·네이버 플러그인), `lib/features/login/`, `/login` 경로와 `authRedirect`. 여행 목록 앱 바 `⋮` → 로그아웃.
+- `MainActivity`는 `FlutterActivity` 그대로다. 두 SDK가 로그인 화면을 자기 Activity(카카오는 `FragmentActivity`)로 띄워서 앱 Activity를 바꿀 필요가 없어 보인다. 실기기에서 안 되면 다시 본다.
+- 값이 Gradle로 가는 길: `android/app/build.gradle.kts`가 `android/local.properties`의 `naver.client_id`·`naver.client_name`(매니페스트 자리 표시자)·`naver.client_secret`(`resValue`)과 앱 `.env`의 `KAKAO_NATIVE_APP_KEY`(카카오 스킴)를 읽는다. 없으면 빈 값으로 빌드되고 그 로그인만 실패한다. `.env` 필수 값이 비면 `MissingEnvScreen`이 이름을 보여 준다.
+- 테스트 이름: 커밋 1의 인증 테스트는 한국어, 커밋 2부터는 기존 다수처럼 영어다(기존에도 한국어 그룹 이름이 섞여 있어 고치지 않았다).
 - 디버그 빌드는 시작할 때 샘플 여행 3개를 넣는다(`lib/dev/sample_trips.dart`). 제주(중: 연박, 숙소 옮김, 종류 4개, 선 모양 3갈래·갈아타기·미정, 곡선), 강릉(전: 날짜 미정, 장소 없음), 부산(후: 2일차 비움). 테스트는 빈 저장소로 시작한다.
 - 끌어 옮기기는 아직 그날 밤 숙소 뒤로도 갈 수 있다(장소 입력 화면의 "넣을 자리" 칸은 막는다).
 - 내보내기 합성(`features/export/route_composer.dart`, 0단계 프로토타입)은 아직 자기 색(#1E6FFF)과 글꼴 크기를 쓴다. 1-5단계에서 토큰으로 바꾸고, "숙소 포함" 끄기는 `RouteView.vias`("숙소를 거침" 선)로 그린다.
@@ -57,6 +61,10 @@
   - 재발급 응답의 저장에 실패해도 새 토큰을 메모리에 두고 계속한다. 예전 refresh 토큰은 이미 무효라서, 버리면 바로 로그아웃된다.
   - 200인데 토큰이 없는 응답(공용 Wi-Fi 안내 페이지 등)은 `server` 실패로 보고 토큰을 지우지 않는다.
   - 502·504도 503처럼 `unavailable`로 본다(1-7 이후 서버 앞단이 답한다).
+  - 카카오: 카카오톡이 있는데 카카오톡 로그인이 취소 말고 다른 이유로 실패하면(카카오톡에 로그인하지 않은 기기 등) 카카오 계정 로그인으로 다시 시도한다(카카오가 권하는 흐름). id_token이 없으면(OpenID Connect 꺼짐) "다시 시도" 안내.
+  - 로그인 실패는 셋으로 나눈다: 네트워크(연결 확인), 503·502·504(잠시 후), 그 밖(401·SDK 실패·이상한 응답, 다시 시도).
+  - 로그아웃은 카카오·네이버 SDK 둘 다 `logout`을 부르고 실패는 무시한다. 어느 제공자로 로그인했는지 저장하지 않으려고서다.
+  - 버튼: 이미지 전체가 아니라 브랜드 바탕색(`AppPalette.kakaoYellow` 등) + 공식 심볼 + 글자(`app_ko.arb`)로 만든다. 두 버튼 높이·모양을 맞추고 글자를 다국어로 두려고서다. 심볼 이미지가 없으면 글자만 보인다.
   - `AuthSession.generation`이 로그인·로그아웃마다 바뀐다. 보낸 뒤 세대가 바뀐 요청의 401은 재발급하지 않고 다시 보내지도 않는다(다른 사용자 토큰으로 나가면 안 된다). 사용자별 저장소도 이 값을 쓸 수 있다.
 
 ## 결론이 안 난 논의
@@ -70,6 +78,9 @@
 
 - 빌드할 때 "`flutter_naver_map`이 Kotlin Gradle Plugin을 직접 적용한다, 나중 Flutter 버전에서는 빌드가 실패한다"는 경고가 나온다. 지금은 빌드된다. Flutter를 올리기 전에 `flutter_naver_map`이 Built-in Kotlin을 지원하는 버전을 냈는지 확인한다(2025-12의 1.4.4가 최신이었다).
 - 나중에 챙길 것
+  - 카카오톡이 깔린 Android 휴대폰에서 카카오톡 로그인과 취소를 확인한다(지금 손에 있는 Android는 카카오톡 없는 태블릿뿐). 네이버 로그인 취소도 네이버 앱이 바로 로그인해 버려서 아직 못 봤다.
+  - 네이버 버튼 색은 공식 로그인 리소스의 초록(#03A94D)이다. 브랜드 색 #03C75A로 하면 심볼(`naver_symbol.png` = 리소스의 `NAVER_login_Light_KR_green_icon_H48.png`)의 원이 드러난다. 심볼을 바꾸면 원 색을 다시 맞춘다.
+  - 개발 DB에서 사용자를 지워도 카카오·네이버 쪽 연결은 남아서 동의 화면이 다시 뜨지 않는다. 동의 화면부터 보려면 각 계정 설정의 "연결된 서비스 관리"에서 끊는다.
   - 2-1단계 구글 지도 구현에도 `MapLineStyle.faint`("숙소를 거침" 선: 무늬, 굵기, 탭 없음, 가장 아래)를 맞춘다.
   - 다크 모드를 넣을 때 `routeViaOpacity`를 따로 본다(어두운 바탕에서 더 묻힌다).
   - 설정 화면(`/settings`)을 만들 때 글꼴 라이선스(`main.dart`에서 등록)를 `showLicensePage`로 열게 한다.

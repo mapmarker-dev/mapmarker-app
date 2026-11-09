@@ -2,6 +2,16 @@ import 'package:dio/dio.dart';
 
 import '../api/api_exception.dart';
 import 'auth_tokens.dart';
+import 'social_sdk.dart';
+
+class LoginResponse {
+  const LoginResponse({required this.tokens, required this.isNewUser});
+
+  final AuthTokens tokens;
+
+  /// 이번 로그인으로 계정을 처음 만들었다.
+  final bool isNewUser;
+}
 
 /// access 토큰 없이 부르는 인증 API. 토큰을 붙이는 인터셉터가 없는 dio를 받는다.
 /// 재발급 요청이 인터셉터를 거치면 재발급의 401이 다시 재발급을 부른다.
@@ -9,6 +19,28 @@ class AuthApi {
   const AuthApi(this._dio);
 
   final Dio _dio;
+
+  /// 제공자 토큰(카카오 id_token, 네이버 access token)으로 로그인한다. 처음이면 서버가 계정을 만든다.
+  Future<LoginResponse> login(
+    SocialProvider provider,
+    String providerToken,
+  ) async {
+    final Object? body = await _post(
+      switch (provider) {
+        SocialProvider.kakao => '/auth/login/kakao',
+        SocialProvider.naver => '/auth/login/naver',
+      },
+      switch (provider) {
+        SocialProvider.kakao => {'idToken': providerToken},
+        SocialProvider.naver => {'accessToken': providerToken},
+      },
+    );
+    final tokens = AuthTokens.tryFromJson(body);
+    if (tokens == null || body is! Map || body['isNewUser'] is! bool) {
+      throw const ApiException(ApiFailure.server);
+    }
+    return LoginResponse(tokens: tokens, isNewUser: body['isNewUser'] as bool);
+  }
 
   /// 두 토큰을 새로 받는다. 저장은 부르는 쪽이 한다.
   Future<AuthTokens> refresh(String refreshToken) async {

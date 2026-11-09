@@ -27,6 +27,12 @@ abstract final class AppPalette {
 
   /// 숙소 마커. 숙소는 이틀에 걸쳐 쓰여서 일차 색과 겹치지 않는 진한 색을 쓴다.
   static const ink700 = Color(0xFF3A3550);
+
+  /// 로그인 버튼의 브랜드 색. 두 회사의 버튼 규칙에 정해져 있어 바꾸지 않는다.
+  static const kakaoYellow = Color(0xFFFEE500);
+  static const kakaoLabel = Color(0xD9000000);
+  static const naverGreen = Color(0xFF03A94D);
+  static const naverLabel = Color(0xFFFFFFFF);
 }
 
 /// 1단계 기본 값: 간격. 4의 배수로 둔다.
