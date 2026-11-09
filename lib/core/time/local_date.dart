@@ -14,6 +14,20 @@ class LocalDate implements Comparable<LocalDate> {
   factory LocalDate.fromDateTime(DateTime dateTime) =>
       LocalDate(dateTime.year, dateTime.month, dateTime.day);
 
+  /// `2026-10-15` 형식([toString]과 같다). 없는 날짜(2월 30일 등)나 다른 형식이면 [FormatException]이다.
+  factory LocalDate.parse(String text) {
+    final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$').firstMatch(text);
+    if (match != null) {
+      final date = LocalDate(
+        int.parse(match[1]!),
+        int.parse(match[2]!),
+        int.parse(match[3]!),
+      );
+      if (date.toString() == text) return date;
+    }
+    throw FormatException('날짜가 아닙니다', text);
+  }
+
   const LocalDate._(this.year, this.month, this.day);
 
   final int year;

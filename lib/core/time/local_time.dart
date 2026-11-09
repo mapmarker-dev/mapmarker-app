@@ -7,6 +7,13 @@ class LocalTime implements Comparable<LocalTime> {
     : assert(hour >= 0 && hour < 24),
       assert(minute >= 0 && minute < 60);
 
+  /// `09:30` 형식([toString]과 같다). 아니면 [FormatException]이다.
+  factory LocalTime.parse(String text) {
+    final match = RegExp(r'^([01]\d|2[0-3]):([0-5]\d)$').firstMatch(text);
+    if (match == null) throw FormatException('시각이 아닙니다', text);
+    return LocalTime(int.parse(match[1]!), int.parse(match[2]!));
+  }
+
   final int hour;
   final int minute;
 
