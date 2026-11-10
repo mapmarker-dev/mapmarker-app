@@ -4,8 +4,8 @@
 
 ## 지금 상태
 
-- 1단계(MVP) 중 앱의 지도·동선 편집을 마쳤습니다. 여행 목록과 만들기, 여행 동선 페이지(네이버 지도), 일차 동선 시트, 장소·이동 수단·곡선 편집이 됩니다.
-- 서버 연동과 로그인은 아직입니다. 데이터는 메모리에만 있어서 앱을 끄면 사라집니다. 디버그 빌드는 샘플 여행 3개로 시작합니다.
+- 1단계(MVP) 중 앱의 지도·동선 편집과 서버 연동을 마쳤습니다. 카카오·네이버로 로그인하고, 여행 목록과 만들기·지우기, 여행 동선 페이지(네이버 지도), 일차 동선 시트, 장소·이동 수단·곡선 편집이 되며, 모두 서버([mapmarker-server](https://github.com/mapmarker-dev/mapmarker-server))에 저장됩니다.
+- 처음 쓰는 사람을 위해 보기만 되는 제주 샘플 여행이 하나 있습니다. [실제로 사용하기]로 내 여행으로 가져갈 수 있습니다.
 - Android만 지원합니다. iOS는 MVP 이후에 넣습니다.
 
 단계별 계획은 [PLAN](https://github.com/mapmarker-dev/.github/blob/main/docs/PLAN.md)에 있습니다.
@@ -14,7 +14,8 @@
 
 - Flutter 3.47(stable), Dart SDK ^3.12.0
 - Android 기기나 에뮬레이터
-- 네이버 클라우드 플랫폼 지도(Maps) Client ID. 콘솔에서 이 앱의 패키지 이름으로 사용을 제한합니다(앱에 들어가는 키는 숨길 수 없어서).
+- 네이버 클라우드 플랫폼 지도(Maps) Client ID, 카카오 네이티브 앱 키, 네이버 로그인 Client ID·Secret. 앱에 들어가는 키는 숨길 수 없어서 각 콘솔에서 이 앱의 패키지 이름(카카오는 키 해시도)으로 사용을 제한합니다.
+- 로컬에서 돌아가는 [mapmarker-server](https://github.com/mapmarker-dev/mapmarker-server)
 
 ## 시작하기
 
@@ -26,7 +27,7 @@ git clone https://github.com/mapmarker-dev/mapmarker-app.git
 cd mapmarker-app
 ```
 
-`.env.example`을 `.env`로 복사하고 `NAVER_MAP_CLIENT_ID`를 채웁니다. `.env`는 커밋하지 않습니다.
+`.env.example`을 `.env`로 복사하고 값을 채웁니다. 네이버 로그인 값은 `android/local.properties`에 넣습니다. 둘 다 커밋하지 않으며, 값의 위치와 서버에 붙는 순서는 [CLAUDE.md](CLAUDE.md)에 있습니다.
 
 ```bash
 cp .env.example .env
@@ -48,7 +49,7 @@ flutter run --dart-define-from-file=.env
 | 테스트(단위 + 위젯) | `flutter test` |
 | 실행 | `flutter run --dart-define-from-file=.env` |
 
-커밋 전에 `flutter analyze`와 `flutter test`가 통과해야 합니다. 테스트는 실제 지도 대신 가짜 지도(`test/helpers/fake_map.dart`)를 씁니다.
+커밋 전에 `flutter analyze`와 `flutter test`가 통과해야 합니다. 테스트는 실제 지도·서버·카카오·네이버 대신 가짜(`test/helpers/`)를 씁니다.
 
 ## 폴더 구조
 
@@ -57,11 +58,11 @@ lib/
 ├─ main.dart        SDK 초기화 → ProviderScope → MapMarkerApp
 ├─ app/             MaterialApp, 경로 표(go_router)
 ├─ config/          환경 변수(Env)
-├─ data/            모델, 저장소. 여러 기능이 함께 쓴다
+├─ data/            모델, 저장소, 서버 API, 로그인, 샘플 여행. 여러 기능이 함께 쓴다
 ├─ core/            디자인 토큰·테마, 지도 인터페이스(MapProvider)와 네이버 구현, 곡선 계산
-├─ features/        화면과 상태(Riverpod): trips, trip_detail, export
+├─ features/        화면과 상태(Riverpod): login, trips, trip_detail, export
 ├─ l10n/            화면 글자(app_ko.arb)
-└─ dev/             디버그 빌드 전용 화면과 샘플 여행
+└─ dev/             디버그 빌드 전용 화면
 ```
 
 `test/`는 `lib/`와 같은 구조입니다. 코드 규칙(다국어, 디자인 토큰, 브랜치 운영)은 [CLAUDE.md](CLAUDE.md)에 있습니다.

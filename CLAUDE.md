@@ -57,7 +57,7 @@ lib/
 - 기능끼리는 서로 import하지 않는다. 같이 쓸 코드는 `data/`나 `core/`로 옮긴다.
 - 화면은 경로로 이동한다(`context.go(Routes.xxx)`). 새 화면은 `app/router.dart`의 여행 목록(`/`) 아래에 등록한다. 딥링크로 바로 열어도 뒤로가기가 여행 목록으로 가게 하기 위해서다.
   - 예외: 로그인(`/login`)은 최상위다. 여행 목록 아래에 두면 토큰 없이 목록이 만들어지고, 로그인 화면의 뒤로가기가 앱을 닫지 못한다. 로그인 여부에 따른 이동은 `authRedirect` 한 곳에서 한다(가려던 곳은 `?from=`, 앱 안 경로만 받는다).
-- 서버 API는 `data/api/ApiClient`(토큰 붙이기·재발급)로만 부른다. 여행 저장소는 로그인한 사용자마다 `ServerTripRepository`를 새로 만든다(`tripRepositoryProvider`). 쓰기 실패는 `ApiException`이고, 화면은 `saveFailureText`로 알린다.
+- 서버 API는 `data/api/ApiClient`(토큰 붙이기·재발급)로만 부른다. 여행 저장소는 로그인한 사용자마다 `ServerTripRepository`를 새로 만들고, 제주 샘플을 더하는 `SampleTripRepository`로 감싼다(`tripRepositoryProvider`). 쓰기 실패는 `ApiException`이고, 화면은 `saveFailureText`로 알린다.
 - 상태 관리는 Riverpod을 코드 생성 없이 쓴다.
 
 ## 다국어
@@ -82,11 +82,11 @@ lib/
 
 ## 테스트
 
-- 테스트는 실제 서버·카카오·네이버에 붙지 않는다. HTTP는 `FakeHttp`(`fake_http.dart`)를 끼운 dio, 로그인 상태·SDK는 `authOverrides`·`testSession`·`FakeSocialSdk`(`fake_auth.dart`), 저장 실패는 `FlakyTripRepository`로 본다.
+- 테스트는 실제 서버·카카오·네이버에 붙지 않는다. HTTP는 `FakeHttp`(`fake_http.dart`)를 끼운 dio, 로그인 상태·SDK는 `authOverrides`·`testSession`·`FakeSocialSdk`(`fake_auth.dart`), 저장 실패와 저장을 기다리는 동안은 `FlakyTripRepository`(`failWrites`·`holdWrites`), 샘플은 `withSample`·`MemorySampleStore`로 본다.
 - 공용 도우미는 `test/helpers/`다. 화면은 `pumpTestApp`(지도를 가짜 지도로 바꿔 끼움, 기본으로 로그인 상태)이나 `testMaterialApp`으로 띄운다. 지도에 넘긴 장면은 `mapScene(tester)`, 지도 탭은 `tapMarker`·`tapLine`·`tapMap`으로 본다.
 - 기본 화면(800×600)은 가로라 동선 목록이 오른쪽 패널로 뜬다. 아래 시트는 `usePortraitPhone`으로 띄운다. 연필·손잡이는 줄을 먼저 눌러야 뜬다.
 - 앱 로캘이 한국어라 `tester.pageBack()` 대신 `find.byType(BackButton)`을 누른다. 칩은 글자 대신 `ChoiceChip`·`FilterChip` 위젯을 누른다.
-- 저장소 스트림을 `await ...first`로 기다리지 않는다(가짜 시간 안에서 끝나지 않는다). 저장된 값은 화면이나 `container.read`로 본다.
+- 저장소 스트림을 `await ...first`로 기다리지 않는다(가짜 시간 안에서 끝나지 않아 테스트가 멈춘다). 저장된 값은 화면이나 `container.read`로 보고, 꼭 기다려야 하면 `tester.runAsync` 안에서 한다. 진행 표시가 도는 동안은 `pumpAndSettle` 대신 `pump`를 여러 번 한다.
 - `enterText` 뒤에는 `pump`를 한 번 한다. 위젯 없이 날짜 표기를 볼 때는 `initializeDateFormatting('ko')`를 먼저 부른다.
 - 테스트는 글꼴을 불러오지 않아 글자 폭이 실기기와 다르다. 글자 넘침은 실기기에서 본다.
 
@@ -100,6 +100,5 @@ lib/
 
 ## 코딩 규칙
 
-- `flutter_lints` 규칙(`analysis_options.yaml`)을 따른다.
-- 커밋 전에 `flutter analyze`와 `flutter test`가 통과하는지 확인한다.
+- `flutter_lints` 규칙(`analysis_options.yaml`)을 따르고, 커밋 전에 `flutter analyze`와 `flutter test`가 통과하는지 확인한다.
 - iOS를 지원하지 않는 패키지는 쓰지 않는다 (iOS는 MVP 이후 출시 예정).
