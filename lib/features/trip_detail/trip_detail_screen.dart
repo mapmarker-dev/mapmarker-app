@@ -103,6 +103,17 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   /// 장소를 넣으려고 누른 자리. 지도에 임시 핀을 꽂고, 아래 카드에서 추가하거나 취소한다.
   MapTap? _draftPlace;
 
+  /// 곡선을 끌어 놓고 저장을 기다리는 구간과 새 곡률. [route]는 놓을 때 저장소에 있던 동선이다.
+  /// 그동안 지도는 새 곡선만 흐리게 그리고(원래 곡선은 숨긴다) 핸들을 숨기며, 목록의 그 구간 줄에 진행 표시가 뜬다.
+  /// 저장소가 새 동선을 내면 그 동선이 대신하고, 저장하지 못하면 지운다.
+  ({String segmentId, double curvature, TripRoute route})? _savingCurve;
+
+  /// 끌어 옮기고 저장을 기다리는 장소. 목록이 그 줄을 흐리게 두고 진행 표시를 띄운다.
+  String? _savingStopId;
+
+  /// "오늘 밤도 여기서 묵기"를 눌러 저장을 기다리는 숙소. 목록이 그 버튼에 진행 표시를 띄운다.
+  String? _stayingLodgingId;
+
   /// 일차 동선 목록에서 펼친 줄과 고른 줄. 기기를 돌려 아래 시트와 오른쪽 패널이 바뀌어도 남는다.
   final _selection = ItinerarySelection();
 
@@ -155,19 +166,15 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     }
   }
 
-  Future<void> _rename() async {
-    final title = await showDialog<String>(
-      context: context,
-      builder: (context) => RenameTripDialog(
-        title: trip.title,
-        defaultTitle: context.l10n.defaultTitleOf(trip),
-      ),
-    );
-    if (title == null || !mounted) return;
-    await _save(
-      () => ref.read(tripDetailProvider(trip.id).notifier).rename(title),
-    );
-  }
+  /// 입력 창이 저장까지 맡는다. 저장되기 전까지 닫히지 않고, 실패는 창 안에서 알린다.
+  Future<void> _rename() => showDialog<String>(
+    context: context,
+    builder: (context) => RenameTripDialog(
+      title: trip.title,
+      defaultTitle: context.l10n.defaultTitleOf(trip),
+      onSave: ref.read(tripDetailProvider(trip.id).notifier).rename,
+    ),
+  );
 
   void _onOverlaySize(Size size) {
     if (mounted && size.height != _overlayHeight) {
@@ -252,6 +259,27 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     setState(() => _draftPlace = tap);
   }
 
+  /// 저장을 기다리는 곡선이 있으면 그 구간을 새 곡률로 바꾼 동선. 저장소가 그 뒤로 새 동선을 냈으면 그대로다.
+  TripRoute _withSavingCurve(TripRoute route) {
+    final saving = _savingCurve;
+    if (saving == null || !identical(saving.route, route)) return route;
+    return TripRoute(
+      stops: route.stops,
+      segments: [
+        for (final segment in route.segments)
+          segment.id == saving.segmentId
+              ? segment.copyWith(curvature: saving.curvature)
+              : segment,
+      ],
+    );
+  }
+
+  /// 저장을 기다리는 곡선의 구간. [_withSavingCurve]와 같은 때만 있다.
+  String? _savingSegmentIdOf(TripRoute? route) => switch (_savingCurve) {
+    final saving? when identical(saving.route, route) => saving.segmentId,
+    _ => null,
+  };
+
   /// 지금 저장소에 있는 동선. 입력 화면을 닫는 사이에 바뀌었을 수 있어서 넣기 직전에 다시 읽는다.
   TripRoute _latestRoute(TripRoute fallback) =>
       ref.read(tripRouteProvider(trip.id)).value ?? fallback;
@@ -262,6 +290,16 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   Future<void> _addStop(TripRoute route, int? viewDay) async {
     final place = _draftPlace;
     if (place == null) return;
+    // 다시 저장해도 같은 장소다.
+    final id = newId();
+    Stop stopOf(StopDraft draft) => draft.toNewStop(
+      id: id,
+      tripId: trip.id,
+      position: place.position,
+      order: placedOrder(_latestRoute(route), draft),
+    );
+    // 입력 화면이 저장까지 맡는다. 저장되기 전까지 닫히지 않고, 실패는 그 화면 안에서 알린다.
+    // 그냥 닫으면 임시 핀이 남아 다시 누를 수 있다.
     final draft = await showStopForm(
       context,
       trip: trip,
@@ -270,25 +308,16 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
         name: place.placeName ?? '',
         day: defaultDayForNewStop(route, viewDay: viewDay),
       ),
+      onSave: (draft) =>
+          ref.read(tripDetailProvider(trip.id).notifier).addStop(stopOf(draft)),
     );
     if (draft == null || !mounted) return;
-    final stop = draft.toNewStop(
-      id: newId(),
-      tripId: trip.id,
-      position: place.position,
-      order: placedOrder(_latestRoute(route), draft),
-    );
-    final added = await _save(
-      () => ref.read(tripDetailProvider(trip.id).notifier).addStop(stop),
-    );
-    // 넣지 못했으면 임시 핀을 남겨 다시 누를 수 있게 한다.
-    if (!added || !mounted) return;
     setState(() => _draftPlace = null);
     _showPlaced(
-      stop.id,
-      stop.day,
+      id,
+      draft.day,
       moved: false,
-      hiddenLodging: _hidesLodging(stop.kind),
+      hiddenLodging: _hidesLodging(draft.kind),
     );
   }
 
@@ -307,29 +336,31 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     required bool canDelete,
   }) async {
     final initial = StopDraft.of(stop);
+    final controller = ref.read(tripDetailProvider(trip.id).notifier);
+    // 입력 화면이 저장까지 맡는다. 저장되기 전까지 닫히지 않고, 실패는 그 화면 안에서 알린다.
     final draft = await showStopForm(
       context,
       trip: trip,
       route: _latestRoute(route),
       stop: stop,
       initial: initial,
-      onDelete: canDelete ? () => _confirmDelete(stop) : null,
+      onSave: (draft) async {
+        if (draft == initial) return;
+        // 고치기와 옮기기는 따로 저장한다. 옮기기만 실패해도 입력 화면이 열려 있어서,
+        // 다시 저장하면 둘 다 다시 보낸다(고치기는 같은 값을 또 써도 된다).
+        await controller.updateStop(draft.applyTo(stop));
+        if (draft.day != stop.day) {
+          await controller.moveStop(
+            stop.id,
+            day: draft.day,
+            order: placedOrder(_latestRoute(route), draft, stopId: stop.id),
+          );
+        }
+      },
+      onDelete: canDelete ? () => controller.deleteStop(stop.id) : null,
     );
     if (draft == null || draft == initial || !mounted) return;
-    final controller = ref.read(tripDetailProvider(trip.id).notifier);
-    if (!await _save(() => controller.updateStop(draft.applyTo(stop)))) return;
     final moved = draft.day != stop.day;
-    if (moved && mounted) {
-      final saved = await _save(
-        () => controller.moveStop(
-          stop.id,
-          day: draft.day,
-          order: placedOrder(_latestRoute(route), draft, stopId: stop.id),
-        ),
-      );
-      if (!saved) return;
-    }
-    if (!mounted) return;
     // 숙소를 끈 보기에서 종류를 숙소로 바꾸면 저장하자마자 숨는다. 같은 일차여도 알린다.
     final hidden = _hidesLodging(draft.kind);
     if (moved || hidden) {
@@ -361,16 +392,22 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     String segmentId,
     double curvature,
   ) async {
-    final latest = _latestRoute(
-      route,
-    ).segments.where((s) => s.id == segmentId).firstOrNull;
+    final stored = _latestRoute(route);
+    final latest = stored.segments.where((s) => s.id == segmentId).firstOrNull;
     if (latest == null) return false;
     if (latest.curvature == curvature) return true;
-    return _save(
+    final saving = (segmentId: segmentId, curvature: curvature, route: stored);
+    setState(() => _savingCurve = saving);
+    final saved = await _save(
       () => ref
           .read(tripDetailProvider(trip.id).notifier)
           .updateSegment(latest.copyWith(curvature: curvature)),
     );
+    // 저장되면 저장소가 낸 새 동선이 대신하니 그대로 둔다(여기서 지우면 원래 곡선이 한 번 비친다).
+    if (!saved && mounted && _savingCurve == saving) {
+      setState(() => _savingCurve = null);
+    }
+    return saved;
   }
 
   /// 곡선 핸들을 둘 구간. 일차 보기에서 목록의 구간 줄을 직접 눌러 고른 때만이다
@@ -386,22 +423,23 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     final to = route.stopById(segment.toStopId);
     if (from == null || to == null) return;
     final initial = TransportDraft.of(segment);
-    final draft = await showTransportForm(
+    // 입력 화면이 저장까지 맡는다. 저장되기 전까지 닫히지 않고, 실패는 그 화면 안에서 알린다.
+    await showTransportForm(
       context,
       initial: initial,
       from: from.name,
       to: to.name,
-    );
-    if (draft == null || draft == initial || !mounted) return;
-    // 곡률 등 다른 값은 입력 화면을 여는 사이에 바뀌었을 수 있어서 저장소의 구간에 넣는다.
-    final latest = _latestRoute(
-      route,
-    ).segments.where((s) => s.id == segment.id).firstOrNull;
-    if (latest == null) return;
-    await _save(
-      () => ref
-          .read(tripDetailProvider(trip.id).notifier)
-          .updateSegment(latest.copyWith(legs: draft.toLegs())),
+      onSave: (draft) async {
+        if (draft == initial) return;
+        // 곡률 등 다른 값은 입력 화면을 여는 사이에 바뀌었을 수 있어서 저장소의 구간에 넣는다.
+        final latest = _latestRoute(
+          route,
+        ).segments.where((s) => s.id == segment.id).firstOrNull;
+        if (latest == null) return;
+        await ref
+            .read(tripDetailProvider(trip.id).notifier)
+            .updateSegment(latest.copyWith(legs: draft.toLegs()));
+      },
     );
   }
 
@@ -431,9 +469,11 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       if (!stay || !mounted) return;
     }
     final stop = stayAnotherNight(lodging, id: newId(), day: day, order: order);
+    setState(() => _stayingLodgingId = lodging.id);
     final added = await _save(
       () => ref.read(tripDetailProvider(trip.id).notifier).addStop(stop),
     );
+    if (mounted) setState(() => _stayingLodgingId = null);
     if (added && mounted) _choices.focusOn([stop.id]);
   }
 
@@ -514,37 +554,6 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     ).showSnackBar(SnackBar(content: Text(context.l10n.itineraryOpenFailed)));
   }
 
-  /// 확인을 받아 장소를 지운다. 지웠으면 true다. 장소 입력 화면의 "장소 지우기"가 부른다.
-  Future<bool> _confirmDelete(Stop stop) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        final l10n = context.l10n;
-        return AlertDialog(
-          title: Text(l10n.deleteStopTitle(stop.name)),
-          content: Text(l10n.deleteStopMessage),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.error,
-              ),
-              child: Text(l10n.deleteStop),
-            ),
-          ],
-        );
-      },
-    );
-    if (confirmed != true || !mounted) return false;
-    return _save(
-      () => ref.read(tripDetailProvider(trip.id).notifier).deleteStop(stop.id),
-    );
-  }
-
   /// 끌어서 옮긴 장소를 저장한다. 옮겼으면 true, 취소했으면 false다(목록이 옮기기 전 순서로 돌아간다).
   ///
   /// 이웃이 바뀌어 사라질 구간에 적어 둔 이동 수단이 있으면 먼저 묻는다.
@@ -582,12 +591,17 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       );
       if (!move || !mounted) return false;
     }
+    setState(() => _savingStopId = stopId);
     // 옮기지 못했으면 목록이 옮기기 전 순서로 돌아간다.
-    return _save(
+    final saved = await _save(
       () => ref
           .read(tripDetailProvider(trip.id).notifier)
           .moveStop(stopId, day: day, order: order),
     );
+    if (mounted && _savingStopId == stopId) {
+      setState(() => _savingStopId = null);
+    }
+    return saved;
   }
 
   /// [dropped] 구간의 이동 수단이 지워진다고 알리고([message]), 그래도 할지 묻는다. 하면 true다.
@@ -640,7 +654,9 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       // 펼친 장소와 고른 줄도 비운다. 지도에서 눌러 들어온 것이면 목록이 그 줄을 다시 고른다.
       _selection.clear();
     });
-    final route = ref.watch(tripRouteProvider(trip.id));
+    final stored = ref.watch(tripRouteProvider(trip.id));
+    final savingSegmentId = _savingSegmentIdOf(stored.value);
+    final route = stored.whenData(_withSavingCurve);
     final view = route.value?.view(
       day: choice.day,
       showLodging: choice.showLodging,
@@ -689,7 +705,11 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                   // 로고는 왼쪽 아래라서 오른쪽 패널에는 가리지 않는다.
                   logoLift: itinerary == null || isSide ? 0 : _sheetLift,
                   draft: _draftPlace,
-                  curveSegmentId: _curveSegmentId(view, day),
+                  // 저장을 기다리는 동안에는 핸들이 없어 다시 끌 수 없다.
+                  curveSegmentId: savingSegmentId == null
+                      ? _curveSegmentId(view, day)
+                      : null,
+                  savingSegmentId: savingSegmentId,
                   onMarkerTap: (id) => _onMarkerTap(route, view, day, id),
                   onLineTap: (id) => _onLineTap(route, day, id),
                   onMapTap: (tap) => _onMapTap(tap, day),
@@ -759,6 +779,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                     padding: EdgeInsets.only(bottom: insets.bottom),
                     // 패널은 일차를 고르거나 지도를 누를 때 이미 열린다.
                     onReveal: () async {},
+                    savingSegmentId: savingSegmentId,
                   ),
                 ),
               )
@@ -780,6 +801,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                     choice,
                     padding: insets.copyWith(top: 0),
                     onReveal: () async => _sheetKey.currentState?.reveal(),
+                    savingSegmentId: savingSegmentId,
                   ),
                   onHeaderSize: _onSheetHeaderSize,
                   onLift: _onSheetLift,
@@ -823,7 +845,11 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     RouteChoice choice, {
     required EdgeInsets padding,
     required Future<void> Function() onReveal,
+    required String? savingSegmentId,
   }) => DayItineraryList(
+    savingSegmentId: savingSegmentId,
+    savingStopId: _savingStopId,
+    stayingLodgingId: _stayingLodgingId,
     route: route,
     itinerary: itinerary,
     selection: _selection,
@@ -946,6 +972,7 @@ class _RouteMap extends ConsumerWidget {
     required this.logoLift,
     required this.draft,
     required this.curveSegmentId,
+    required this.savingSegmentId,
     required this.onMarkerTap,
     required this.onLineTap,
     required this.onMapTap,
@@ -965,6 +992,9 @@ class _RouteMap extends ConsumerWidget {
   /// 곡선 핸들을 둘 구간. 없으면 null이다.
   final String? curveSegmentId;
 
+  /// 곡선을 끌어 놓고 저장을 기다리는 구간. 흐리게 그린다.
+  final String? savingSegmentId;
+
   final ValueChanged<String> onMarkerTap;
   final ValueChanged<String> onLineTap;
   final ValueChanged<MapTap> onMapTap;
@@ -982,6 +1012,7 @@ class _RouteMap extends ConsumerWidget {
       view: view,
       colors: colors,
       curveSegmentId: curveSegmentId,
+      savingSegmentId: savingSegmentId,
     );
     final draft = this.draft;
     return map.buildMap(

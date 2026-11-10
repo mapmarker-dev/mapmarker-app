@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/core/theme/app_tokens.dart';
@@ -10,6 +12,7 @@ import 'package:mapmarker_app/features/trips/trip_create_screen.dart';
 import 'package:mapmarker_app/features/trips/trip_list_controller.dart';
 import 'package:mapmarker_app/features/trips/trip_list_screen.dart';
 import 'package:mapmarker_app/features/trips/widgets/trip_card.dart';
+import 'package:mapmarker_app/features/trips/widgets/trip_phase_menu.dart';
 
 import '../../helpers/fake_auth.dart';
 import '../../helpers/flaky_trip_repository.dart';
@@ -327,15 +330,37 @@ void _failureTests() {
 
     testWidgets('says so when changing the phase fails', (tester) async {
       await pumpTestApp(tester, repository: repository);
-      repository.failWrites = ApiFailure.network;
+      repository
+        ..failWrites = ApiFailure.network
+        ..holdWrites = Completer();
 
       await tester.tap(find.text('여행 전'));
       await tester.pumpAndSettle();
       await tester.tap(_menuItem('여행 중'));
+      // 저장을 기다리는 동안 칩에 진행 표시가 돌고, 다시 고를 수 없다.
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      final chip = find.byType(TripPhaseMenu);
+      expect(
+        find.descendant(
+          of: chip,
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsOneWidget,
+      );
+      // 잠긴 칩을 눌러도 메뉴가 열리지 않고, 눌림이 카드로 넘어가 여행이 열리지도 않는다.
+      await tester.tap(find.text('여행 전'));
+      await tester.pump();
+      expect(_menuItem('여행 중'), findsNothing);
+      expect(find.byType(TripDetailScreen), findsNothing);
+
+      repository.holdWrites!.complete();
       await tester.pumpAndSettle();
 
       expect(find.text(testL10n.saveFailedNetwork), findsOneWidget);
       expect(find.text('여행 전'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
     });
   });
 }

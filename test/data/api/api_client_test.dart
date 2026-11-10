@@ -60,7 +60,8 @@ void main() {
     test('응답이 없을 때 끝없이 기다리지 않는다', () {
       final options = createDio('http://192.0.2.1:3000').options;
 
-      expect(options.connectTimeout, isNotNull);
+      // 서버에 닿지 않으면 저장을 기다리는 표시와 실패 안내가 이만큼 늦는다.
+      expect(options.connectTimeout, const Duration(seconds: 5));
       expect(options.sendTimeout, isNotNull);
       expect(options.receiveTimeout, isNotNull);
     });

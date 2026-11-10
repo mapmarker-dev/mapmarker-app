@@ -58,6 +58,12 @@ abstract final class AppRadius {
   static const dialog = BorderRadius.all(Radius.circular(28));
 }
 
+/// 1단계 기본 값: 흐리게 보이는 정도.
+abstract final class AppOpacity {
+  /// 놓았지만 아직 저장되지 않은 것(끌어 옮긴 장소, 끌어 놓은 곡선). 저장되면 또렷해진다.
+  static const pending = 0.4;
+}
+
 /// 1단계 기본 값: 글꼴. `pubspec.yaml`에 넣은 굵기만 쓴다.
 abstract final class AppFont {
   static const family = 'NanumSquareRound';

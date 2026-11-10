@@ -103,10 +103,15 @@ extension MapSceneLabels on MapScene {
 /// 지도의 곡선 핸들을 끌어 [curvature]로 놓은 것처럼 한다. 핸들이 있어야 끌 수 있다.
 /// 화면이 저장했는지 돌려준다. false면 지도가 끄는 동안의 미리보기를 지운다.
 Future<bool> dragCurveHandle(WidgetTester tester, double curvature) async {
+  final saved = releaseCurveHandle(tester, curvature);
+  await tester.pumpAndSettle();
+  return saved;
+}
+
+/// [dragCurveHandle]과 같지만 화면을 다시 그리지 않고 곧바로 돌아온다. 저장을 기다리는 동안을 볼 때 쓴다.
+Future<bool> releaseCurveHandle(WidgetTester tester, double curvature) {
   final map = _fakeMap(tester);
   final handle = map.scene.curveHandle;
   expect(handle, isNotNull, reason: '곡선 핸들이 없으면 끌 수 없다');
-  final saved = map.onCurveChanged!(handle!.id, curvature);
-  await tester.pumpAndSettle();
-  return saved;
+  return map.onCurveChanged!(handle!.id, curvature);
 }

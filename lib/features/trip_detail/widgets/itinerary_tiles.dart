@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/map/map_provider.dart';
 import '../../../core/map/marker_icon.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/saving.dart';
 import '../../../data/models/segment.dart';
 import '../../../data/models/stop.dart';
 import '../../../l10n/l10n.dart';
@@ -25,6 +26,7 @@ class ItineraryStopTile extends StatelessWidget {
     this.onEdit,
     this.caption,
     this.reorderHandle,
+    this.saving = false,
   });
 
   final Stop stop;
@@ -49,6 +51,9 @@ class ItineraryStopTile extends StatelessWidget {
   /// 끌어서 순서를 바꾸는 손잡이. null이면 옮길 수 없다.
   final Widget? reorderHandle;
 
+  /// 끌어 옮기고 저장을 기다리는 중. 흐리게 보이고, 연필과 손잡이 자리에 진행 표시가 뜬다.
+  final bool saving;
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -59,6 +64,7 @@ class ItineraryStopTile extends StatelessWidget {
     final time = stop.plannedTime;
     final description = stop.description.trim();
     final memo = stop.memo.trim();
+    final opacity = saving ? AppOpacity.pending : 1.0;
 
     return Material(
       color: highlighted ? scheme.secondaryContainer : Colors.transparent,
@@ -79,62 +85,71 @@ class ItineraryStopTile extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    MarkerIcon(look),
+                    Opacity(opacity: opacity, child: MarkerIcon(look)),
                     const SizedBox(width: AppSpace.md),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (caption case final caption?)
-                            Text(caption, style: muted),
-                          Text(
-                            stop.name,
-                            style: textTheme.titleSmall,
-                            maxLines: expanded ? null : 1,
-                            overflow: expanded ? null : TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            time == null
-                                ? kind
-                                : l10n.itineraryKindAndTime(
-                                    kind,
-                                    MaterialLocalizations.of(
-                                      context,
-                                    ).formatTimeOfDay(
-                                      TimeOfDay(
-                                        hour: time.hour,
-                                        minute: time.minute,
+                      child: Opacity(
+                        opacity: opacity,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (caption case final caption?)
+                              Text(caption, style: muted),
+                            Text(
+                              stop.name,
+                              style: textTheme.titleSmall,
+                              maxLines: expanded ? null : 1,
+                              overflow: expanded ? null : TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              time == null
+                                  ? kind
+                                  : l10n.itineraryKindAndTime(
+                                      kind,
+                                      MaterialLocalizations.of(
+                                        context,
+                                      ).formatTimeOfDay(
+                                        TimeOfDay(
+                                          hour: time.hour,
+                                          minute: time.minute,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                            style: muted,
-                          ),
-                          if (description.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: AppSpace.xs),
-                              child: Text(
-                                description,
-                                style: textTheme.bodyMedium,
-                                maxLines: expanded ? null : 2,
-                                overflow: expanded
-                                    ? null
-                                    : TextOverflow.ellipsis,
-                              ),
+                              style: muted,
                             ),
-                          if (expanded && memo.isNotEmpty) ...[
-                            const SizedBox(height: AppSpace.sm),
-                            Text(l10n.itineraryMemo, style: muted),
-                            Text(memo, style: textTheme.bodyMedium),
+                            if (description.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  top: AppSpace.xs,
+                                ),
+                                child: Text(
+                                  description,
+                                  style: textTheme.bodyMedium,
+                                  maxLines: expanded ? null : 2,
+                                  overflow: expanded
+                                      ? null
+                                      : TextOverflow.ellipsis,
+                                ),
+                              ),
+                            if (expanded && memo.isNotEmpty) ...[
+                              const SizedBox(height: AppSpace.sm),
+                              Text(l10n.itineraryMemo, style: muted),
+                              Text(memo, style: textTheme.bodyMedium),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
-                    if (onEdit case final onEdit?)
-                      _EditButton(
-                        tooltip: l10n.stopFormEditTitle,
-                        onPressed: onEdit,
-                      ),
-                    ?reorderHandle,
+                    if (saving)
+                      SavingIndicator(label: l10n.saving)
+                    else ...[
+                      if (onEdit case final onEdit?)
+                        _EditButton(
+                          tooltip: l10n.stopFormEditTitle,
+                          onPressed: onEdit,
+                        ),
+                      ?reorderHandle,
+                    ],
                   ],
                 ),
               ),
@@ -147,7 +162,10 @@ class ItineraryStopTile extends StatelessWidget {
               ),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: _OpenMapLink(onTap: onOpenMap),
+                child: Opacity(
+                  opacity: opacity,
+                  child: _OpenMapLink(onTap: onOpenMap),
+                ),
               ),
             ),
           ],
@@ -376,10 +394,14 @@ class ItinerarySegmentTile extends StatelessWidget {
     required this.highlighted,
     required this.onTap,
     this.onEdit,
+    this.saving = false,
   });
 
   final Segment segment;
   final Color color;
+
+  /// 곡선을 끌어 놓고 저장을 기다리는 중. 흐리게 보이고, 연필 자리에 진행 표시가 뜬다.
+  final bool saving;
 
   /// 고른 구간. 지도에서 선을 누르거나 시트에서 이 줄을 누른 것이다.
   final bool highlighted;
@@ -403,6 +425,7 @@ class ItinerarySegmentTile extends StatelessWidget {
       context,
     ).textTheme.bodySmall?.copyWith(color: muted, height: _lineHeight);
     final legs = segment.legs;
+    final opacity = saving ? AppOpacity.pending : 1.0;
     return Material(
       color: highlighted ? scheme.secondaryContainer : Colors.transparent,
       borderRadius: AppRadius.md,
@@ -416,18 +439,23 @@ class ItinerarySegmentTile extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                SizedBox(
-                  width: _iconWidth,
-                  child: Center(
-                    // 줄 높이를 다 채운다.
-                    child: SizedBox(
-                      width: AppSpace.xs,
-                      height: double.infinity,
-                      child: CustomPaint(
-                        painter: _RouteBarPainter(
-                          color: color,
-                          // 지도의 선과 같은 모양이다. 시트와 지도가 이어져 보이게 하려는 것이다.
-                          style: lineStyleOf(representativeMode(segment.legs)),
+                Opacity(
+                  opacity: opacity,
+                  child: SizedBox(
+                    width: _iconWidth,
+                    child: Center(
+                      // 줄 높이를 다 채운다.
+                      child: SizedBox(
+                        width: AppSpace.xs,
+                        height: double.infinity,
+                        child: CustomPaint(
+                          painter: _RouteBarPainter(
+                            color: color,
+                            // 지도의 선과 같은 모양이다. 시트와 지도가 이어져 보이게 하려는 것이다.
+                            style: lineStyleOf(
+                              representativeMode(segment.legs),
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -435,38 +463,46 @@ class ItinerarySegmentTile extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpace.md),
                 Expanded(
-                  child: ConstrainedBox(
-                    // 연필 아이콘(작게 줄인 버튼, 40px)이 떠도 줄 높이가 바뀌지 않게 그만큼 둔다.
-                    constraints: const BoxConstraints(
-                      minHeight: AppSpace.xxl + AppSpace.sm,
-                    ),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: legs.isEmpty
-                          ? Text(l10n.itineraryTransportUndecided, style: style)
-                          // 토막(아이콘 + "지하철 3정류장 10분")과 "+"를 각각 한 덩어리로 두고, 덩어리 사이에서만 줄을 바꾼다.
-                          : Wrap(
-                              spacing: _chunkGap,
-                              children: [
-                                for (final (i, leg) in legs.indexed) ...[
-                                  if (i > 0)
-                                    Text(
-                                      l10n.transportLegSeparator.trim(),
+                  child: Opacity(
+                    opacity: opacity,
+                    child: ConstrainedBox(
+                      // 연필 아이콘(작게 줄인 버튼, 40px)이 떠도 줄 높이가 바뀌지 않게 그만큼 둔다.
+                      constraints: const BoxConstraints(
+                        minHeight: AppSpace.xxl + AppSpace.sm,
+                      ),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: legs.isEmpty
+                            ? Text(
+                                l10n.itineraryTransportUndecided,
+                                style: style,
+                              )
+                            // 토막(아이콘 + "지하철 3정류장 10분")과 "+"를 각각 한 덩어리로 두고, 덩어리 사이에서만 줄을 바꾼다.
+                            : Wrap(
+                                spacing: _chunkGap,
+                                children: [
+                                  for (final (i, leg) in legs.indexed) ...[
+                                    if (i > 0)
+                                      Text(
+                                        l10n.transportLegSeparator.trim(),
+                                        style: style,
+                                      ),
+                                    _LegChunk(
+                                      icon: transportIcon(leg.mode),
+                                      text: l10n.transportLegText(leg),
+                                      color: muted,
                                       style: style,
                                     ),
-                                  _LegChunk(
-                                    icon: transportIcon(leg.mode),
-                                    text: l10n.transportLegText(leg),
-                                    color: muted,
-                                    style: style,
-                                  ),
+                                  ],
                                 ],
-                              ],
-                            ),
+                              ),
+                      ),
                     ),
                   ),
                 ),
-                if (onEdit case final onEdit?)
+                if (saving)
+                  Center(child: SavingIndicator(label: l10n.saving))
+                else if (onEdit case final onEdit?)
                   Center(
                     child: _EditButton(
                       tooltip: l10n.itineraryEditTransport,

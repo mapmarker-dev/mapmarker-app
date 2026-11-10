@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/saving.dart';
 import '../../../data/models/segment.dart';
 import '../../../data/models/stop.dart';
 import '../../../data/models/trip.dart';
@@ -96,6 +97,9 @@ class DayItineraryList extends StatefulWidget {
     this.reorderLocked = false,
     this.onReorderLocked,
     this.onViaTap,
+    this.savingStopId,
+    this.stayingLodgingId,
+    this.savingSegmentId,
     this.padding = EdgeInsets.zero,
   });
 
@@ -139,6 +143,16 @@ class DayItineraryList extends StatefulWidget {
 
   /// "숙소를 거쳐 감" 줄을 눌렀다. 그 사이 구간은 숨긴 숙소에 닿아 있어서 고를 수 없고, 왜인지 알린다.
   final VoidCallback? onViaTap;
+
+  /// 끌어 옮기고 저장을 기다리는 장소. 그 줄이 흐려지고 연필·손잡이 자리에 진행 표시가 뜬다(다시 끌 수 없다).
+  /// 이동 수단이 지워진다고 묻는 동안은 아직 저장하지 않으니 null이다.
+  final String? savingStopId;
+
+  /// "오늘 밤도 여기서 묵기"를 눌러 저장을 기다리는 숙소. 그 버튼에 진행 표시가 돌고 누를 수 없다.
+  final String? stayingLodgingId;
+
+  /// 곡선을 끌어 놓고 저장을 기다리는 구간. 그 줄이 흐려지고 진행 표시가 뜬다.
+  final String? savingSegmentId;
 
   /// 목록 바깥 여백. 아래 시트는 시스템 여백을 더한다.
   final EdgeInsets padding;
@@ -254,6 +268,7 @@ class _DayItineraryListState extends State<DayItineraryList> {
         caption: caption,
         expanded: selection.expanded == stop.id,
         highlighted: selection.highlighted.contains(stop.id),
+        saving: stop.id == widget.savingStopId,
         onToggle: () => selection.tapStop(stop.id),
         onOpenMap: () => widget.onOpenMap(stop),
         // 목록에서 누른 줄에만 연필과 손잡이가 보인다.
@@ -315,6 +330,8 @@ class _DayItineraryListState extends State<DayItineraryList> {
           sliver: SliverReorderableList(
             itemCount: stops.length,
             onReorderItem: (oldIndex, newIndex) async {
+              // 제자리에 놓았다. 옮긴 순서를 남기면 구간 줄이 숨은 채로 남는다.
+              if (oldIndex == newIndex) return;
               final moved = [...visibleIds];
               final id = moved.removeAt(oldIndex);
               moved.insert(newIndex, id);
@@ -324,7 +341,7 @@ class _DayItineraryListState extends State<DayItineraryList> {
                 oldIndex,
                 newIndex,
               );
-              // 묻고 취소했으면 옮기기 전 순서로 돌려 놓는다.
+              // 묻고 취소했거나 저장하지 못했으면 옮기기 전 순서로 돌려 놓는다.
               if (!saved && mounted && _movedOrder == moved) {
                 setState(() => _movedOrder = null);
               }
@@ -349,6 +366,7 @@ class _DayItineraryListState extends State<DayItineraryList> {
                       // 선은 도착 장소의 일차 색이다.
                       color: colors.routeDay(entry.stop.day).background,
                       highlighted: selection.highlighted.contains(arrival.id),
+                      saving: arrival.id == widget.savingSegmentId,
                       onTap: () => selection.pick(arrival.id),
                       onEdit: selection.active == arrival.id
                           ? () => widget.onEditSegment(arrival)
@@ -374,8 +392,12 @@ class _DayItineraryListState extends State<DayItineraryList> {
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: OutlinedButton.icon(
-                  onPressed: () => widget.onStayAgain(lodging),
-                  icon: const Icon(Icons.bed_outlined),
+                  onPressed: widget.stayingLodgingId == null
+                      ? () => widget.onStayAgain(lodging)
+                      : null,
+                  icon: lodging.id == widget.stayingLodgingId
+                      ? SavingIndicator(label: l10n.saving, padded: false)
+                      : const Icon(Icons.bed_outlined),
                   // 전날 밤 숙소는 이어서 묵는 것이라 "오늘 밤도", 그날 들른 숙소는 "오늘 밤은"이다.
                   label: Text(
                     lodging.id == itinerary.start?.id

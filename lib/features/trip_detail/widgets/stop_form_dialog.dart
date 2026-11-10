@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/time/local_time.dart';
+import '../../../core/widgets/saving.dart';
 import '../../../data/models/stop.dart';
 import '../../../data/models/trip.dart';
 import '../../../data/models/trip_route.dart';
@@ -9,6 +10,7 @@ import '../../../l10n/l10n.dart';
 import '../stop_draft.dart';
 import '../stop_placement.dart';
 import 'dropped_transport_list.dart';
+import 'form_saving.dart';
 
 /// 장소 입력 화면을 띄운다. 저장하면 고친 값을, 그냥 닫으면 null을 돌려준다.
 ///
@@ -16,14 +18,17 @@ import 'dropped_transport_list.dart';
 /// 경로는 만들지 않는다. 링크로 바로 열 일이 없는 화면 상태라서다.
 ///
 /// [stop]은 편집할 장소다. null이면 새 장소를 추가한다.
-/// [onDelete]가 있으면 맨 아래에 "장소 지우기"가 있다. 지웠으면(true) 입력 화면을 닫고 null을 돌려준다.
+/// [onSave]로 저장되면 고친 값을 돌려주며 닫히고, 그냥 닫으면 null이다.
+/// [onDelete]가 있으면 맨 아래에 "장소 지우기"가 있다. 확인을 받아 지우면 입력 화면을 닫고 null을 돌려준다.
+/// 저장하거나 지우지 못하면 입력한 그대로 열려 있고 화면 안에 알린다([FormSaving]).
 Future<StopDraft?> showStopForm(
   BuildContext context, {
   required Trip trip,
   required TripRoute route,
   required StopDraft initial,
+  required Future<void> Function(StopDraft draft) onSave,
   Stop? stop,
-  Future<bool> Function()? onDelete,
+  Future<void> Function()? onDelete,
 }) => showDialog<StopDraft>(
   context: context,
   useSafeArea: false,
@@ -32,6 +37,7 @@ Future<StopDraft?> showStopForm(
     route: route,
     initial: initial,
     stop: stop,
+    onSave: onSave,
     onDelete: onDelete,
   ),
 );
@@ -56,6 +62,7 @@ class StopFormDialog extends StatefulWidget {
     required this.trip,
     required this.route,
     required this.initial,
+    required this.onSave,
     this.stop,
     this.onDelete,
   });
@@ -70,10 +77,14 @@ class StopFormDialog extends StatefulWidget {
   /// 편집할 장소. null이면 새 장소다.
   final Stop? stop;
 
-  /// 확인을 받아 장소를 지운다. 지웠으면 true다. null이면 지우기가 없다(새 장소, 출발 장소).
+  /// 고친 값을 저장한다. 저장하지 못하면 `ApiException`을 던진다.
+  final Future<void> Function(StopDraft draft) onSave;
+
+  /// 장소를 지운다(확인은 이 화면이 받는다). 지우지 못하면 `ApiException`을 던진다.
+  /// null이면 지우기가 없다(새 장소, 출발 장소).
   ///
   /// 지우기는 일차 동선 목록이 아니라 여기에 둔다. 목록은 깔끔하게 두고, 지우기는 자주 쓰지 않아서다.
-  final Future<bool> Function()? onDelete;
+  final Future<void> Function()? onDelete;
 
   bool get isNew => stop == null;
 
@@ -81,7 +92,7 @@ class StopFormDialog extends StatefulWidget {
   State<StopFormDialog> createState() => _StopFormDialogState();
 }
 
-class _StopFormDialogState extends State<StopFormDialog> {
+class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
   late StopDraft _draft = widget.initial;
   late final _name = TextEditingController(text: widget.initial.name);
   late final _description = TextEditingController(
@@ -116,7 +127,49 @@ class _StopFormDialogState extends State<StopFormDialog> {
     super.dispose();
   }
 
-  void _save() => Navigator.of(context).pop(_draft);
+  /// 지우는 중인지. 저장 중 표시를 저장 버튼이 아닌 지우기 버튼에 띄운다.
+  bool _deleting = false;
+
+  void _save() {
+    final draft = _draft;
+    saveAndClose(() => widget.onSave(draft), draft);
+  }
+
+  /// 확인을 받아 지운다. 저장하지 않은 고친 내용이 있어도 장소를 지우면 함께 버린다. 따로 묻지 않는다.
+  Future<void> _delete(Future<void> Function() delete) async {
+    if (!await _confirmDelete() || !mounted) return;
+    setState(() => _deleting = true);
+    await saveAndClose(delete);
+    if (mounted) setState(() => _deleting = false);
+  }
+
+  Future<bool> _confirmDelete() async {
+    final name = widget.stop?.name ?? _draft.name;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        final l10n = context.l10n;
+        return AlertDialog(
+          title: Text(l10n.deleteStopTitle(name)),
+          content: Text(l10n.deleteStopMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+              ),
+              child: Text(l10n.deleteStop),
+            ),
+          ],
+        );
+      },
+    );
+    return confirmed ?? false;
+  }
 
   /// 넣을 자리 칸이 보이는지. 새 장소이거나, 편집에서 다른 일차로 옮길 때다.
   /// 같은 일차 안에서 순서를 바꾸는 것은 목록에서 끌어서 한다.
@@ -165,10 +218,13 @@ class _StopFormDialogState extends State<StopFormDialog> {
     final insets = MediaQuery.paddingOf(context);
     const gap = SizedBox(height: AppSpace.lg);
 
+    final error = saveError;
+
     return PopScope(
-      canPop: !_dirty,
+      canPop: !_dirty && !saving,
       onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
+        // 저장하는 동안은 닫지 않는다.
+        if (didPop || saving) return;
         if (await _confirmDiscard() && context.mounted) {
           Navigator.of(context).pop();
         }
@@ -179,133 +235,146 @@ class _StopFormDialogState extends State<StopFormDialog> {
             leading: IconButton(
               tooltip: material.closeButtonTooltip,
               icon: const Icon(Icons.close),
-              onPressed: () => Navigator.of(context).maybePop(),
+              onPressed: saving ? null : () => Navigator.of(context).maybePop(),
             ),
             title: Text(
               widget.isNew ? l10n.stopFormAddTitle : l10n.stopFormEditTitle,
             ),
             actions: [
-              TextButton(
-                onPressed: _draft.isValid ? _save : null,
-                child: Text(material.saveButtonLabel),
-              ),
+              if (saving && !_deleting)
+                SavingIndicator(label: l10n.saving)
+              else
+                TextButton(
+                  onPressed: _draft.isValid && !saving ? _save : null,
+                  child: Text(material.saveButtonLabel),
+                ),
             ],
           ),
-          body: ListView(
-            padding: EdgeInsets.fromLTRB(
-              insets.left + AppSpace.lg,
-              AppSpace.lg,
-              insets.right + AppSpace.lg,
-              insets.bottom + AppSpace.xl,
-            ),
-            children: [
-              TextField(
-                controller: _name,
-                autofocus: widget.isNew && widget.initial.name.isEmpty,
-                maxLength: StopDraft.nameMaxLength,
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(labelText: l10n.stopNameLabel),
+          body: SavingFormBody(
+            saving: saving,
+            error: error,
+            insets: insets,
+            child: ListView(
+              padding: EdgeInsets.fromLTRB(
+                insets.left + AppSpace.lg,
+                AppSpace.lg,
+                insets.right + AppSpace.lg,
+                insets.bottom + AppSpace.xl,
               ),
-              gap,
-              Text(l10n.stopKindLabel, style: textTheme.titleSmall),
-              const SizedBox(height: AppSpace.sm),
-              Wrap(
-                spacing: AppSpace.sm,
-                runSpacing: AppSpace.sm,
-                children: [
-                  for (final kind in StopKind.values)
-                    ChoiceChip(
-                      label: Text(l10n.stopKindName(kind)),
-                      selected: _draft.kind == kind,
-                      onSelected: (_) =>
-                          setState(() => _draft = _draft.copyWith(kind: kind)),
-                    ),
-                ],
-              ),
-              gap,
-              DropdownButtonFormField<int>(
-                initialValue: _draft.day,
-                decoration: InputDecoration(labelText: l10n.stopDayLabel),
-                items: [
-                  for (var day = 1; day <= widget.trip.nights + 1; day++)
-                    DropdownMenuItem(value: day, child: Text(_dayLabel(day))),
-                ],
-                onChanged: (day) {
-                  if (day != null) {
-                    // 다른 일차의 자리는 이어지지 않아서, 그 일차의 기본 자리로 돌아간다.
-                    setState(
-                      () => _draft = _draft.copyWith(
-                        day: day,
-                        slotOrder: () => null,
-                      ),
-                    );
-                  }
-                },
-              ),
-              if (_placing) ...[
+              children: [
+                TextField(
+                  controller: _name,
+                  enabled: !saving,
+                  autofocus: widget.isNew && widget.initial.name.isEmpty,
+                  maxLength: StopDraft.nameMaxLength,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(labelText: l10n.stopNameLabel),
+                ),
                 gap,
-                _SlotField(
-                  route: widget.route,
-                  draft: _draft,
-                  stop: widget.stop,
-                  onChanged: (order) => setState(
-                    () => _draft = _draft.copyWith(slotOrder: () => order),
-                  ),
+                Text(l10n.stopKindLabel, style: textTheme.titleSmall),
+                const SizedBox(height: AppSpace.sm),
+                Wrap(
+                  spacing: AppSpace.sm,
+                  runSpacing: AppSpace.sm,
+                  children: [
+                    for (final kind in StopKind.values)
+                      ChoiceChip(
+                        label: Text(l10n.stopKindName(kind)),
+                        selected: _draft.kind == kind,
+                        onSelected: (_) => setState(
+                          () => _draft = _draft.copyWith(kind: kind),
+                        ),
+                      ),
+                  ],
                 ),
-              ],
-              gap,
-              _TimeField(
-                time: _draft.plannedTime,
-                onPick: _pickTime,
-                onClear: () => setState(
-                  () => _draft = _draft.copyWith(plannedTime: () => null),
+                gap,
+                DropdownButtonFormField<int>(
+                  initialValue: _draft.day,
+                  decoration: InputDecoration(labelText: l10n.stopDayLabel),
+                  items: [
+                    for (var day = 1; day <= widget.trip.nights + 1; day++)
+                      DropdownMenuItem(value: day, child: Text(_dayLabel(day))),
+                  ],
+                  onChanged: (day) {
+                    if (day != null) {
+                      // 다른 일차의 자리는 이어지지 않아서, 그 일차의 기본 자리로 돌아간다.
+                      setState(
+                        () => _draft = _draft.copyWith(
+                          day: day,
+                          slotOrder: () => null,
+                        ),
+                      );
+                    }
+                  },
                 ),
-              ),
-              gap,
-              TextField(
-                controller: _description,
-                minLines: 2,
-                maxLines: 6,
-                maxLength: StopDraft.textMaxLength,
-                decoration: InputDecoration(
-                  labelText: l10n.stopDescriptionLabel,
-                  helperText: l10n.stopDescriptionHelper,
-                  alignLabelWithHint: true,
-                ),
-              ),
-              gap,
-              TextField(
-                controller: _memo,
-                minLines: 2,
-                maxLines: 6,
-                maxLength: StopDraft.textMaxLength,
-                decoration: InputDecoration(
-                  labelText: l10n.stopMemoLabel,
-                  helperText: l10n.stopMemoHelper,
-                  alignLabelWithHint: true,
-                ),
-              ),
-              if (widget.onDelete case final onDelete?) ...[
-                const SizedBox(height: AppSpace.xl),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: OutlinedButton.icon(
-                    // 저장하지 않은 고친 내용이 있어도 장소를 지우면 함께 버린다. 따로 묻지 않는다.
-                    onPressed: () async {
-                      if (await onDelete() && context.mounted) {
-                        Navigator.of(context).pop();
-                      }
-                    },
-                    icon: const Icon(Icons.delete_outline),
-                    label: Text(l10n.stopFormDelete),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: scheme.error,
-                      side: BorderSide(color: scheme.error),
+                if (_placing) ...[
+                  gap,
+                  _SlotField(
+                    route: widget.route,
+                    draft: _draft,
+                    stop: widget.stop,
+                    onChanged: (order) => setState(
+                      () => _draft = _draft.copyWith(slotOrder: () => order),
                     ),
                   ),
+                ],
+                gap,
+                _TimeField(
+                  time: _draft.plannedTime,
+                  onPick: _pickTime,
+                  onClear: () => setState(
+                    () => _draft = _draft.copyWith(plannedTime: () => null),
+                  ),
                 ),
+                gap,
+                TextField(
+                  controller: _description,
+                  enabled: !saving,
+                  minLines: 2,
+                  maxLines: 6,
+                  maxLength: StopDraft.textMaxLength,
+                  decoration: InputDecoration(
+                    labelText: l10n.stopDescriptionLabel,
+                    helperText: l10n.stopDescriptionHelper,
+                    alignLabelWithHint: true,
+                  ),
+                ),
+                gap,
+                TextField(
+                  controller: _memo,
+                  enabled: !saving,
+                  minLines: 2,
+                  maxLines: 6,
+                  maxLength: StopDraft.textMaxLength,
+                  decoration: InputDecoration(
+                    labelText: l10n.stopMemoLabel,
+                    helperText: l10n.stopMemoHelper,
+                    alignLabelWithHint: true,
+                  ),
+                ),
+                if (widget.onDelete case final onDelete?) ...[
+                  const SizedBox(height: AppSpace.xl),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: saving ? null : () => _delete(onDelete),
+                      icon: _deleting
+                          ? SavingIndicator(
+                              label: l10n.saving,
+                              padded: false,
+                              color: scheme.error,
+                            )
+                          : const Icon(Icons.delete_outline),
+                      label: Text(l10n.stopFormDelete),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: scheme.error,
+                        side: BorderSide(color: scheme.error),
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

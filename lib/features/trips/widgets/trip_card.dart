@@ -22,7 +22,8 @@ class TripCard extends StatelessWidget {
   final VoidCallback onTap;
 
   /// 고른 상태. null이면 자동으로 되돌린다.
-  final ValueChanged<TripPhase?> onPhaseChanged;
+  /// 고른 상태를 저장한다. 저장될 때까지 상태 칩에 진행 표시가 돈다.
+  final Future<void> Function(TripPhase? phase) onPhaseChanged;
 
   @override
   Widget build(BuildContext context) {

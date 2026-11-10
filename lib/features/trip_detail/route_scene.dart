@@ -4,6 +4,7 @@ import '../../core/map/map_provider.dart';
 import '../../core/map/route_arrow.dart';
 import '../../core/map/route_curve.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_tokens.dart';
 import '../../data/models/stop.dart';
 import '../../data/models/trip_route.dart';
 import 'transport_look.dart';
@@ -32,6 +33,8 @@ IconData? kindBadge(StopKind kind) => switch (kind) {
 ///   미정 구간에는 없고, 선이 화면에서 짧아지면 화살표보다 조금 먼저(출발 마커와 겹치기 전에) 숨는다.
 /// - 곡선 핸들: [curveSegmentId] 구간(일차 동선 목록에서 직접 고른 구간)의 가운데에 둔다.
 ///   핸들 안에 진행 방향 화살표가 있어서, 그 구간의 화살표와 선 아이콘은 그리지 않는다.
+/// - 저장을 기다리는 구간([savingSegmentId], 끌어 놓은 곡선): 선을 [AppOpacity.pending]만큼 흐리게 그리고,
+///   화살표와 선 아이콘은 그리지 않는다. 저장되면 보통 선으로 돌아온다.
 /// - 숙소를 거침([RouteView.vias]): 흐린 가는 파선([MapLineStyle.faint]) 직선 하나. 선 목록 맨 앞이다.
 ({
   List<MapMarker> markers,
@@ -45,6 +48,7 @@ routeOverlays({
   required RouteView view,
   required AppColors colors,
   String? curveSegmentId,
+  String? savingSegmentId,
 }) {
   final markers = <MapMarker>[];
   final drawn = <Stop>[];
@@ -85,15 +89,19 @@ routeOverlays({
     final color = dayColors.background;
     final mode = representativeMode(segment.legs);
     final curvature = segment.curvature;
+    final saving = segment.id == savingSegmentId;
+    Color dim(Color color) =>
+        saving ? color.withValues(alpha: color.a * AppOpacity.pending) : color;
     lines.add(
       MapLine(
         id: segment.id,
         points: routeCurvePoints(from.position, to.position, curvature),
-        color: color,
-        outline: colors.routeHalo,
+        color: dim(color),
+        outline: dim(colors.routeHalo),
         style: lineStyleOf(mode),
       ),
     );
+    if (saving) continue;
     if (segment.id == curveSegmentId) {
       curveHandle = MapCurveHandle(
         id: segment.id,

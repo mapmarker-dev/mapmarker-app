@@ -9,6 +9,7 @@ import 'api_exception.dart';
 /// 서버 주소([apiBaseUrl], `/v1` 없이)를 쓰는 dio. 토큰은 붙이지 않는다.
 ///
 /// 시간 제한이 있어야 한다. 재발급이 끝나지 않으면 기다리는 요청과 로그아웃이 모두 멈춘다.
+/// 연결 제한은 짧게 둔다. 서버에 닿지 않을 때 저장 중 표시와 실패 안내를 오래 기다리지 않게 하려는 것이다.
 Dio createDio(String apiBaseUrl) {
   final origin = apiBaseUrl.endsWith('/')
       ? apiBaseUrl.substring(0, apiBaseUrl.length - 1)
@@ -16,7 +17,7 @@ Dio createDio(String apiBaseUrl) {
   return Dio(
     BaseOptions(
       baseUrl: '$origin/v1',
-      connectTimeout: const Duration(seconds: 10),
+      connectTimeout: const Duration(seconds: 5),
       sendTimeout: const Duration(seconds: 20),
       receiveTimeout: const Duration(seconds: 20),
     ),

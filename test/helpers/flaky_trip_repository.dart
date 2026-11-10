@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:mapmarker_app/data/api/api_exception.dart';
 import 'package:mapmarker_app/data/models/segment.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
@@ -19,6 +21,9 @@ class FlakyTripRepository implements TripRepository {
   /// 쓰기가 이 실패로 끝난다.
   ApiFailure? failWrites;
 
+  /// 있으면 쓰기가 이것이 끝날 때까지 기다린다. 저장을 기다리는 동안의 화면을 볼 때 쓴다.
+  Completer<void>? holdWrites;
+
   /// 다시 받기(당겨서 새로고침)가 이 실패로 끝난다.
   ApiFailure? failRefresh;
 
@@ -34,6 +39,7 @@ class FlakyTripRepository implements TripRepository {
   };
 
   Future<T> _write<T>(Future<T> Function() write) async {
+    if (holdWrites case final hold?) await hold.future;
     if (failWrites case final failure?) throw ApiException(failure);
     return write();
   }
