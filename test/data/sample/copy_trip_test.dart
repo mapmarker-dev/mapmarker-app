@@ -73,5 +73,7 @@ void main() {
     );
 
     expect(await repository.watchTrips().first, isEmpty);
+    // 휴지통을 거치지 않고 영구 삭제한다.
+    expect(await repository.fetchTrash(), isEmpty);
   });
 }

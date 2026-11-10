@@ -4,6 +4,7 @@ import '../../core/time/today.dart';
 import '../auth/auth_session.dart';
 import '../models/segment.dart';
 import '../models/stop.dart';
+import '../models/trashed_trip.dart';
 import '../models/trip.dart';
 import '../models/trip_route.dart';
 import '../sample/sample_store.dart';
@@ -34,8 +35,19 @@ abstract interface class TripRepository {
   /// 저장한 여행을 돌려준다. 없는 여행이면 [StateError]를 던진다.
   Future<Trip> updateTrip(Trip trip);
 
-  /// 여행과 그 장소·구간을 지운다. 이미 없는 여행이면 지운 것으로 본다.
-  Future<void> deleteTrip(String tripId);
+  /// 여행을 장소·구간과 함께 휴지통으로 옮긴다. 목록과 여행 화면에서는 없는 여행이 된다.
+  /// 이미 없는 여행이면 옮긴 것으로 본다. 보관 기간(30일)이 지나면 서버가 지운다.
+  Future<void> trashTrip(String tripId);
+
+  /// 휴지통. 최근에 넣은 여행이 앞에 온다. 기억하지 않고 부를 때마다 받는다.
+  Future<List<TrashedTrip>> fetchTrash();
+
+  /// 휴지통에서 꺼내 목록의 원래 자리(고친 시각 그대로)에 다시 넣고 돌려준다.
+  /// 휴지통에 없으면(보관 기간이 끝났거나 다른 기기에서 지웠다) 서버 구현은 `ApiFailure.notFound`를 던진다.
+  Future<Trip> restoreTrip(String tripId);
+
+  /// 휴지통의 여행을 장소·구간과 함께 영구 삭제한다. 이미 없으면 지운 것으로 본다.
+  Future<void> deleteTripForever(String tripId);
 
   /// 여행의 장소와 구간. 장소와 구간을 한 값으로 내서, 둘이 어긋난 중간 상태가 보이지 않는다.
   /// 없는 여행이면 빈 동선을 낸다.

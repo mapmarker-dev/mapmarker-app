@@ -75,9 +75,11 @@ Future<Trip> copyTrip(
     return saved;
   } on Object {
     try {
-      await repository.deleteTrip(saved.id);
+      // 휴지통을 거치지 않고 지운다(서버에는 휴지통에 넣은 뒤에만 영구 삭제가 있다).
+      await repository.trashTrip(saved.id);
+      await repository.deleteTripForever(saved.id);
     } on ApiException {
-      // 반쯤 만든 여행이 목록에 남는다. 사용자가 지울 수 있다.
+      // 반쯤 만든 여행이 목록이나 휴지통에 남는다. 사용자가 지울 수 있다.
     }
     rethrow;
   }

@@ -93,12 +93,60 @@ void main() {
     expect(http.requests.single.data, containsPair('dates', null));
   });
 
-  test('deletes a trip', () async {
+  test('moves a trip to the trash', () async {
     http.handler = (_) => FakeReply.json(204);
 
-    await api.deleteTrip('trip-1');
+    await api.trashTrip('trip-1');
 
     expect(call(), 'DELETE /v1/trips/trip-1');
+  });
+
+  test('lists the trash', () async {
+    http.handler = (_) => FakeReply.json(200, [
+      {
+        ...serverTrip(),
+        'deletedAt': '2026-11-10T08:30:00.000Z',
+        'purgeAt': '2026-12-10T08:30:00.000Z',
+      },
+    ]);
+
+    final trash = await api.listTrash();
+
+    expect(call(), 'GET /v1/trash');
+    expect(trash.single.trip.id, 'trip-1');
+    expect(trash.single.purgeAt, DateTime.utc(2026, 12, 10, 8, 30));
+  });
+
+  test('restores a trip from the trash and gets it back', () async {
+    http.handler = (_) => FakeReply.json(200, serverTrip());
+
+    final trip = await api.restoreTrip('trip-1');
+
+    expect(call(), 'POST /v1/trash/trip-1/restore');
+    expect(trip.id, 'trip-1');
+  });
+
+  test('deletes a trip in the trash for good', () async {
+    http.handler = (_) => FakeReply.json(204);
+
+    await api.deleteTripForever('trip-1');
+
+    expect(call(), 'DELETE /v1/trash/trip-1');
+  });
+
+  test('a trash list that is not a list is a server failure', () async {
+    http.handler = (_) => FakeReply.json(200, {'trips': []});
+
+    await expectLater(
+      api.listTrash(),
+      throwsA(
+        isA<ApiException>().having(
+          (e) => e.failure,
+          'failure',
+          ApiFailure.server,
+        ),
+      ),
+    );
   });
 
   test('adds a stop under its trip and gets the new route', () async {

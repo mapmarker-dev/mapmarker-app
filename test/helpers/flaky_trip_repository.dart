@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:mapmarker_app/data/api/api_exception.dart';
 import 'package:mapmarker_app/data/models/segment.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
+import 'package:mapmarker_app/data/models/trashed_trip.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
 import 'package:mapmarker_app/data/models/trip_route.dart';
 import 'package:mapmarker_app/data/trips/memory_trip_repository.dart';
@@ -15,7 +16,7 @@ class FlakyTripRepository implements TripRepository {
 
   final MemoryTripRepository inner;
 
-  /// 처음 불러오기(스트림)가 이 실패로 끝난다.
+  /// 처음 불러오기(스트림)와 휴지통 받기가 이 실패로 끝난다.
   ApiFailure? failLoads;
 
   /// 쓰기가 이 실패로 끝난다.
@@ -61,8 +62,22 @@ class FlakyTripRepository implements TripRepository {
   Future<Trip> updateTrip(Trip trip) => _write(() => inner.updateTrip(trip));
 
   @override
-  Future<void> deleteTrip(String tripId) =>
-      _write(() => inner.deleteTrip(tripId));
+  Future<void> trashTrip(String tripId) =>
+      _write(() => inner.trashTrip(tripId));
+
+  @override
+  Future<List<TrashedTrip>> fetchTrash() => switch (failLoads) {
+    final failure? => Future.error(ApiException(failure)),
+    null => inner.fetchTrash(),
+  };
+
+  @override
+  Future<Trip> restoreTrip(String tripId) =>
+      _write(() => inner.restoreTrip(tripId));
+
+  @override
+  Future<void> deleteTripForever(String tripId) =>
+      _write(() => inner.deleteTripForever(tripId));
 
   @override
   Future<Stop> addStop(Stop stop) => _write(() => inner.addStop(stop));

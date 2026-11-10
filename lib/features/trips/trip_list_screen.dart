@@ -218,8 +218,7 @@ class TripListScreen extends ConsumerWidget {
     }
   }
 
-  /// 확인을 받아 여행을 지운다. 지울 때까지 확인 창이 열려 있고, 실패는 그 안에서 알린다.
-  /// 지금은 바로 지운다(휴지통은 PLAN "1-3 전").
+  /// 확인을 받아 여행을 휴지통으로 옮긴다. 옮길 때까지 확인 창이 열려 있고, 실패는 그 안에서 알린다.
   /// 샘플은 이 기기에서 숨긴다.
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Trip trip) {
     final repository = ref.read(tripRepositoryProvider);
@@ -233,7 +232,7 @@ class TripListScreen extends ConsumerWidget {
           message: sample
               ? l10n.deleteSampleMessage
               : l10n.deleteTripMessage(trip.title),
-          onDelete: () => repository.deleteTrip(trip.id),
+          onDelete: () => repository.trashTrip(trip.id),
         );
       },
     );

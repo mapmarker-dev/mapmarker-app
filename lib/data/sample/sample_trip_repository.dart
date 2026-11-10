@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/l10n.dart';
 import '../models/segment.dart';
 import '../models/stop.dart';
+import '../models/trashed_trip.dart';
 import '../models/trip.dart';
 import '../models/trip_route.dart';
 import '../trips/trip_repository.dart';
@@ -100,13 +101,24 @@ class SampleTripRepository implements TripRepository {
   Future<Trip> updateTrip(Trip trip) async =>
       _inner.updateTrip(_mine(trip.id, trip));
 
+  /// 샘플은 휴지통에 넣지 않고 이 기기에서 숨긴다.
   @override
-  Future<void> deleteTrip(String tripId) async {
-    if (!isSampleTrip(tripId)) return _inner.deleteTrip(tripId);
+  Future<void> trashTrip(String tripId) async {
+    if (!isSampleTrip(tripId)) return _inner.trashTrip(tripId);
     _hidden = true;
     _changed();
     await _store.hide();
   }
+
+  @override
+  Future<List<TrashedTrip>> fetchTrash() => _inner.fetchTrash();
+
+  @override
+  Future<Trip> restoreTrip(String tripId) => _inner.restoreTrip(tripId);
+
+  @override
+  Future<void> deleteTripForever(String tripId) =>
+      _inner.deleteTripForever(tripId);
 
   @override
   Future<Stop> addStop(Stop stop) async =>

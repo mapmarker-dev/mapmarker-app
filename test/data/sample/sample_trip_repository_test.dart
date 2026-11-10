@@ -71,7 +71,7 @@ void main() {
       expect(await repository.watchRoute(sampleTripId).first, sample.route);
     });
 
-    test('hides the sample when deleted and remembers it', () async {
+    test('hides the sample when trashed and remembers it', () async {
       final lists = <List<String>>[];
       final subscription = repository.watchTrips().listen(
         (trips) => lists.add(ids(trips)),
@@ -79,7 +79,7 @@ void main() {
       addTearDown(subscription.cancel);
       await pumpEventQueue();
 
-      await repository.deleteTrip(sampleTripId);
+      await repository.trashTrip(sampleTripId);
       await pumpEventQueue();
 
       expect(lists.last, ['busan']);
@@ -104,11 +104,21 @@ void main() {
     test('passes other trips through to the user repository', () async {
       await repository.createTrip(testTrip(id: 'jeju', region: '제주'));
       await repository.addStop(testStop('a', tripId: 'jeju'));
-      await repository.deleteTrip('busan');
+      await repository.trashTrip('busan');
 
       expect(ids(await repository.watchTrips().first), ['jeju', sampleTripId]);
       expect(ids(await inner.watchTrips().first), ['jeju']);
       expect((await repository.watchRoute('jeju').first).stops, hasLength(1));
+      // 휴지통도 사용자 저장소의 것이다. 샘플은 휴지통에 들어가지 않는다.
+      await repository.trashTrip(sampleTripId);
+      expect(
+        [for (final t in await repository.fetchTrash()) t.trip.id],
+        ['busan'],
+      );
+      expect((await repository.restoreTrip('busan')).id, 'busan');
+      await repository.trashTrip('busan');
+      await repository.deleteTripForever('busan');
+      expect(await inner.fetchTrash(), isEmpty);
     });
 
     test('refuses to change the sample', () async {

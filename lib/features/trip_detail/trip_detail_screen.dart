@@ -189,7 +189,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       if (!mounted) return;
       // 먼저 옮겨 간다. 샘플을 먼저 숨기면 이 화면이 "없는 여행"을 잠깐 보여 준다.
       context.go(Routes.trip(copied.id));
-      await repository.deleteTrip(sampleTripId);
+      await repository.trashTrip(sampleTripId);
     } on ApiException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

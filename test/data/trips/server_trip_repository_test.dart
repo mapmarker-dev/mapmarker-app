@@ -431,14 +431,14 @@ void main() {
       expect(server.calls.skip(before), contains('GET /trips/trip-1'));
     });
 
-    test('deleteTrip drops the trip from the list and its detail', () async {
+    test('trashTrip drops the trip from the list and its detail', () async {
       await loadTrip();
       final list = _collect(repository.watchTrips());
       final trips = _collect(repository.watchTrip('trip-1'));
       await pumpEventQueue();
       server.replies['DELETE /trips/trip-1'] = (_) => FakeReply.json(204);
 
-      await repository.deleteTrip('trip-1');
+      await repository.trashTrip('trip-1');
       await pumpEventQueue();
 
       expect(ids(list.last), ['old']);
@@ -446,7 +446,7 @@ void main() {
     });
 
     test(
-      'deleteTrip treats a trip the server no longer has as deleted',
+      'trashTrip treats a trip the server no longer has as trashed',
       () async {
         await loadTrip();
         final list = _collect(repository.watchTrips());
@@ -454,27 +454,110 @@ void main() {
         server.replies['DELETE /trips/trip-1'] = (_) =>
             FakeReply.json(404, {'message': 'not found'});
 
-        await repository.deleteTrip('trip-1');
+        await repository.trashTrip('trip-1');
         await pumpEventQueue();
 
         expect(ids(list.last), ['old']);
       },
     );
 
-    test('a failed deleteTrip keeps the trip and throws', () async {
+    test('a failed trashTrip keeps the trip and throws', () async {
       await loadTrip();
       final list = _collect(repository.watchTrips());
       await pumpEventQueue();
       server.replies['DELETE /trips/trip-1'] = (r) => throw connectionError(r);
 
       await expectLater(
-        repository.deleteTrip('trip-1'),
+        repository.trashTrip('trip-1'),
         throwsA(isA<ApiException>()),
       );
       await pumpEventQueue();
 
       expect(ids(list.last), ['trip-1', 'old']);
     });
+
+    test('fetchTrash asks the server every time', () async {
+      server.replies['GET /trash'] = (_) => FakeReply.json(200, [
+        {
+          ...serverTrip(id: 'gone'),
+          'deletedAt': '2026-11-10T08:30:00.000Z',
+          'purgeAt': '2026-12-10T08:30:00.000Z',
+        },
+      ]);
+
+      final first = await repository.fetchTrash();
+      await repository.fetchTrash();
+
+      expect(first.single.trip.id, 'gone');
+      expect(server.calls, ['GET /trash', 'GET /trash']);
+    });
+
+    test(
+      'restoreTrip puts the trip back in the list at its old place',
+      () async {
+        final list = _collect(repository.watchTrips());
+        await pumpEventQueue();
+        server.replies['POST /trash/gone/restore'] = (_) => FakeReply.json(
+          200,
+          serverTrip(id: 'gone', updatedAt: '2026-09-01T00:00:00.000Z'),
+        );
+
+        final restored = await repository.restoreTrip('gone');
+        await pumpEventQueue();
+
+        expect(restored.id, 'gone');
+        expect(ids(list.last), ['trip-1', 'old', 'gone']);
+        // 동선은 아직 받지 않았다. 여행을 열면 받는다.
+        server.replies['GET /trips/gone'] = (_) =>
+            FakeReply.json(200, _detail(trip: serverTrip(id: 'gone')));
+        final route = _collect(repository.watchRoute('gone'));
+        await pumpEventQueue();
+        expect(server.calls, contains('GET /trips/gone'));
+        expect((route.last! as TripRoute).stops, hasLength(2));
+      },
+    );
+
+    test(
+      'restoreTrip throws when the trip is no longer in the trash',
+      () async {
+        final list = _collect(repository.watchTrips());
+        await pumpEventQueue();
+        server.replies['POST /trash/gone/restore'] = (_) =>
+            FakeReply.json(404, {'message': 'not found'});
+
+        await expectLater(
+          repository.restoreTrip('gone'),
+          throwsA(
+            isA<ApiException>().having(
+              (e) => e.failure,
+              'failure',
+              ApiFailure.notFound,
+            ),
+          ),
+        );
+        await pumpEventQueue();
+
+        expect(ids(list.last), ['trip-1', 'old']);
+      },
+    );
+
+    test(
+      'deleteTripForever treats a trip the server no longer has as deleted',
+      () async {
+        server.replies['DELETE /trash/gone'] = (_) => FakeReply.json(204);
+        await repository.deleteTripForever('gone');
+
+        server.replies['DELETE /trash/gone'] = (_) =>
+            FakeReply.json(404, {'message': 'not found'});
+        await repository.deleteTripForever('gone');
+
+        server.replies['DELETE /trash/gone'] = (r) => throw connectionError(r);
+        await expectLater(
+          repository.deleteTripForever('gone'),
+          throwsA(isA<ApiException>()),
+        );
+      },
+    );
 
     test('a failed createTrip reloads the list', () async {
       final list = repository.watchTrips().listen(null);

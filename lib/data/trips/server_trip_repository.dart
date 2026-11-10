@@ -3,6 +3,7 @@ import 'dart:async';
 import '../api/api_exception.dart';
 import '../models/segment.dart';
 import '../models/stop.dart';
+import '../models/trashed_trip.dart';
 import '../models/trip.dart';
 import '../models/trip_route.dart';
 import 'trip_api.dart';
@@ -115,15 +116,39 @@ class ServerTripRepository implements TripRepository {
   });
 
   @override
-  Future<void> deleteTrip(String tripId) => _write(tripId, () async {
+  Future<void> trashTrip(String tripId) => _write(tripId, () async {
     try {
-      await _api.deleteTrip(tripId);
+      await _api.trashTrip(tripId);
     } on ApiException catch (error) {
-      // 이미 없다(다른 기기에서 지웠다). 지운 것으로 본다.
+      // 이미 없다(다른 기기에서 지웠다). 옮긴 것으로 본다.
       if (error.failure != ApiFailure.notFound) rethrow;
     }
     _cache.markMissing(tripId);
     _changed();
+  });
+
+  /// 휴지통은 휴지통 화면에서만 보고 자주 바뀌지 않아서 기억하지 않는다.
+  @override
+  Future<List<TrashedTrip>> fetchTrash() => _api.listTrash();
+
+  /// 동선은 받지 않는다. 여행을 열면 받는다.
+  @override
+  Future<Trip> restoreTrip(String tripId) => _write(tripId, () async {
+    final trip = await _api.restoreTrip(tripId);
+    _cache.putTrip(trip);
+    _changed();
+    return trip;
+  });
+
+  /// 목록에 없는 여행이라 기억한 값은 바꾸지 않는다.
+  @override
+  Future<void> deleteTripForever(String tripId) => _write(tripId, () async {
+    try {
+      await _api.deleteTripForever(tripId);
+    } on ApiException catch (error) {
+      // 이미 없다(다른 기기에서 지웠거나 보관 기간이 끝났다). 지운 것으로 본다.
+      if (error.failure != ApiFailure.notFound) rethrow;
+    }
   });
 
   @override

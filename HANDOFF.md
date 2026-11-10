@@ -4,18 +4,21 @@
 
 ## 지금 하는 일
 
-서버 연동·로그인 단위(PLAN 1-2 마지막)를 마쳤다. dev에 커밋 7개(토큰·API 클라이언트, 로그인·로그아웃, JSON·API 호출, 서버 저장소·실패 표시·입력 상한, 저장소 교체·문서, 저장 중 표시, 제주 샘플·여행 삭제)가 있고 모두 실기기에서 확인했다. main PR을 앞두고 있다. 범위 밖: 회원 탈퇴(1-6), 사진(1-3), AWS 배포(1-7), Apple·구글 로그인, 오프라인 저장(2-2), 장소 검색·주소, 앱 CI. 서버 API와 토큰 방식은 바꾸지 않고, 서버를 꼭 고쳐야 하면 먼저 묻는다.
+휴지통(PLAN 1-2 마지막 항목)을 만드는 중이다. 서버 쪽은 끝났다(`../mapmarker-server/HANDOFF.md`, API는 서버 `CLAUDE.md` "휴지통"). 앱은 커밋 2개(저장소·API → 휴지통 화면·메뉴)로 나눴고 첫 커밋까지 했다. 휴지통까지 마치면 dev의 94505a6부터(서버 연동·로그인, 저장 중 표시, 제주 샘플, 여행 삭제, 휴지통) 하나의 PR로 main에 합친다. 그전에 따로 PR을 만들지 않는다.
+
+- 정한 것(문서 반영은 마지막에 OVERVIEW·PLAN으로): 대상은 여행만, 지우기 확인 창은 두고 문구만 "휴지통으로 옮기고 30일 뒤 완전히 지워진다"로, 휴지통은 여행 목록 ⋮ 메뉴(로그아웃 위)에서 `/trash`로 들어가 줄마다 ⋮로 되살리기(한 번 누르는 저장)·영구 삭제(확인 창). 휴지통의 여행은 열어 보지 않는다. 공유 링크(3단계)는 휴지통 동안 막고 되살리면 다시 열린다.
+- 저장소: `deleteTrip`을 `trashTrip`으로 바꾸고 `fetchTrash`(기억하지 않고 매번 받음)·`restoreTrip`(목록 캐시에 넣음, 동선은 열 때 받음)·`deleteTripForever`를 더했다. 404는 옮기기·영구 삭제에서는 끝난 것으로 보고, 되살리기에서는 `notFound`로 던진다. 보관 기간은 서버가 준 `purgeAt`만 쓴다(메모리 저장소만 30일 상수가 있다). 샘플 복사 실패 정리는 휴지통을 거치지 않게 `trashTrip` → `deleteTripForever`.
 
 ## 다음에 할 첫 단계
 
-1. `.github`·서버의 문서 변경과 각 HANDOFF를 커밋하고, push 누락을 확인한 뒤 dev → main을 PR(merge commit)로 합친다.
-2. 다음 단위는 휴지통(PLAN "1-3 전", 서버와 함께)이다.
+1. 휴지통 화면: `DeleteTripDialog`를 `core/widgets`로 옮겨 함께 쓰고(기능끼리 import 금지), `features/trash/`(컨트롤러·화면), `Routes.trash`, ⋮ 메뉴, 지우기 문구. 남은 날은 `purgeAt`과 기기 시각으로 "N일 뒤 삭제"·"오늘 삭제".
+2. 실기기 확인(지우기 → 휴지통 → 되살리기 → 원래 자리 → 다시 지우기 → 영구 삭제) → PLAN·OVERVIEW·HANDOFF 갱신 → 세 저장소 push 누락 확인 → 서버·앱 dev → main PR(merge commit).
    - 진행 방식: 커밋마다 `flutter analyze`·`flutter test` → 이 파일 수정 → 커밋 메시지를 주고 멈춘다. 커밋과 push는 사용자가 한다.
    - 나중에 더할 경로: `/trips/:tripId/export`, `/settings`. 3단계에 `/shared/:shareId`(공유 링크 `/trip/<공유ID>`를 redirect로 연결).
 
 ## 현재 상태
 
-- `flutter analyze` 0건, `flutter test` 589개 통과, `flutter build apk --debug` 성공.
+- `flutter analyze` 0건, `flutter test` 602개 통과, `flutter build apk --debug` 성공.
 - 태블릿(카카오톡 없음, 네이버 앱 있음)에서 확인: 카카오 계정·네이버 로그인, 다시 켜도 유지(서버가 꺼져 있어도 켤 때 묻지 않음), 로그아웃, 카카오 취소(안내 없음), 서버 끔 안내, 사용자를 지운 뒤 재가입, 여행·장소·구간 저장과 유지, 계정별 여행, 저장 중 표시와 실패 안내, 샘플과 여행 삭제.
 - 코드 위치: `lib/data/api/`(`ApiClient` 토큰·재발급), `lib/data/auth/`(`AuthSession`, `Account`, `SocialSdk`), `lib/data/trips/`(`TripApi`, `trip_json.dart`, `ServerTripRepository`, `TripCache`), `lib/data/sample/`, `lib/features/login/`. 값의 위치·실행 순서·`/login` 예외는 `CLAUDE.md`.
 - `tripRepositoryProvider`는 로그인·로그아웃마다(`authGenerationProvider`) `ServerTripRepository`를 새로 만들고 `SampleTripRepository`로 감싼다. 로그아웃 상태에서는 빈 메모리 저장소다.
@@ -52,7 +55,7 @@
   - 숨김은 `shared_preferences`(`PrefsSampleStore`)로 기기에 기억한다. 한 기기에서 계정을 바꿔도 숨긴 그대로다(사용자 확인. 계정을 바꿔 쓰는 일은 주로 테스트 때다). 읽지 못하면 보이고, 기억하지 못하면 이번에만 숨는다. 다른 플러그인이 쓰던 패키지라 새 네이티브 코드는 없다.
   - 보기 전용: `isSampleTrip`이면 제목 바꾸기·지도 핀·곡선 핸들·연필·손잡이·"오늘 밤도 여기서 묵기"를 숨기고 안내와 [실제로 사용하기]를 띄운다. 카드는 "샘플" 표시가 붙고 상태를 고를 수 없다.
   - [실제로 사용하기]: `copySample`이 새 ID로 여행·장소를 넣고 이동 수단·곡률을 고친다(요청 20여 번, 몇 초). 중간에 실패하면 반쯤 만든 여행을 한 번 지워 보고 알린다. 새 여행으로 옮겨 간 뒤 샘플을 숨긴다(먼저 숨기면 "없는 여행"이 잠깐 보인다).
-  - 여행 삭제는 카드 ⋮ → `DeleteTripDialog`. 서버가 404면 이미 지운 것으로 본다. 샘플 카드의 같은 메뉴는 "샘플 지우기"로 기기에서 숨긴다.
+  - 여행 삭제는 카드 ⋮ → `DeleteTripDialog` → `trashTrip`(휴지통으로). 서버가 404면 이미 옮긴 것으로 본다. 샘플 카드의 같은 메뉴는 "샘플 지우기"로 기기에서 숨긴다(샘플은 휴지통에 들어가지 않는다).
 - 테스트 이름: 커밋 1의 인증 테스트는 한국어, 그 뒤는 영어다(기존에도 섞여 있어 고치지 않았다).
 
 ## 결론이 안 난 논의

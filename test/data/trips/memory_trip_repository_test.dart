@@ -30,22 +30,71 @@ void main() {
 
   tearDown(() => repository.dispose());
 
-  test('deletes a trip with its stops and segments', () async {
-    await repository.createTrip(_trip('a'));
-    await repository.createTrip(_trip('b'));
-    await repository.addStop(testStop('s1', tripId: 'a'));
-    await repository.addStop(testStop('s2', tripId: 'a', order: 1));
+  group('trash', () {
+    setUp(() async {
+      await repository.createTrip(_trip('a'));
+      await repository.addStop(testStop('s1', tripId: 'a'));
+      await repository.addStop(testStop('s2', tripId: 'a', order: 1));
+      now = now.add(const Duration(hours: 1));
+      await repository.createTrip(_trip('b'));
+    });
 
-    await repository.deleteTrip('a');
+    test('moves a trip to the trash and hides it with its route', () async {
+      now = DateTime.utc(2026, 11, 10, 8, 30);
+      await repository.trashTrip('a');
 
-    final trips = await repository.watchTrips().first;
-    expect(trips.map((t) => t.id), ['b']);
-    expect(await repository.watchTrip('a').first, isNull);
-    final route = await repository.watchRoute('a').first;
-    expect(route.stops, isEmpty);
-    expect(route.segments, isEmpty);
-    // 없는 여행을 지워도 된다(이미 지워졌다).
-    await repository.deleteTrip('a');
+      final trips = await repository.watchTrips().first;
+      expect(trips.map((t) => t.id), ['b']);
+      expect(await repository.watchTrip('a').first, isNull);
+      expect((await repository.watchRoute('a').first).stops, isEmpty);
+      final trash = await repository.fetchTrash();
+      expect(trash.single.trip.id, 'a');
+      expect(trash.single.deletedAt, DateTime.utc(2026, 11, 10, 8, 30));
+      expect(trash.single.purgeAt, DateTime.utc(2026, 12, 10, 8, 30));
+      expect(
+        () => repository.addStop(testStop('s3', tripId: 'a')),
+        throwsStateError,
+      );
+      // 이미 휴지통에 있거나 없는 여행이어도 된다.
+      await repository.trashTrip('a');
+      await repository.trashTrip('nope');
+    });
+
+    test('lists the trash with the latest trashed first', () async {
+      await repository.trashTrip('a');
+      now = now.add(const Duration(minutes: 1));
+      await repository.trashTrip('b');
+
+      final trash = await repository.fetchTrash();
+
+      expect(trash.map((t) => t.trip.id), ['b', 'a']);
+    });
+
+    test('restores a trip to its old place with its route', () async {
+      await repository.trashTrip('a');
+
+      final restored = await repository.restoreTrip('a');
+
+      expect(restored.id, 'a');
+      final trips = await repository.watchTrips().first;
+      expect(trips.map((t) => t.id), ['b', 'a']);
+      expect((await repository.watchRoute('a').first).stops, hasLength(2));
+      expect(await repository.fetchTrash(), isEmpty);
+      expect(() => repository.restoreTrip('b'), throwsStateError);
+    });
+
+    test('deletes a trashed trip for good', () async {
+      await repository.trashTrip('a');
+
+      await repository.deleteTripForever('a');
+
+      expect(await repository.fetchTrash(), isEmpty);
+      expect(() => repository.restoreTrip('a'), throwsStateError);
+      // 휴지통에 없는 여행은 지우지 않는다. 없는 여행은 지운 것으로 본다.
+      await repository.deleteTripForever('b');
+      await repository.deleteTripForever('nope');
+      expect((await repository.watchTrips().first).map((t) => t.id), ['b']);
+    });
   });
 
   test('stamps created and updated times when creating', () async {

@@ -3,6 +3,7 @@ import '../../core/time/local_time.dart';
 import '../models/map_provider_type.dart';
 import '../models/segment.dart';
 import '../models/stop.dart';
+import '../models/trashed_trip.dart';
 import '../models/trip.dart';
 import '../models/trip_route.dart';
 
@@ -132,6 +133,16 @@ Map<String, Object?> updateSegmentJson(Segment segment) => {
   'curvature': segment.curvature,
   'type': segment.type.name,
 };
+
+/// 휴지통의 여행(TrashedTripResponse). 여행 필드에 넣은 시각과 지울 시각이 더해져 있다.
+TrashedTrip trashedTripFromJson(Object? json) {
+  final map = _map(json);
+  return TrashedTrip(
+    trip: tripFromJson(map),
+    deletedAt: _instant(map, 'deletedAt'),
+    purgeAt: _instant(map, 'purgeAt'),
+  );
+}
 
 TripDetail tripDetailFromJson(Object? json) {
   final map = _map(json);

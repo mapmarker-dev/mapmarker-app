@@ -294,6 +294,32 @@ void main() {
     });
   });
 
+  group('trashed trip', () {
+    test('reads the trip with when it was trashed and will be purged', () {
+      final trashed = trashedTripFromJson({
+        ...serverTrip(),
+        'deletedAt': '2026-11-10T08:30:00.000Z',
+        'purgeAt': '2026-12-10T08:30:00.000Z',
+      });
+
+      expect(trashed.trip.id, 'trip-1');
+      expect(trashed.trip.title, '부산 2박 3일 가을 여행');
+      expect(trashed.deletedAt, DateTime.utc(2026, 11, 10, 8, 30));
+      expect(trashed.purgeAt, DateTime.utc(2026, 12, 10, 8, 30));
+      expect(trashed.purgeAt.isUtc, isTrue);
+    });
+
+    test('needs both times', () {
+      expect(
+        () => trashedTripFromJson({
+          ...serverTrip(),
+          'deletedAt': '2026-11-10T08:30:00.000Z',
+        }),
+        throwsFormatException,
+      );
+    });
+  });
+
   group('broken responses', () {
     test('throw FormatException instead of a type error', () {
       for (final json in <Map<String, Object?>>[
