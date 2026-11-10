@@ -13,6 +13,7 @@ import 'package:mapmarker_app/features/trips/trip_list_controller.dart';
 import 'package:mapmarker_app/features/trips/trip_list_screen.dart';
 import 'package:mapmarker_app/features/trips/widgets/trip_card.dart';
 import 'package:mapmarker_app/features/trips/widgets/trip_phase_menu.dart';
+import 'package:mapmarker_app/l10n/l10n.dart';
 
 import '../../helpers/fake_auth.dart';
 import '../../helpers/flaky_trip_repository.dart';
@@ -27,7 +28,7 @@ Finder _menuItem(String text) => find.ancestor(
 void main() {
   _failureTests();
   _resumeTests();
-  _sampleTests();
+  _deleteTests();
 
   testWidgets('shows a hint when there are no trips', (tester) async {
     await pumpTestApp(tester, repository: testRepository());
@@ -380,19 +381,96 @@ void _resumeTests() {
   });
 }
 
-void _sampleTests() {
-  testWidgets('puts in sample trips from a debug button', (tester) async {
-    final repository = testRepository();
-    await pumpTestApp(tester, repository: repository);
+void _deleteTests() {
+  group('deleting a trip', () {
+    late FlakyTripRepository repository;
 
-    // 테스트는 디버그 모드로 돌아서 개발용 버튼이 보인다.
-    // 넣는 중에 저장소 스트림의 첫 값을 기다려서 실제 시간으로 돌린다.
-    await tester.runAsync(() async {
-      await tester.tap(find.byTooltip('샘플 넣기'));
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+    setUp(() {
+      repository = FlakyTripRepository(
+        testRepository([
+          testTrip(id: 'busan'),
+          testTrip(id: 'jeju', region: '제주'),
+        ]),
+      );
     });
-    await tester.pumpAndSettle();
 
-    expect(find.byType(TripCard), findsNWidgets(3));
+    Future<void> openDelete(WidgetTester tester, String title) async {
+      final card = find.ancestor(
+        of: find.text(title),
+        matching: find.byType(TripCard),
+      );
+      await tester.tap(
+        find.descendant(of: card, matching: find.byTooltip('여행 메뉴')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('여행 지우기'));
+      await tester.pumpAndSettle();
+    }
+
+    String titleOf(String region) => testL10n.defaultTripTitle(
+      region: region,
+      nights: 1,
+      season: Season.spring,
+    );
+
+    testWidgets('deletes the trip after confirming', (tester) async {
+      await pumpTestApp(tester, repository: repository);
+
+      await openDelete(tester, titleOf('부산'));
+      expect(find.byType(AlertDialog), findsOneWidget);
+      await tester.tap(find.widgetWithText(TextButton, '지우기'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text(titleOf('부산')), findsNothing);
+      expect(find.text(titleOf('제주')), findsOneWidget);
+    });
+
+    testWidgets('keeps the trip when cancelled', (tester) async {
+      await pumpTestApp(tester, repository: repository);
+
+      await openDelete(tester, titleOf('부산'));
+      await tester.tap(find.text('취소'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(titleOf('부산')), findsOneWidget);
+    });
+
+    testWidgets('waits in the dialog and says so there when deleting fails', (
+      tester,
+    ) async {
+      repository
+        ..holdWrites = Completer()
+        ..failWrites = ApiFailure.network;
+      await pumpTestApp(tester, repository: repository);
+      await openDelete(tester, titleOf('부산'));
+
+      await tester.tap(find.widgetWithText(TextButton, '지우기'));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsOneWidget,
+      );
+
+      repository.holdWrites!.complete();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text(testL10n.saveFailedNetwork),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('취소'));
+      await tester.pumpAndSettle();
+      expect(find.text(titleOf('부산')), findsOneWidget);
+    });
   });
 }

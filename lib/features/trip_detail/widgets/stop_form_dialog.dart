@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/time/local_time.dart';
+import '../../../core/widgets/form_saving.dart';
 import '../../../core/widgets/saving.dart';
 import '../../../data/models/stop.dart';
 import '../../../data/models/trip.dart';
@@ -10,7 +11,6 @@ import '../../../l10n/l10n.dart';
 import '../stop_draft.dart';
 import '../stop_placement.dart';
 import 'dropped_transport_list.dart';
-import 'form_saving.dart';
 
 /// 장소 입력 화면을 띄운다. 저장하면 고친 값을, 그냥 닫으면 null을 돌려준다.
 ///
@@ -336,6 +336,7 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
                   decoration: InputDecoration(
                     labelText: l10n.stopDescriptionLabel,
                     helperText: l10n.stopDescriptionHelper,
+                    helperMaxLines: 2,
                     alignLabelWithHint: true,
                   ),
                 ),
@@ -349,6 +350,7 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
                   decoration: InputDecoration(
                     labelText: l10n.stopMemoLabel,
                     helperText: l10n.stopMemoHelper,
+                    helperMaxLines: 2,
                     alignLabelWithHint: true,
                   ),
                 ),

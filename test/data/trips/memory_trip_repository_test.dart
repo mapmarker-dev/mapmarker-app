@@ -30,6 +30,24 @@ void main() {
 
   tearDown(() => repository.dispose());
 
+  test('deletes a trip with its stops and segments', () async {
+    await repository.createTrip(_trip('a'));
+    await repository.createTrip(_trip('b'));
+    await repository.addStop(testStop('s1', tripId: 'a'));
+    await repository.addStop(testStop('s2', tripId: 'a', order: 1));
+
+    await repository.deleteTrip('a');
+
+    final trips = await repository.watchTrips().first;
+    expect(trips.map((t) => t.id), ['b']);
+    expect(await repository.watchTrip('a').first, isNull);
+    final route = await repository.watchRoute('a').first;
+    expect(route.stops, isEmpty);
+    expect(route.segments, isEmpty);
+    // 없는 여행을 지워도 된다(이미 지워졌다).
+    await repository.deleteTrip('a');
+  });
+
   test('stamps created and updated times when creating', () async {
     final saved = await repository.createTrip(_trip('a'));
 

@@ -61,6 +61,10 @@ class FlakyTripRepository implements TripRepository {
   Future<Trip> updateTrip(Trip trip) => _write(() => inner.updateTrip(trip));
 
   @override
+  Future<void> deleteTrip(String tripId) =>
+      _write(() => inner.deleteTrip(tripId));
+
+  @override
   Future<Stop> addStop(Stop stop) => _write(() => inner.addStop(stop));
 
   @override

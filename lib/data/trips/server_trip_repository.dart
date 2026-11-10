@@ -115,6 +115,18 @@ class ServerTripRepository implements TripRepository {
   });
 
   @override
+  Future<void> deleteTrip(String tripId) => _write(tripId, () async {
+    try {
+      await _api.deleteTrip(tripId);
+    } on ApiException catch (error) {
+      // 이미 없다(다른 기기에서 지웠다). 지운 것으로 본다.
+      if (error.failure != ApiFailure.notFound) rethrow;
+    }
+    _cache.markMissing(tripId);
+    _changed();
+  });
+
+  @override
   Future<Stop> addStop(Stop stop) => _write(stop.tripId, () async {
     final detail = await _api.addStop(stop);
     return _putDetail(detail, stop.id);

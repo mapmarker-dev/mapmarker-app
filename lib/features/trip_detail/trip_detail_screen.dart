@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../app/routes.dart';
 import '../../core/links/open_link.dart';
 import '../../core/map/external_map.dart';
 import '../../core/map/geo.dart';
@@ -16,6 +18,10 @@ import '../../data/models/segment.dart';
 import '../../data/models/stop.dart';
 import '../../data/models/trip.dart';
 import '../../data/models/trip_route.dart';
+import '../../data/sample/copy_trip.dart';
+import '../../data/sample/jeju_sample.dart';
+import '../../data/sample/sample_trip_repository.dart';
+import '../../data/trips/trip_repository.dart';
 import '../../l10n/l10n.dart';
 import '../../data/models/new_id.dart';
 import '../../data/trips/route_links.dart';
@@ -33,6 +39,7 @@ import 'widgets/route_day_chips.dart';
 import 'widgets/route_day_panel.dart';
 import 'widgets/route_day_sheet.dart';
 import 'widgets/route_title_bar.dart';
+import 'widgets/sample_banner.dart';
 import 'widgets/stop_form_dialog.dart';
 import 'widgets/size_reporter.dart';
 import 'widgets/transport_form_dialog.dart';
@@ -114,6 +121,12 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   /// "오늘 밤도 여기서 묵기"를 눌러 저장을 기다리는 숙소. 목록이 그 버튼에 진행 표시를 띄운다.
   String? _stayingLodgingId;
 
+  /// 샘플 여행은 보기만 된다. 고칠 곳(연필·손잡이·핀·곡선 핸들·제목)을 보여 주지 않는다.
+  bool get _readOnly => isSampleTrip(trip.id);
+
+  /// 샘플을 내 여행으로 복사하는 중.
+  bool _usingSample = false;
+
   /// 일차 동선 목록에서 펼친 줄과 고른 줄. 기기를 돌려 아래 시트와 오른쪽 패널이 바뀌어도 남는다.
   final _selection = ItinerarySelection();
 
@@ -163,6 +176,27 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
         );
       }
       return false;
+    }
+  }
+
+  /// 샘플을 내 여행으로 복사하고 그 여행으로 옮겨 간다. 샘플은 이 기기에서 숨긴다.
+  /// 실패하면 반쯤 만든 여행을 지우고(`copySample`) 샘플에 남아 알린다.
+  Future<void> _useSample() async {
+    final repository = ref.read(tripRepositoryProvider);
+    setState(() => _usingSample = true);
+    try {
+      final copied = await copySample(repository, ref.read(sampleTripProvider));
+      if (!mounted) return;
+      // 먼저 옮겨 간다. 샘플을 먼저 숨기면 이 화면이 "없는 여행"을 잠깐 보여 준다.
+      context.go(Routes.trip(copied.id));
+      await repository.deleteTrip(sampleTripId);
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.saveFailureText(error.failure))),
+      );
+    } finally {
+      if (mounted) setState(() => _usingSample = false);
     }
   }
 
@@ -252,6 +286,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   /// 아래 시트가 올라와 있으면 시트만 접는다.
   /// 오른쪽 패널은 지도를 덮지 않아서 접을 것이 없다.
   void _onMapTap(MapTap tap, int? day) {
+    if (_readOnly) return;
     if (_layout == RouteSheetLayout.bottom && day != null && _sheetLift > 0) {
       _sheetKey.currentState?.collapse();
       return;
@@ -706,7 +741,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                   logoLift: itinerary == null || isSide ? 0 : _sheetLift,
                   draft: _draftPlace,
                   // 저장을 기다리는 동안에는 핸들이 없어 다시 끌 수 없다.
-                  curveSegmentId: savingSegmentId == null
+                  curveSegmentId: savingSegmentId == null && !_readOnly
                       ? _curveSegmentId(view, day)
                       : null,
                   savingSegmentId: savingSegmentId,
@@ -824,7 +859,9 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                 child: _TopOverlay(
                   trip: trip,
                   choice: choice,
-                  onRename: _rename,
+                  onRename: _readOnly ? null : _rename,
+                  onUseSample: _readOnly ? _useSample : null,
+                  usingSample: _usingSample,
                   // 패널이 오른쪽 시스템 여백을 덮으면 따로 띄울 필요가 없다.
                   rightInset: panelShown ? 0 : insets.right,
                 ),
@@ -850,6 +887,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     savingSegmentId: savingSegmentId,
     savingStopId: _savingStopId,
     stayingLodgingId: _stayingLodgingId,
+    readOnly: _readOnly,
     route: route,
     itinerary: itinerary,
     selection: _selection,
@@ -910,12 +948,18 @@ class _TopOverlay extends ConsumerWidget {
     required this.trip,
     required this.choice,
     required this.onRename,
+    required this.onUseSample,
+    required this.usingSample,
     required this.rightInset,
   });
 
   final Trip trip;
   final RouteChoice choice;
-  final VoidCallback onRename;
+  final VoidCallback? onRename;
+
+  /// 샘플 여행이면 [실제로 사용하기]. 아니면 null이고 안내가 없다.
+  final VoidCallback? onUseSample;
+  final bool usingSample;
 
   /// 오른쪽에서 비킬 시스템 여백. 오른쪽 패널이 열려 있으면 패널이 덮어서 0이다.
   final double rightInset;
@@ -946,6 +990,13 @@ class _TopOverlay extends ConsumerWidget {
               onRename: onRename,
             ),
           ),
+          if (onUseSample case final onUse?) ...[
+            const SizedBox(height: AppSpace.sm),
+            Padding(
+              padding: side,
+              child: SampleBanner(onUse: onUse, using: usingSample),
+            ),
+          ],
           const SizedBox(height: AppSpace.sm),
           RouteDayChips(
             days: trip.nights + 1,

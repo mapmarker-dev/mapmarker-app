@@ -185,6 +185,7 @@ class _TripCreateScreenState extends ConsumerState<TripCreateScreen> {
                 season: draft.season,
               ),
               helperText: l10n.titleHelperOnCreate,
+              helperMaxLines: 2,
             ),
             onChanged: controller.editTitle,
           ),

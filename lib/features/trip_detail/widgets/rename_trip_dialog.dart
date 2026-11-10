@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/form_saving.dart';
 import '../../../core/widgets/saving.dart';
 import '../../../data/models/trip.dart';
 import '../../../l10n/l10n.dart';
-import 'form_saving.dart';
 
 /// 제목을 바꾸는 창. [onSave]로 저장되면 닫힌다. 저장하지 못하면 입력한 제목을 둔 채 창 안에 알린다.
 class RenameTripDialog extends StatefulWidget {
@@ -63,6 +63,7 @@ class _RenameTripDialogState extends State<RenameTripDialog> with FormSaving {
               decoration: InputDecoration(
                 hintText: widget.defaultTitle,
                 helperText: l10n.renameTripHelper,
+                helperMaxLines: 2,
               ),
             ),
             if (error != null) ...[

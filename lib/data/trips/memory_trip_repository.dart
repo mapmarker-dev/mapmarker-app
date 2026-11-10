@@ -112,6 +112,14 @@ class MemoryTripRepository implements TripRepository {
   }
 
   @override
+  Future<void> deleteTrip(String tripId) async {
+    _trips.remove(tripId);
+    _stops.removeWhere((_, stop) => stop.tripId == tripId);
+    _segments.removeWhere((_, segment) => segment.tripId == tripId);
+    _changes.add(null);
+  }
+
+  @override
   Future<void> deleteStop(String stopId) async {
     final saved = _stopOf(stopId);
     final trip = _tripOf(saved.tripId);

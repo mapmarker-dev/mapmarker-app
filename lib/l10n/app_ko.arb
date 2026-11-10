@@ -55,6 +55,49 @@
   "loginFailedRetry": "로그인하지 못했습니다. 다시 시도해 주세요.",
   "logOut": "로그아웃",
   "logOutConfirmTitle": "로그아웃할까요?",
+  "tripMenuTooltip": "여행 메뉴",
+  "@tripMenuTooltip": {
+    "description": "여행 카드 오른쪽 위 ⋮ 메뉴"
+  },
+  "sampleBadge": "샘플",
+  "@sampleBadge": {
+    "description": "샘플 여행 카드의 표시"
+  },
+  "sampleBanner": "둘러보기만 할 수 있는 샘플 여행입니다. 마음에 들면 내 여행으로 가져가 고쳐 보세요.",
+  "useSample": "실제로 사용하기",
+  "@useSample": {
+    "description": "샘플 여행을 내 여행으로 복사하는 버튼. 복사하면 샘플은 사라진다"
+  },
+  "deleteSample": "샘플 지우기",
+  "deleteSampleTitle": "샘플 여행을 지울까요?",
+  "deleteSampleMessage": "이 기기에서는 다시 보이지 않습니다.",
+  "sampleJejuRegion": "제주",
+  "@sampleJejuRegion": {
+    "description": "샘플 여행(제주 3박 4일 가을 여행)의 지역. 아래 sampleJeju… 글은 그 여행의 장소 이름·설명·메모다"
+  },
+  "sampleJejuAirport": "제주국제공항",
+  "sampleJejuYongduam": "용두암",
+  "sampleJejuYongduamDescription": "바다를 향해 머리를 든 용 모양의 바위. 해 질 녘이 특히 예쁘다.",
+  "sampleJejuDongmun": "동문재래시장",
+  "sampleJejuDongmunMemo": "귤, 오메기떡 사기",
+  "sampleJejuCityHotel": "제주시 숙소",
+  "sampleJejuHyeopjae": "협재해수욕장",
+  "sampleJejuHyeopjaeDescription": "에메랄드빛 바다와 비양도가 보이는 해변.",
+  "sampleJejuOsulloc": "오설록 티뮤지엄",
+  "sampleJejuSeongsan": "성산일출봉",
+  "sampleJejuSeongsanDescription": "해 뜨는 시각에 맞춰 오르면 좋다. 오르는 데 20~30분.",
+  "sampleJejuUdo": "우도",
+  "sampleJejuOlleMarket": "매일올레시장",
+  "sampleJejuSeogwipoHotel": "서귀포 숙소",
+  "sampleJejuCheonjiyeon": "천지연폭포",
+  "deleteTrip": "여행 지우기",
+  "deleteTripTitle": "여행을 지울까요?",
+  "deleteTripMessage": "‘{title}’의 장소와 이동 수단이 모두 지워집니다. 되돌릴 수 없습니다.",
+  "@deleteTripMessage": {
+    "placeholders": {
+      "title": {"type": "String", "example": "제주 3박 4일 가을 여행"}
+    }
+  },
 
   "phaseBefore": "여행 전",
   "phaseDuring": "여행 중",

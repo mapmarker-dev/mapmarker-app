@@ -6,6 +6,8 @@ import '../models/segment.dart';
 import '../models/stop.dart';
 import '../models/trip.dart';
 import '../models/trip_route.dart';
+import '../sample/sample_store.dart';
+import '../sample/sample_trip_repository.dart';
 import 'memory_trip_repository.dart';
 import 'server_trip_repository.dart';
 import 'trip_api.dart';
@@ -31,6 +33,9 @@ abstract interface class TripRepository {
 
   /// 저장한 여행을 돌려준다. 없는 여행이면 [StateError]를 던진다.
   Future<Trip> updateTrip(Trip trip);
+
+  /// 여행과 그 장소·구간을 지운다. 이미 없는 여행이면 지운 것으로 본다.
+  Future<void> deleteTrip(String tripId);
 
   /// 여행의 장소와 구간. 장소와 구간을 한 값으로 내서, 둘이 어긋난 중간 상태가 보이지 않는다.
   /// 없는 여행이면 빈 동선을 낸다.
@@ -68,6 +73,7 @@ abstract interface class TripRepository {
 /// 로그인한 사용자의 서버 저장소. 로그인·로그아웃마다 새로 만든다.
 /// 앞 사용자의 여행을 기억한 저장소를 다음 사용자가 쓰지 않게 하려는 것이다.
 /// 로그아웃 상태에서는 빈 메모리 저장소다(곧 로그인 화면으로 가서 쓰지 않는다).
+/// 로그인한 동안은 샘플 여행([SampleTripRepository])을 더해 보여 준다.
 final tripRepositoryProvider = Provider<TripRepository>((ref) {
   ref.watch(authGenerationProvider);
   final clock = ref.watch(clockProvider);
@@ -76,9 +82,16 @@ final tripRepositoryProvider = Provider<TripRepository>((ref) {
     ref.onDispose(empty.dispose);
     return empty;
   }
-  final repository = ServerTripRepository(
+  final server = ServerTripRepository(
     api: ref.watch(tripApiProvider),
     clock: clock,
+  );
+  ref.onDispose(server.dispose);
+  // 처음 쓰는 사람을 위한 샘플 여행을 하나 더해 보여 준다(서버에는 없다).
+  final repository = SampleTripRepository(
+    inner: server,
+    store: ref.watch(sampleStoreProvider),
+    sample: ref.watch(sampleTripProvider),
   );
   ref.onDispose(repository.dispose);
   return repository;

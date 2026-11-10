@@ -15,7 +15,9 @@ class RouteTitleBar extends StatelessWidget {
 
   final String title;
   final String subtitle;
-  final VoidCallback onRename;
+
+  /// 제목 바꾸기. null이면 연필이 없다(샘플 여행).
+  final VoidCallback? onRename;
 
   @override
   Widget build(BuildContext context) {
@@ -53,11 +55,12 @@ class RouteTitleBar extends StatelessWidget {
                 ],
               ),
             ),
-            IconButton(
-              tooltip: context.l10n.renameTrip,
-              icon: const Icon(Icons.edit_outlined),
-              onPressed: onRename,
-            ),
+            if (onRename case final onRename?)
+              IconButton(
+                tooltip: context.l10n.renameTrip,
+                icon: const Icon(Icons.edit_outlined),
+                onPressed: onRename,
+              ),
           ],
         ),
       ),

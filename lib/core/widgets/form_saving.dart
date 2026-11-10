@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_tokens.dart';
-import '../../../core/widgets/saving.dart';
-import '../../../data/api/api_exception.dart';
-import '../../../l10n/l10n.dart';
+import '../theme/app_tokens.dart';
+import 'saving.dart';
+import '../../data/api/api_exception.dart';
+import '../../l10n/l10n.dart';
 
 /// 입력 화면이 저장하는 동안의 상태.
 ///

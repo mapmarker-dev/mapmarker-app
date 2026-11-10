@@ -84,6 +84,8 @@ void main() {
       ),
     );
     expect(field.maxLength, 100);
+    // 도움말은 글자 수와 한 줄을 나눠 써서, 좁은 창에서도 잘리지 않게 두 줄까지 내려간다.
+    expect(field.decoration!.helperMaxLines, 2);
   });
 
   testWidgets('drops the curve preview when saving the curve fails', (

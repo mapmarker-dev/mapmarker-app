@@ -51,6 +51,7 @@ dependencies:
   kakao_flutter_sdk_user: ^2.1.0
   # 고정: Client Secret을 로그에 찍지 않는 버전이다. 올리기 전에 로그 출력을 다시 본다.
   naver_login_flutter: 4.1.0
+  shared_preferences: ^2.5.6
 
 dev_dependencies:
   flutter_test:

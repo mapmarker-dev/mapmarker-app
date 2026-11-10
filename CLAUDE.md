@@ -15,7 +15,7 @@ MapMarker의 Flutter 앱 (Dart SDK ^3.12.0). 소스는 `lib/`, 테스트는 `tes
   2. 휴대폰과 PC가 같은 Wi-Fi면 앱 `.env`의 `API_BASE_URL=http://<PC의 Wi-Fi IP>:3000`(`/v1`은 코드가 붙인다). 휴대폰이 닿지 않으면 Windows 방화벽에서 3000번 인바운드를 허용한다.
   3. 공용 Wi-Fi에서는 위 방식을 쓰지 않는다. USB로 연결하고 `adb reverse tcp:3000 tcp:3000` 뒤 `API_BASE_URL=http://127.0.0.1:3000`.
   4. 앱: `flutter run --dart-define-from-file=.env`. debug 빌드만 `http://`를 허용한다(`src/debug/AndroidManifest.xml`).
-  - 디버그 빌드의 여행 목록 앱 바 "샘플 넣기"가 개발용 샘플 여행 3개를 지금 계정에 넣는다. 가입부터 다시 보려면 서버 폴더의 `npx prisma studio`에서 `users` 행을 지운다(소셜 계정·세션·여행이 함께 지워진다). 카카오·네이버 동의 화면까지 보려면 각 계정 설정의 "연결된 서비스 관리"에서도 끊는다.
+  - 가입부터 다시 보려면 서버 폴더의 `npx prisma studio`에서 `users` 행을 지운다(소셜 계정·세션·여행이 함께 지워진다). 카카오·네이버 동의 화면까지 보려면 각 계정 설정의 "연결된 서비스 관리"에서도 끊는다. 지운 제주 샘플을 다시 보려면 휴대폰 설정에서 앱 데이터를 지운다(샘플 숨김은 기기에 기억한다).
 - `gradlew`를 직접 돌릴 때는 JAVA_HOME을 Android Studio의 `jbr` 폴더로 지정한다(`flutter run`·`flutter build`는 그대로 된다).
 
 ## 환경 변수

@@ -99,6 +99,7 @@ class DayItineraryList extends StatefulWidget {
     this.onViaTap,
     this.savingStopId,
     this.stayingLodgingId,
+    this.readOnly = false,
     this.savingSegmentId,
     this.padding = EdgeInsets.zero,
   });
@@ -150,6 +151,9 @@ class DayItineraryList extends StatefulWidget {
 
   /// "오늘 밤도 여기서 묵기"를 눌러 저장을 기다리는 숙소. 그 버튼에 진행 표시가 돌고 누를 수 없다.
   final String? stayingLodgingId;
+
+  /// 보기만 한다(샘플 여행). 고르고 펼치기는 된다.
+  final bool readOnly;
 
   /// 곡선을 끌어 놓고 저장을 기다리는 구간. 그 줄이 흐려지고 진행 표시가 뜬다.
   final String? savingSegmentId;
@@ -272,8 +276,11 @@ class _DayItineraryListState extends State<DayItineraryList> {
         onToggle: () => selection.tapStop(stop.id),
         onOpenMap: () => widget.onOpenMap(stop),
         // 목록에서 누른 줄에만 연필과 손잡이가 보인다.
-        onEdit: active ? () => widget.onEdit(stop, canDelete: !fixed) : null,
-        reorderHandle: !active || index == null || stops.length < 2
+        onEdit: active && !widget.readOnly
+            ? () => widget.onEdit(stop, canDelete: !fixed)
+            : null,
+        reorderHandle:
+            !active || widget.readOnly || index == null || stops.length < 2
             ? null
             : widget.reorderLocked
             ? Tooltip(
@@ -368,7 +375,7 @@ class _DayItineraryListState extends State<DayItineraryList> {
                       highlighted: selection.highlighted.contains(arrival.id),
                       saving: arrival.id == widget.savingSegmentId,
                       onTap: () => selection.pick(arrival.id),
-                      onEdit: selection.active == arrival.id
+                      onEdit: selection.active == arrival.id && !widget.readOnly
                           ? () => widget.onEditSegment(arrival)
                           : null,
                     ),
@@ -385,29 +392,30 @@ class _DayItineraryListState extends State<DayItineraryList> {
           ),
         ),
         // 그날 밤 숙소를 아직 넣지 않았으면, 그날 들른 숙소나 전날 숙소(연박)를 한 번에 다시 넣는다.
-        for (final lodging in itinerary.lodgingsToStayAgain)
-          SliverPadding(
-            padding: side.add(const EdgeInsets.only(top: AppSpace.sm)),
-            sliver: SliverToBoxAdapter(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(
-                  onPressed: widget.stayingLodgingId == null
-                      ? () => widget.onStayAgain(lodging)
-                      : null,
-                  icon: lodging.id == widget.stayingLodgingId
-                      ? SavingIndicator(label: l10n.saving, padded: false)
-                      : const Icon(Icons.bed_outlined),
-                  // 전날 밤 숙소는 이어서 묵는 것이라 "오늘 밤도", 그날 들른 숙소는 "오늘 밤은"이다.
-                  label: Text(
-                    lodging.id == itinerary.start?.id
-                        ? l10n.stayAgain(lodging.name)
-                        : l10n.stayTonight(lodging.name),
+        if (!widget.readOnly)
+          for (final lodging in itinerary.lodgingsToStayAgain)
+            SliverPadding(
+              padding: side.add(const EdgeInsets.only(top: AppSpace.sm)),
+              sliver: SliverToBoxAdapter(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: widget.stayingLodgingId == null
+                        ? () => widget.onStayAgain(lodging)
+                        : null,
+                    icon: lodging.id == widget.stayingLodgingId
+                        ? SavingIndicator(label: l10n.saving, padded: false)
+                        : const Icon(Icons.bed_outlined),
+                    // 전날 밤 숙소는 이어서 묵는 것이라 "오늘 밤도", 그날 들른 숙소는 "오늘 밤은"이다.
+                    label: Text(
+                      lodging.id == itinerary.start?.id
+                          ? l10n.stayAgain(lodging.name)
+                          : l10n.stayTonight(lodging.name),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
         SliverToBoxAdapter(
           child: SizedBox(height: widget.padding.bottom + AppSpace.lg),
         ),

@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/form_saving.dart';
 import '../../../core/widgets/saving.dart';
 import '../../../data/models/segment.dart';
 import '../../../l10n/l10n.dart';
 import '../transport_draft.dart';
 import '../transport_look.dart';
-import 'form_saving.dart';
 
 /// 이동 수단 입력 화면을 띄운다. [onSave]로 저장되면 고친 값을 돌려주며 닫히고, 그냥 닫으면 null이다.
 /// 저장하지 못하면 입력한 그대로 열려 있고 화면 안에 알린다([FormSaving]).
