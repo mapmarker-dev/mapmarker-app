@@ -1,11 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/time/today.dart';
+import '../auth/auth_session.dart';
 import '../models/segment.dart';
 import '../models/stop.dart';
 import '../models/trip.dart';
 import '../models/trip_route.dart';
 import 'memory_trip_repository.dart';
+import 'server_trip_repository.dart';
+import 'trip_api.dart';
 
 /// 여행 저장소. 서버 구현(`ServerTripRepository`)과 메모리 구현(테스트·개발용)이 있다.
 ///
@@ -62,8 +65,21 @@ abstract interface class TripRepository {
   void refreshWatched();
 }
 
+/// 로그인한 사용자의 서버 저장소. 로그인·로그아웃마다 새로 만든다.
+/// 앞 사용자의 여행을 기억한 저장소를 다음 사용자가 쓰지 않게 하려는 것이다.
+/// 로그아웃 상태에서는 빈 메모리 저장소다(곧 로그인 화면으로 가서 쓰지 않는다).
 final tripRepositoryProvider = Provider<TripRepository>((ref) {
-  final repository = MemoryTripRepository(clock: ref.watch(clockProvider));
+  ref.watch(authGenerationProvider);
+  final clock = ref.watch(clockProvider);
+  if (!ref.read(authSessionProvider).isLoggedIn) {
+    final empty = MemoryTripRepository(clock: clock);
+    ref.onDispose(empty.dispose);
+    return empty;
+  }
+  final repository = ServerTripRepository(
+    api: ref.watch(tripApiProvider),
+    clock: clock,
+  );
   ref.onDispose(repository.dispose);
   return repository;
 });

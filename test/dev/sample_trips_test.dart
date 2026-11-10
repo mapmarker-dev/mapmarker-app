@@ -3,6 +3,7 @@ import 'package:mapmarker_app/core/map/map_provider.dart';
 import 'package:mapmarker_app/core/time/local_date.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
+import 'package:mapmarker_app/data/models/trip_route.dart';
 import 'package:mapmarker_app/data/trips/memory_trip_repository.dart';
 import 'package:mapmarker_app/dev/sample_trips.dart';
 import 'package:mapmarker_app/features/trip_detail/transport_look.dart';
@@ -17,6 +18,8 @@ SampleTrips _samples() => sampleTrips(
 );
 
 void main() {
+  _insertTests();
+
   test('shows one trip for each phase today', () {
     for (final today in [
       LocalDate(2026, 10, 15),
@@ -123,4 +126,82 @@ void main() {
       expect(legs.any((l) => l.isEmpty), isTrue, reason: '미정');
     },
   );
+}
+
+void _insertTests() {
+  group('insertSamples', () {
+    test('puts the samples in through the repository methods', () async {
+      final samples = _samples();
+      final repository = MemoryTripRepository();
+      addTearDown(repository.dispose);
+
+      await insertSamples(repository, samples);
+
+      final trips = await repository.watchTrips().first;
+      expect(
+        {for (final trip in trips) trip.title},
+        {for (final trip in samples.trips) trip.title},
+      );
+      final jeju = samples.trips.first;
+      final route = await repository.watchRoute(jeju.id).first;
+      expect(
+        [for (final stop in route.stops) stop.name],
+        [
+          for (final stop
+              in samples.stops.where((s) => s.tripId == jeju.id).toList()
+                ..sort(compareRouteOrder))
+            stop.name,
+        ],
+      );
+    });
+
+    test(
+      'sets transport and curves on the segments the repository made',
+      () async {
+        final samples = _samples();
+        final repository = MemoryTripRepository();
+        addTearDown(repository.dispose);
+
+        await insertSamples(repository, samples);
+
+        final jeju = samples.trips.first;
+        final route = await repository.watchRoute(jeju.id).first;
+        String pairOf(String from, String to) =>
+            '${route.stopById(from)!.name} > ${route.stopById(to)!.name}';
+        final expected = {
+          for (final segment in samples.segments)
+            pairOf(
+              samples.stops.singleWhere((s) => s.id == segment.fromStopId).id,
+              samples.stops.singleWhere((s) => s.id == segment.toStopId).id,
+            ): (
+              segment.legs,
+              segment.curvature,
+            ),
+        };
+        final actual = {
+          for (final segment in route.segments)
+            if (segment.legs.isNotEmpty || segment.curvature != 0)
+              pairOf(segment.fromStopId, segment.toStopId): (
+                segment.legs,
+                segment.curvature,
+              ),
+        };
+        expect(actual.keys, unorderedEquals(expected.keys));
+        for (final MapEntry(:key, :value) in expected.entries) {
+          expect(actual[key]!.$1, value.$1, reason: key);
+          expect(actual[key]!.$2, value.$2, reason: key);
+        }
+      },
+    );
+
+    test('can be put in again with new ids', () async {
+      final repository = MemoryTripRepository();
+      addTearDown(repository.dispose);
+
+      await insertSamples(repository, _samples());
+      await insertSamples(repository, _samples());
+
+      expect(await repository.watchTrips().first, hasLength(6));
+    });
+  });
 }

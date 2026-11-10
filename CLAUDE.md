@@ -10,13 +10,24 @@ MapMarker의 Flutter 앱 (Dart SDK ^3.12.0). 소스는 `lib/`, 테스트는 `tes
 - 정적 분석: `flutter analyze`
 - 테스트: `flutter test`
 - 실행: `flutter run --dart-define-from-file=.env` (VS Code는 `.vscode/launch.json`에 설정돼 있음)
+- 실기기로 서버까지 볼 때의 순서
+  1. 서버: `../mapmarker-server`에서 `npm run db:up` → `npm run start:dev`. 서버 `.env`의 `KAKAO_NATIVE_APP_KEY`가 실제 키여야 카카오 로그인이 된다.
+  2. 휴대폰과 PC가 같은 Wi-Fi면 앱 `.env`의 `API_BASE_URL=http://<PC의 Wi-Fi IP>:3000`(`/v1`은 코드가 붙인다). 휴대폰이 닿지 않으면 Windows 방화벽에서 3000번 인바운드를 허용한다.
+  3. 공용 Wi-Fi에서는 위 방식을 쓰지 않는다. USB로 연결하고 `adb reverse tcp:3000 tcp:3000` 뒤 `API_BASE_URL=http://127.0.0.1:3000`.
+  4. 앱: `flutter run --dart-define-from-file=.env`. debug 빌드만 `http://`를 허용한다(`src/debug/AndroidManifest.xml`).
+  - 디버그 빌드의 여행 목록 앱 바 "샘플 넣기"가 개발용 샘플 여행 3개를 지금 계정에 넣는다. 가입부터 다시 보려면 서버 폴더의 `npx prisma studio`에서 `users` 행을 지운다(소셜 계정·세션·여행이 함께 지워진다). 카카오·네이버 동의 화면까지 보려면 각 계정 설정의 "연결된 서비스 관리"에서도 끊는다.
 - `gradlew`를 직접 돌릴 때는 JAVA_HOME을 Android Studio의 `jbr` 폴더로 지정한다(`flutter run`·`flutter build`는 그대로 된다).
 
 ## 환경 변수
 
 - 키는 `.env`에 둔다. `.env`는 커밋하지 않고, 항목 목록은 `.env.example`에 둔다. 새 키를 추가하면 `.env.example`도 함께 고친다.
-- 앱 코드는 `lib/config/env.dart`의 `Env`로만 값을 읽는다.
+- 앱 코드는 `lib/config/env.dart`의 `Env`로만 값을 읽는다. 필수 값이 비면 앱 대신 `MissingEnvScreen`이 빈 이름을 보여 준다.
 - Client Secret 같은 비밀값은 앱 코드에서 읽지 않는다. 앱 빌드에 들어가면 누구나 꺼낼 수 있다.
+- 값의 위치
+  - `.env`(dart-define으로 Dart까지 간다): `NAVER_MAP_CLIENT_ID`, `API_BASE_URL`, `KAKAO_NATIVE_APP_KEY`(Gradle도 읽어 카카오 스킴 `kakao<키>`를 만든다).
+  - `android/local.properties`(커밋하지 않음, Gradle만 읽는다): `naver.client_id`, `naver.client_secret`, `naver.client_name`. `android/app/build.gradle.kts`가 매니페스트 meta-data로 넣는다. 없으면 빈 값으로 빌드되고 그 로그인만 실패한다.
+- **예외: 네이버 로그인 Client Secret은 APK에 들어간다.** 네이버 로그인 SDK가 초기화에 요구해서 피할 수 없다(이유는 OVERVIEW "로그인과 계정"). 그래서 Dart와 `.env`에는 두지 않고 `local.properties` → 매니페스트로만 넣는다. 매니페스트의 `com.naver.sdk.logEnabled`는 `false`로 둔다(켜면 설정값이 logcat에 남는다). `naver_login_flutter`는 4.1.0에 고정했고, 올릴 때 로그 출력을 다시 본다. 플러그인의 `configure` CLI는 쓰지 않는다(Secret이 셸 기록에 남는다).
+- 카카오 콘솔에는 개발 PC의 debug 키 해시만 있다. 다른 PC에서 빌드하면 그 PC의 키 해시를 콘솔에 더한다.
 
 ## 브랜치
 
@@ -45,6 +56,8 @@ lib/
 - 기능 폴더는 `xxx_screen.dart`, `xxx_controller.dart`(Notifier), `widgets/`로 시작하고, 파일이 많아지면 나눈다.
 - 기능끼리는 서로 import하지 않는다. 같이 쓸 코드는 `data/`나 `core/`로 옮긴다.
 - 화면은 경로로 이동한다(`context.go(Routes.xxx)`). 새 화면은 `app/router.dart`의 여행 목록(`/`) 아래에 등록한다. 딥링크로 바로 열어도 뒤로가기가 여행 목록으로 가게 하기 위해서다.
+  - 예외: 로그인(`/login`)은 최상위다. 여행 목록 아래에 두면 토큰 없이 목록이 만들어지고, 로그인 화면의 뒤로가기가 앱을 닫지 못한다. 로그인 여부에 따른 이동은 `authRedirect` 한 곳에서 한다(가려던 곳은 `?from=`, 앱 안 경로만 받는다).
+- 서버 API는 `data/api/ApiClient`(토큰 붙이기·재발급)로만 부른다. 여행 저장소는 로그인한 사용자마다 `ServerTripRepository`를 새로 만든다(`tripRepositoryProvider`). 쓰기 실패는 `ApiException`이고, 화면은 `saveFailureText`로 알린다.
 - 상태 관리는 Riverpod을 코드 생성 없이 쓴다.
 
 ## 다국어
@@ -69,7 +82,8 @@ lib/
 
 ## 테스트
 
-- 공용 도우미는 `test/helpers/`다. 화면은 `pumpTestApp`(지도를 가짜 지도로 바꿔 끼움)이나 `testMaterialApp`으로 띄운다. 지도에 넘긴 장면은 `mapScene(tester)`, 지도 탭은 `tapMarker`·`tapLine`·`tapMap`으로 본다.
+- 테스트는 실제 서버·카카오·네이버에 붙지 않는다. HTTP는 `FakeHttp`(`fake_http.dart`)를 끼운 dio, 로그인 상태·SDK는 `authOverrides`·`testSession`·`FakeSocialSdk`(`fake_auth.dart`), 저장 실패는 `FlakyTripRepository`로 본다.
+- 공용 도우미는 `test/helpers/`다. 화면은 `pumpTestApp`(지도를 가짜 지도로 바꿔 끼움, 기본으로 로그인 상태)이나 `testMaterialApp`으로 띄운다. 지도에 넘긴 장면은 `mapScene(tester)`, 지도 탭은 `tapMarker`·`tapLine`·`tapMap`으로 본다.
 - 기본 화면(800×600)은 가로라 동선 목록이 오른쪽 패널로 뜬다. 아래 시트는 `usePortraitPhone`으로 띄운다. 연필·손잡이는 줄을 먼저 눌러야 뜬다.
 - 앱 로캘이 한국어라 `tester.pageBack()` 대신 `find.byType(BackButton)`을 누른다. 칩은 글자 대신 `ChoiceChip`·`FilterChip` 위젯을 누른다.
 - 저장소 스트림을 `await ...first`로 기다리지 않는다(가짜 시간 안에서 끝나지 않는다). 저장된 값은 화면이나 `container.read`로 본다.

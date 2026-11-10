@@ -107,6 +107,16 @@ class AuthSession extends ChangeNotifier {
   }
 }
 
+/// [AuthSession.generation]. 로그인·로그아웃마다 바뀐다.
+/// 사용자마다 새로 만들어야 하는 것(여행 저장소)이 이것을 본다.
+final authGenerationProvider = Provider<int>((ref) {
+  final session = ref.watch(authSessionProvider);
+  void changed() => ref.invalidateSelf();
+  session.addListener(changed);
+  ref.onDispose(() => session.removeListener(changed));
+  return session.generation;
+});
+
 /// 앱을 켤 때 `main.dart`가 [AuthSession.restore]로 만들어 끼운다.
 /// 경로 표가 첫 화면을 정하기 전에 로그인 상태를 알아야 해서다.
 final authSessionProvider = Provider<AuthSession>(

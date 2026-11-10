@@ -103,17 +103,21 @@ MemoryTripRepository testRepository([
 /// 링크를 열지 못하는 기기. 테스트에서 실제 앱이나 브라우저를 열지 않게 기본으로 쓴다.
 Future<bool> refuseLinks(Uri uri) async => false;
 
-/// 로그인 상태와 인증 서버·소셜 SDK를 가짜로 바꾸는 덮어쓰기.
-/// [authServer]는 로그인·재발급·로그아웃 요청에 답한다.
+/// 로그인 상태와 서버·소셜 SDK를 가짜로 바꾸는 덮어쓰기. 실제 서버에 붙지 않는다.
+/// [authServer]는 로그인·재발급·로그아웃 요청과, 저장소를 덮어쓰지 않았을 때의 여행 API 요청에 답한다.
 List<Override> authOverrides({
   AuthSession? session,
   SocialSdk? socialSdk,
   FakeHttp? authServer,
 }) {
   final server = authServer ?? fakeAuthServer();
+  final authSession = session ?? testSession(http: server);
   return [
-    authSessionProvider.overrideWithValue(session ?? testSession(http: server)),
+    authSessionProvider.overrideWithValue(authSession),
     authApiProvider.overrideWithValue(AuthApi(fakeDio(server))),
+    apiClientProvider.overrideWithValue(
+      ApiClient(fakeDio(server), authSession),
+    ),
     socialSdkProvider.overrideWithValue(socialSdk ?? FakeSocialSdk()),
   ];
 }

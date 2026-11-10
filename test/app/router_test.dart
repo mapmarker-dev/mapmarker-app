@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/app/router.dart';
 import 'package:mapmarker_app/app/routes.dart';
+import 'package:mapmarker_app/data/trips/trip_repository.dart';
 import 'package:mapmarker_app/features/login/login_screen.dart';
 import 'package:mapmarker_app/features/trips/trip_list_screen.dart';
 
@@ -10,7 +11,10 @@ import '../helpers/fake_auth.dart';
 import '../helpers/test_app.dart';
 
 Widget _app() => ProviderScope(
-  overrides: authOverrides(),
+  overrides: [
+    ...authOverrides(),
+    tripRepositoryProvider.overrideWithValue(testRepository()),
+  ],
   child: Consumer(
     builder: (context, ref, _) => testMaterialApp(ref.watch(routerProvider)),
   ),
@@ -135,7 +139,10 @@ void main() {
       final session = testSession(loggedIn: false);
       await tester.pumpWidget(
         ProviderScope(
-          overrides: authOverrides(session: session),
+          overrides: [
+            ...authOverrides(session: session),
+            tripRepositoryProvider.overrideWithValue(testRepository()),
+          ],
           child: Consumer(
             builder: (context, ref, _) =>
                 testMaterialApp(ref.watch(routerProvider)),
@@ -154,7 +161,10 @@ void main() {
       final session = testSession();
       await tester.pumpWidget(
         ProviderScope(
-          overrides: authOverrides(session: session),
+          overrides: [
+            ...authOverrides(session: session),
+            tripRepositoryProvider.overrideWithValue(testRepository()),
+          ],
           child: Consumer(
             builder: (context, ref, _) =>
                 testMaterialApp(ref.watch(routerProvider)),

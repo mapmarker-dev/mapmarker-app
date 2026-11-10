@@ -24,6 +24,7 @@ Finder _menuItem(String text) => find.ancestor(
 void main() {
   _failureTests();
   _resumeTests();
+  _sampleTests();
 
   testWidgets('shows a hint when there are no trips', (tester) async {
     await pumpTestApp(tester, repository: testRepository());
@@ -351,5 +352,22 @@ void _resumeTests() {
     await tester.pump();
 
     expect(repository.watchedRefreshes, 1);
+  });
+}
+
+void _sampleTests() {
+  testWidgets('puts in sample trips from a debug button', (tester) async {
+    final repository = testRepository();
+    await pumpTestApp(tester, repository: repository);
+
+    // 테스트는 디버그 모드로 돌아서 개발용 버튼이 보인다.
+    // 넣는 중에 저장소 스트림의 첫 값을 기다려서 실제 시간으로 돌린다.
+    await tester.runAsync(() async {
+      await tester.tap(find.byTooltip('샘플 넣기'));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TripCard), findsNWidgets(3));
   });
 }

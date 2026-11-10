@@ -11,6 +11,7 @@ import '../../data/api/api_exception.dart';
 import '../../data/auth/account.dart';
 import '../../data/models/trip.dart';
 import '../../data/trips/trip_repository.dart';
+import '../../dev/sample_trips.dart';
 import '../../l10n/l10n.dart';
 import 'trip_list_controller.dart';
 import 'widgets/trip_card.dart';
@@ -99,6 +100,12 @@ class TripListScreen extends ConsumerWidget {
               tooltip: '스냅샷 검증',
               icon: const Icon(Icons.science_outlined),
               onPressed: () => context.go(Routes.snapshotLab),
+            ),
+          if (kDebugMode)
+            IconButton(
+              tooltip: '샘플 넣기',
+              icon: const Icon(Icons.playlist_add),
+              onPressed: () => _insertSamples(context, ref),
             ),
           // 설정 화면(1-6단계)이 생기면 그리로 옮긴다.
           PopupMenuButton<_Menu>(
@@ -211,6 +218,26 @@ class TripListScreen extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.l10n.saveFailureText(error.failure))),
+      );
+    }
+  }
+
+  /// 개발용 샘플 여행 3개(강릉·부산·제주)를 지금 계정에 넣는다. 누를 때마다 새로 넣는다.
+  Future<void> _insertSamples(BuildContext context, WidgetRef ref) async {
+    final now = ref.read(clockProvider)();
+    try {
+      await insertSamples(
+        ref.read(tripRepositoryProvider),
+        sampleTrips(
+          today: LocalDate.fromDateTime(now),
+          now: now,
+          l10n: ref.read(l10nProvider),
+        ),
+      );
+    } on ApiException catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('샘플을 넣지 못했습니다: ${error.failure.name}')),
       );
     }
   }

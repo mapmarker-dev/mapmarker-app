@@ -3,6 +3,8 @@ import '../data/models/new_id.dart';
 import '../data/models/segment.dart';
 import '../data/models/stop.dart';
 import '../data/models/trip.dart';
+import '../data/models/trip_route.dart';
+import '../data/trips/trip_repository.dart';
 import '../l10n/l10n.dart';
 
 /// 샘플 여행과 그 장소. 구간은 저장소가 장소 사이에 잇고, [segments]는 이동 수단을 미리 넣은 구간이다.
@@ -12,9 +14,9 @@ typedef SampleTrips = ({
   List<Segment> segments,
 });
 
-/// 디버그 빌드에서 미리 넣는 여행. [today] 기준으로 전/중/후가 하나씩 보인다.
+/// 개발용 샘플 여행. [today] 기준으로 전/중/후가 하나씩 보인다.
 ///
-/// 서버가 생기기 전에는 메모리 저장소라서, 실기기로 확인할 때마다 다시 입력하지 않게 한다.
+/// 디버그 빌드의 여행 목록 "샘플 넣기" 버튼이 [insertSamples]로 지금 계정에 넣는다.
 /// 제목은 [l10n]의 기본 제목이다.
 /// - 제주: 숙소 연박과 숙소를 옮기는 날, 장소 종류, 이동 수단의 선 모양 3갈래·갈아타기·미정이 모두 들어 있다.
 /// - 강릉: 장소가 없는 여행.
@@ -175,6 +177,43 @@ SampleTrips sampleTrips({
       ]),
     ],
   );
+}
+
+/// [samples]를 저장소의 일반 메서드(여행 만들기, 장소 넣기, 구간 고치기)로 넣는다. 서버 저장소에도 그대로 들어간다.
+///
+/// 구간은 저장소가 장소 사이에 만들고 ID도 저장소(서버)가 정한다.
+/// 그래서 미리 넣을 구간은 잇는 두 장소로 찾아 이동 수단과 곡률만 고친다.
+/// 실패하면 [samples]의 나머지는 넣지 않고 던진다.
+Future<void> insertSamples(
+  TripRepository repository,
+  SampleTrips samples,
+) async {
+  for (final trip in samples.trips) {
+    await repository.createTrip(trip);
+    final stops = samples.stops.where((stop) => stop.tripId == trip.id).toList()
+      ..sort(compareRouteOrder);
+    // 동선 순서로 하나씩 맨 뒤에 넣는다. 각 장소의 순서가 곧 넣을 자리다.
+    for (final stop in stops) {
+      await repository.addStop(stop);
+    }
+    final wanted = [
+      for (final segment in samples.segments)
+        if (segment.tripId == trip.id) segment,
+    ];
+    if (wanted.isEmpty) continue;
+    final route = await repository.watchRoute(trip.id).first;
+    for (final segment in wanted) {
+      final made = route.segments.where(
+        (s) =>
+            s.fromStopId == segment.fromStopId &&
+            s.toStopId == segment.toStopId,
+      );
+      if (made.isEmpty) continue;
+      await repository.updateSegment(
+        made.single.copyWith(legs: segment.legs, curvature: segment.curvature),
+      );
+    }
+  }
 }
 
 class _Place {
