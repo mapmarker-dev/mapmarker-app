@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/models/trip.dart';
 import '../../../l10n/l10n.dart';
 
 /// 제목을 바꾸는 창. 저장하면 입력한 제목을, 취소하면 null을 돌려준다.
@@ -38,6 +39,7 @@ class _RenameTripDialogState extends State<RenameTripDialog> {
       content: TextField(
         controller: _controller,
         autofocus: true,
+        maxLength: Trip.titleMaxLength,
         textInputAction: TextInputAction.done,
         onSubmitted: (_) => _save(),
         decoration: InputDecoration(

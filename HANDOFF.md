@@ -4,11 +4,11 @@
 
 ## 지금 하는 일
 
-서버 연동·로그인 단위(PLAN 1-2 마지막 항목)를 구현한다. 사용자가 설계를 승인했고, 결정은 아래 "아직 문서에 없는 결정"에 있다. 커밋 6개 중 커밋 1(토큰·API 클라이언트)·2(로그인·로그아웃)는 커밋했고, 커밋 3(JSON·API 호출)은 코드와 테스트를 마쳤다. 여행은 아직 메모리 저장소다. 범위 밖: 회원 탈퇴(1-6), 사진(1-3), AWS 배포(1-7), Apple·구글 로그인, 오프라인 저장(2-2), 장소 검색·주소, 앱 CI. 서버 API와 토큰 방식은 바꾸지 않고, 서버를 꼭 고쳐야 하면 먼저 묻는다. 앱 CI는 서버가 좀 개발된 뒤에 넣는다(`.github` HANDOFF).
+서버 연동·로그인 단위(PLAN 1-2 마지막 항목)를 구현한다. 사용자가 설계를 승인했고, 결정은 아래 "아직 문서에 없는 결정"에 있다. 커밋 6개 중 1(토큰·API 클라이언트)·2(로그인·로그아웃)·3(JSON·API 호출)은 커밋했고, 커밋 4(서버 저장소·실패 표시·입력 상한)는 코드와 테스트를 마쳤다. 앱은 아직 메모리 저장소를 쓴다(서버 저장소로 바꿔 끼우는 것은 커밋 5). 범위 밖: 회원 탈퇴(1-6), 사진(1-3), AWS 배포(1-7), Apple·구글 로그인, 오프라인 저장(2-2), 장소 검색·주소, 앱 CI. 서버 API와 토큰 방식은 바꾸지 않고, 서버를 꼭 고쳐야 하면 먼저 묻는다. 앱 CI는 서버가 좀 개발된 뒤에 넣는다(`.github` HANDOFF).
 
 ## 다음에 할 첫 단계
 
-1. 커밋 4(서버 저장소·실패 표시·입력 상한)를 시작한다. `TripApi`(`lib/data/trips/trip_api.dart`)로 `ServerTripRepository`를 만들고, 화면의 쓰기 호출에 실패 처리를 더한다. 저장소는 아직 바꿔 끼우지 않는다(커밋 5).
+1. 커밋 5(저장소 교체·샘플 정리·문서)를 시작한다. `tripRepositoryProvider`가 로그인한 사용자마다 `ServerTripRepository`를 새로 만들게 한다(`AuthSession.generation`이 바뀌면 다시 만들고 이전 것은 `dispose`). 켤 때 샘플을 넣던 `main.dart` 코드를 없애고, 여행 목록에 디버그 전용 "샘플 넣기" 버튼을 둔다. 그다음 실기기 확인(여행·장소·구간이 서버에 저장되고 다시 불러와지는지)과 문서 갱신.
    - 커밋 2(로그인·로그아웃)는 태블릿(카카오톡 없음, 네이버 앱 있음)에서 확인했다: 카카오 계정·네이버 로그인, 다시 켜도 유지(서버가 꺼져 있어도 켤 때 묻지 않는다), 로그아웃, 카카오 로그인 취소(안내 없음), 서버 끔일 때 연결 확인 안내, 사용자를 지운 뒤 다시 가입.
    - 네이버는 로그아웃 뒤 다시 누르면 같은 계정으로 바로 들어간다(네이버 앱의 로그인 상태를 쓴다). 지금처럼 둔다: 계정은 네이버 앱에서 바꾼다. `reauthenticate`는 브라우저 로그인에만 걸리는 것으로 보이고, 매번 로그인 화면을 띄우면 번거롭다.
    - 진행 방식: 커밋마다 `flutter analyze`·`flutter test` → 이 파일 수정 → 커밋 메시지를 주고 멈춘다. 실기기 확인 전에는 사용자가 넣을 값과 파일(앱 `.env`, `android/local.properties`, 서버 `.env`)과 버튼 이미지를 안내한다.
@@ -18,7 +18,11 @@
 
 ## 현재 상태
 
-- `flutter analyze` 문제 0건, `flutter test` 526개 통과, `flutter build apk --debug` 성공(커밋 2 기준). 카카오·네이버 SDK는 `android.builtInKotlin=false` 그대로 빌드된다. 여행은 아직 메모리 저장소라 앱을 끄면 사라지고, 계정을 바꿔도 같은 여행이 보인다(커밋 4·5에서 서버 저장소와 사용자별 저장소로 바꾼다).
+- `flutter analyze` 문제 0건, `flutter test` 561개 통과, `flutter build apk --debug` 성공(커밋 2 기준). 카카오·네이버 SDK는 `android.builtInKotlin=false` 그대로 빌드된다. 여행은 아직 메모리 저장소라 앱을 끄면 사라지고, 계정을 바꿔도 같은 여행이 보인다(커밋 5에서 사용자별 서버 저장소로 바꾼다).
+- `ServerTripRepository`(`lib/data/trips/`): 설계 4번대로 만들었다. 기억한 값은 `TripCache`(메모리)에 둔다. 화면이 스트림을 듣기 시작할 때마다 뒤에서 다시 받고, 앱으로 돌아오면 `refreshWatched`(여행 목록 화면의 `AppLifecycleListener`). 쓰기는 여행별로 줄 세우고, 쓰기 시작·끝마다 `_writeEpoch`를 올려 그사이에 걸친 읽기 결과를 버린다. 쓰기 실패(401 제외)는 저장소가 그 여행(모르면 목록)을 다시 받는다. 처음 받기 실패만 스트림 오류다.
+- 화면: 쓰기 11곳(동선 9, 상태 바꾸기, 여행 만들기)이 `ApiException`을 받아 스낵바(`saveFailureText`: 네트워크·409·그 밖). 장소 넣기에 실패하면 임시 핀이 남고, 끌어 옮기기에 실패하면 목록이 돌아간다. 목록·동선 화면은 처음 받기에 실패하면 [다시 시도](provider를 `invalidate`). 여행 목록은 당겨서 새로고침.
+- 곡선 핸들: `onCurveChanged`가 `Future<bool>`(저장했는지)을 돌려준다. false면 네이버 지도 구현이 끄는 동안의 미리보기를 지운다. 이 부분은 실기기에서만 볼 수 있다(테스트는 화면이 false를 돌려주는 것까지).
+- 입력 상한은 `Trip.titleMaxLength`(100)·`regionMaxLength`(50)·`maxNights`(365). 기간으로 365박을 넘기면 정하지 않고 알린다. 지역 칸은 글자 수 표시를 숨겼다(짧아서 늘 보일 필요가 없다).
 - `lib/data/api/`(`ApiClient`), `lib/data/auth/`(`AuthSession` 토큰·재발급, `Account` 로그인·로그아웃 순서, `SocialSdk` 카카오·네이버 플러그인), `lib/features/login/`, `/login` 경로와 `authRedirect`. 여행 목록 앱 바 `⋮` → 로그아웃.
 - `MainActivity`는 `FlutterActivity` 그대로다. 두 SDK가 로그인 화면을 자기 Activity(카카오는 `FragmentActivity`)로 띄워서 앱 Activity를 바꿀 필요가 없어 보인다. 실기기에서 안 되면 다시 본다.
 - 값이 Gradle로 가는 길: `android/app/build.gradle.kts`가 `android/local.properties`의 `naver.client_id`·`naver.client_name`(매니페스트 자리 표시자)·`naver.client_secret`(`resValue`)과 앱 `.env`의 `KAKAO_NATIVE_APP_KEY`(카카오 스킴)를 읽는다. 없으면 빈 값으로 빌드되고 그 로그인만 실패한다. `.env` 필수 값이 비면 `MissingEnvScreen`이 이름을 보여 준다.

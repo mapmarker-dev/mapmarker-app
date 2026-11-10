@@ -10,6 +10,7 @@ import '../../core/map/map_registry.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/time/today.dart';
+import '../../data/api/api_exception.dart';
 import '../../data/models/map_provider_type.dart';
 import '../../data/models/segment.dart';
 import '../../data/models/stop.dart';
@@ -45,10 +46,18 @@ class TripDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
+    final route = ref.watch(tripRouteProvider(tripId));
+    // 다시 시도하면 두 스트림을 새로 들어서 서버에서 다시 받는다.
+    void retry() => ref
+      ..invalidate(tripDetailProvider(tripId))
+      ..invalidate(tripRouteProvider(tripId));
     return switch (ref.watch(tripDetailProvider(tripId))) {
+      // 여행은 목록에서 받아 두었지만 동선을 받지 못했다.
+      AsyncData(value: _?) when route is AsyncError && !route.hasValue =>
+        _Message(l10n.tripLoadFailed, onRetry: retry),
       AsyncData(value: final trip?) => _TripRoutePage(trip: trip),
       AsyncData() => _Message(l10n.tripNotFound),
-      AsyncError() => _Message(l10n.tripLoadFailed),
+      AsyncError() => _Message(l10n.tripLoadFailed, onRetry: retry),
       AsyncLoading() => Scaffold(
         appBar: AppBar(),
         body: const Center(child: CircularProgressIndicator()),
@@ -128,6 +137,24 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     super.dispose();
   }
 
+  /// 저장소에 쓴다. 저장했으면 true다.
+  ///
+  /// 실패하면 스낵바로 알리고 false다. 저장소가 그 여행을 다시 불러와서 화면은 서버 값으로 돌아간다.
+  /// 응답만 잃었을 수도 있어서, 다시 불러온 값에 저장한 내용이 있을 수 있다.
+  Future<bool> _save(Future<void> Function() write) async {
+    try {
+      await write();
+      return true;
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.saveFailureText(error.failure))),
+        );
+      }
+      return false;
+    }
+  }
+
   Future<void> _rename() async {
     final title = await showDialog<String>(
       context: context,
@@ -137,7 +164,9 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       ),
     );
     if (title == null || !mounted) return;
-    await ref.read(tripDetailProvider(trip.id).notifier).rename(title);
+    await _save(
+      () => ref.read(tripDetailProvider(trip.id).notifier).rename(title),
+    );
   }
 
   void _onOverlaySize(Size size) {
@@ -249,8 +278,11 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       position: place.position,
       order: placedOrder(_latestRoute(route), draft),
     );
-    await ref.read(tripDetailProvider(trip.id).notifier).addStop(stop);
-    if (!mounted) return;
+    final added = await _save(
+      () => ref.read(tripDetailProvider(trip.id).notifier).addStop(stop),
+    );
+    // 넣지 못했으면 임시 핀을 남겨 다시 누를 수 있게 한다.
+    if (!added || !mounted) return;
     setState(() => _draftPlace = null);
     _showPlaced(
       stop.id,
@@ -285,14 +317,17 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     );
     if (draft == null || draft == initial || !mounted) return;
     final controller = ref.read(tripDetailProvider(trip.id).notifier);
-    await controller.updateStop(draft.applyTo(stop));
+    if (!await _save(() => controller.updateStop(draft.applyTo(stop)))) return;
     final moved = draft.day != stop.day;
     if (moved && mounted) {
-      await controller.moveStop(
-        stop.id,
-        day: draft.day,
-        order: placedOrder(_latestRoute(route), draft, stopId: stop.id),
+      final saved = await _save(
+        () => controller.moveStop(
+          stop.id,
+          day: draft.day,
+          order: placedOrder(_latestRoute(route), draft, stopId: stop.id),
+        ),
       );
+      if (!saved) return;
     }
     if (!mounted) return;
     // 숙소를 끈 보기에서 종류를 숙소로 바꾸면 저장하자마자 숨는다. 같은 일차여도 알린다.
@@ -320,7 +355,8 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
 
   /// 구간의 이동 수단을 고친다. 카메라는 그대로이고, 목록의 그 줄은 고른 채로 남는다.
   /// 지도의 곡선 핸들을 끌었다 놓았다. 저장소의 최신 구간에 곡률만 넣는다(이동 수단은 그대로).
-  Future<void> _changeCurvature(
+  /// 저장하지 못했으면 false다. 지도가 끄는 동안의 미리보기를 지운다.
+  Future<bool> _changeCurvature(
     TripRoute route,
     String segmentId,
     double curvature,
@@ -328,10 +364,13 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     final latest = _latestRoute(
       route,
     ).segments.where((s) => s.id == segmentId).firstOrNull;
-    if (latest == null || latest.curvature == curvature) return;
-    await ref
-        .read(tripDetailProvider(trip.id).notifier)
-        .updateSegment(latest.copyWith(curvature: curvature));
+    if (latest == null) return false;
+    if (latest.curvature == curvature) return true;
+    return _save(
+      () => ref
+          .read(tripDetailProvider(trip.id).notifier)
+          .updateSegment(latest.copyWith(curvature: curvature)),
+    );
   }
 
   /// 곡선 핸들을 둘 구간. 일차 보기에서 목록의 구간 줄을 직접 눌러 고른 때만이다
@@ -359,9 +398,11 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       route,
     ).segments.where((s) => s.id == segment.id).firstOrNull;
     if (latest == null) return;
-    await ref
-        .read(tripDetailProvider(trip.id).notifier)
-        .updateSegment(latest.copyWith(legs: draft.toLegs()));
+    await _save(
+      () => ref
+          .read(tripDetailProvider(trip.id).notifier)
+          .updateSegment(latest.copyWith(legs: draft.toLegs())),
+    );
   }
 
   /// [lodging](전날 밤 숙소나 그날 들른 숙소)을 [day]일차 밤 숙소로 그 일차 맨 뒤에 넣는다.
@@ -390,8 +431,10 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       if (!stay || !mounted) return;
     }
     final stop = stayAnotherNight(lodging, id: newId(), day: day, order: order);
-    await ref.read(tripDetailProvider(trip.id).notifier).addStop(stop);
-    if (mounted) _choices.focusOn([stop.id]);
+    final added = await _save(
+      () => ref.read(tripDetailProvider(trip.id).notifier).addStop(stop),
+    );
+    if (added && mounted) _choices.focusOn([stop.id]);
   }
 
   /// 넣거나 옮긴 장소를 보여 준다. 카메라는 움직이지 않는다.
@@ -497,8 +540,9 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       },
     );
     if (confirmed != true || !mounted) return false;
-    await ref.read(tripDetailProvider(trip.id).notifier).deleteStop(stop.id);
-    return true;
+    return _save(
+      () => ref.read(tripDetailProvider(trip.id).notifier).deleteStop(stop.id),
+    );
   }
 
   /// 끌어서 옮긴 장소를 저장한다. 옮겼으면 true, 취소했으면 false다(목록이 옮기기 전 순서로 돌아간다).
@@ -538,10 +582,12 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       );
       if (!move || !mounted) return false;
     }
-    await ref
-        .read(tripDetailProvider(trip.id).notifier)
-        .moveStop(stopId, day: day, order: order);
-    return true;
+    // 옮기지 못했으면 목록이 옮기기 전 순서로 돌아간다.
+    return _save(
+      () => ref
+          .read(tripDetailProvider(trip.id).notifier)
+          .moveStop(stopId, day: day, order: order),
+    );
   }
 
   /// [dropped] 구간의 이동 수단이 지워진다고 알리고([message]), 그래도 할지 묻는다. 하면 true다.
@@ -922,7 +968,7 @@ class _RouteMap extends ConsumerWidget {
   final ValueChanged<String> onMarkerTap;
   final ValueChanged<String> onLineTap;
   final ValueChanged<MapTap> onMapTap;
-  final void Function(String id, double curvature) onCurveChanged;
+  final Future<bool> Function(String id, double curvature) onCurveChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1031,15 +1077,33 @@ class _MessageCard extends StatelessWidget {
 }
 
 class _Message extends StatelessWidget {
-  const _Message(this.text);
+  const _Message(this.text, {this.onRetry});
 
   final String text;
 
+  /// 있으면 [다시 시도] 버튼을 둔다.
+  final VoidCallback? onRetry;
+
   @override
   Widget build(BuildContext context) {
+    final retry = onRetry;
     return Scaffold(
       appBar: AppBar(),
-      body: Center(child: Text(text)),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(text, textAlign: TextAlign.center),
+            if (retry != null) ...[
+              const SizedBox(height: AppSpace.md),
+              FilledButton.tonal(
+                onPressed: retry,
+                child: Text(context.l10n.retry),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

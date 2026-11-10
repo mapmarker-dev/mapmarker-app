@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/app/routes.dart';
+import 'package:mapmarker_app/data/api/api_exception.dart';
 import 'package:mapmarker_app/features/trip_detail/trip_detail_screen.dart';
+import 'package:mapmarker_app/features/trips/trip_create_screen.dart';
 
+import '../../helpers/flaky_trip_repository.dart';
 import '../../helpers/test_app.dart';
 
 Finder _field(String label) => find.widgetWithText(TextField, label);
@@ -141,5 +144,34 @@ void main() {
         tester.view.physicalSize.height / tester.view.devicePixelRatio;
     final button = tester.getRect(find.widgetWithText(FilledButton, '만들기'));
     expect(button.bottom, lessThanOrEqualTo(screenHeight - 48));
+  });
+
+  testWidgets('limits region and title to what the server accepts', (
+    tester,
+  ) async {
+    await _openCreate(tester);
+
+    expect(tester.widget<TextField>(_field('지역')).maxLength, 50);
+    expect(tester.widget<TextField>(_field('제목')).maxLength, 100);
+  });
+
+  testWidgets('stays and says so when saving fails', (tester) async {
+    final repository = FlakyTripRepository(testRepository())
+      ..failWrites = ApiFailure.network;
+    await pumpTestApp(
+      tester,
+      repository: repository,
+      location: Routes.tripCreate,
+    );
+    await tester.enterText(_field('지역'), '부산');
+    await tester.pump();
+    await tester.tap(find.text('봄'));
+    await tester.pump();
+
+    await _tapCreate(tester);
+
+    expect(find.byType(TripCreateScreen), findsOneWidget);
+    expect(find.text(testL10n.saveFailedNetwork), findsOneWidget);
+    expect(_createButton(tester), isNotNull);
   });
 }

@@ -140,6 +140,16 @@ class MemoryTripRepository implements TripRepository {
     return updated;
   }
 
+  /// 메모리에 있는 것이 전부라서 다시 받을 것이 없다.
+  @override
+  Future<void> refreshTrips() async {}
+
+  @override
+  Future<void> refreshTrip(String tripId) async {}
+
+  @override
+  void refreshWatched() {}
+
   void dispose() => _changes.close();
 
   Trip _save(Trip trip) {

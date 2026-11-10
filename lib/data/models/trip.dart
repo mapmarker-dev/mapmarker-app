@@ -82,6 +82,11 @@ class Trip {
     required this.updatedAt,
   }) : assert(dates == null || dates.nights == nights, '일정은 기간과 같아야 합니다');
 
+  /// 입력 상한. 서버(`create-trip.dto.ts`)와 같은 값이다. 넘으면 서버가 400으로 거절한다.
+  static const titleMaxLength = 100;
+  static const regionMaxLength = 50;
+  static const maxNights = 365;
+
   /// 앱에서 만든 UUID v7 (`newId`).
   final String id;
 

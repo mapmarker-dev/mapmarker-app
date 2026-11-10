@@ -26,7 +26,7 @@ class NaverMapProvider implements MapProvider {
     ValueChanged<String>? onMarkerTap,
     ValueChanged<String>? onLineTap,
     ValueChanged<MapTap>? onMapTap,
-    void Function(String id, double curvature)? onCurveChanged,
+    Future<bool> Function(String id, double curvature)? onCurveChanged,
   }) => NaverMapView(
     scene: scene,
     onMarkerTap: onMarkerTap,
@@ -75,7 +75,7 @@ class NaverMapView extends StatefulWidget {
   final ValueChanged<String>? onMarkerTap;
   final ValueChanged<String>? onLineTap;
   final ValueChanged<MapTap>? onMapTap;
-  final void Function(String id, double curvature)? onCurveChanged;
+  final Future<bool> Function(String id, double curvature)? onCurveChanged;
 
   @override
   State<NaverMapView> createState() => _NaverMapViewState();
@@ -255,7 +255,7 @@ class _NaverMapViewState extends State<NaverMapView> {
     setState(() => _dragCurvature = curvature);
   }
 
-  void _endDrag() {
+  Future<void> _endDrag() async {
     _releaseHandle();
     final layout = _dragLayout;
     final curvature = _dragCurvature;
@@ -265,7 +265,14 @@ class _NaverMapViewState extends State<NaverMapView> {
       return;
     }
     // 저장한 곡률로 장면이 다시 오면(_showOverlays) 미리보기를 지운다.
-    widget.onCurveChanged?.call(layout.handle.id, curvature);
+    // 저장하지 못하면 장면이 바뀌지 않으니 여기서 지운다.
+    final saved = await widget.onCurveChanged?.call(
+      layout.handle.id,
+      curvature,
+    );
+    if (saved == false && mounted && identical(_dragLayout, layout)) {
+      _clearDrag();
+    }
   }
 
   void _clearDrag() {

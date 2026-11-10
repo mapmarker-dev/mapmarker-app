@@ -13,7 +13,7 @@ class FakeMapProvider implements MapProvider {
     ValueChanged<String>? onMarkerTap,
     ValueChanged<String>? onLineTap,
     ValueChanged<MapTap>? onMapTap,
-    void Function(String id, double curvature)? onCurveChanged,
+    Future<bool> Function(String id, double curvature)? onCurveChanged,
   }) => FakeMap(
     scene: scene,
     onMarkerTap: onMarkerTap,
@@ -37,7 +37,7 @@ class FakeMap extends StatelessWidget {
   final ValueChanged<String>? onMarkerTap;
   final ValueChanged<String>? onLineTap;
   final ValueChanged<MapTap>? onMapTap;
-  final void Function(String id, double curvature)? onCurveChanged;
+  final Future<bool> Function(String id, double curvature)? onCurveChanged;
 
   @override
   Widget build(BuildContext context) => const SizedBox.expand();
@@ -101,10 +101,12 @@ extension MapSceneLabels on MapScene {
 }
 
 /// 지도의 곡선 핸들을 끌어 [curvature]로 놓은 것처럼 한다. 핸들이 있어야 끌 수 있다.
-Future<void> dragCurveHandle(WidgetTester tester, double curvature) async {
+/// 화면이 저장했는지 돌려준다. false면 지도가 끄는 동안의 미리보기를 지운다.
+Future<bool> dragCurveHandle(WidgetTester tester, double curvature) async {
   final map = _fakeMap(tester);
   final handle = map.scene.curveHandle;
   expect(handle, isNotNull, reason: '곡선 핸들이 없으면 끌 수 없다');
-  map.onCurveChanged!(handle!.id, curvature);
+  final saved = map.onCurveChanged!(handle!.id, curvature);
   await tester.pumpAndSettle();
+  return saved;
 }

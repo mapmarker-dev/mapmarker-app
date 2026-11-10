@@ -65,6 +65,9 @@ class TripCreateController extends Notifier<TripDraft> {
   /// 기간 없이 고를 수 있는 가장 긴 일정.
   static const maxNights = 30;
 
+  /// 기간으로 정할 수 있는 가장 긴 일정. 서버 상한이다.
+  static const maxDateNights = Trip.maxNights;
+
   @override
   TripDraft build() {
     // 언어가 바뀌면 기본 제목도 바뀌므로 처음부터 다시 만든다.
@@ -75,13 +78,18 @@ class TripCreateController extends Notifier<TripDraft> {
   void setRegion(String region) => _update(state.copyWith(region: region));
 
   /// 일정과 계절을 기간에 맞춘다.
-  void setDates(TripDates dates) => _update(
-    state.copyWith(
-      dates: () => dates,
-      nights: dates.nights,
-      season: dates.season,
-    ),
-  );
+  /// 기간을 정한다. [maxDateNights]박보다 길면 정하지 않고 false다(서버가 받지 않는다).
+  bool setDates(TripDates dates) {
+    if (dates.nights > maxDateNights) return false;
+    _update(
+      state.copyWith(
+        dates: () => dates,
+        nights: dates.nights,
+        season: dates.season,
+      ),
+    );
+    return true;
+  }
 
   /// 일정과 계절은 그대로 두고, 직접 고칠 수 있게 한다.
   void clearDates() => _update(state.copyWith(dates: () => null));

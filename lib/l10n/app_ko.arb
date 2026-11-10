@@ -10,6 +10,26 @@
   "@createTripTooltip": {
     "description": "여행 목록의 + 버튼"
   },
+  "retry": "다시 시도",
+  "@retry": {
+    "description": "불러오지 못한 화면의 버튼"
+  },
+  "refreshFailed": "새로 불러오지 못했습니다.",
+  "@refreshFailed": {
+    "description": "여행 목록을 당겨서 새로고침하다 실패했을 때. 보이던 목록은 그대로다"
+  },
+  "saveFailedNetwork": "인터넷에 연결되지 않아 저장하지 못했습니다.",
+  "saveFailed": "저장하지 못했습니다. 다시 시도해 주세요.",
+  "saveConflict": "다른 곳에서 바뀐 내용이 있어 다시 불러왔습니다. 확인하고 다시 시도해 주세요.",
+  "@saveConflict": {
+    "description": "서버가 409로 거절해 여행을 다시 불러왔을 때"
+  },
+  "tripDatesTooLong": "기간은 {nights}박까지 정할 수 있습니다.",
+  "@tripDatesTooLong": {
+    "placeholders": {
+      "nights": {"type": "int", "example": "365"}
+    }
+  },
   "moreMenuTooltip": "더 보기",
   "@moreMenuTooltip": {
     "description": "여행 목록 앱 바의 ⋮ 메뉴"

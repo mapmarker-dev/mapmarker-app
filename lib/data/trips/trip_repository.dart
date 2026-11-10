@@ -7,10 +7,11 @@ import '../models/trip.dart';
 import '../models/trip_route.dart';
 import 'memory_trip_repository.dart';
 
-/// 여행 저장소. 서버가 생기기 전에는 메모리 구현을 쓰고, 서버 API를 붙일 때 구현만 바꾼다.
+/// 여행 저장소. 서버 구현(`ServerTripRepository`)과 메모리 구현(테스트·개발용)이 있다.
 ///
 /// 화면은 `watch`로 받은 값을 보여 주고, 저장소가 바뀌면 새 값을 받아 다시 그린다.
-/// 서버 구현도 받아 온 여행을 기억해 두고, 이 앱에서 바꾼 내용을 반영해 다시 내보낸다.
+/// 서버 구현은 받아 온 여행을 기억해 두고, 이 앱에서 바꾼 내용을 반영해 다시 내보낸다.
+/// 서버 구현의 실패는 `ApiException`이다. 처음 불러오기 실패는 스트림의 오류로 나온다.
 ///
 /// 장소 순서는 일차마다 0부터 빈칸 없이 저장소가 다시 매긴다.
 /// 구간은 이웃한 장소 사이에 저장소가 만들고 지운다(`route_links.dart`).
@@ -50,6 +51,15 @@ abstract interface class TripRepository {
 
   /// 이동 수단·곡률·종류만 바꾼다. 어느 장소를 잇는지는 저장소가 정한다.
   Future<Segment> updateSegment(Segment segment);
+
+  /// 여행 목록을 다시 받는다(당겨서 새로고침). 실패하면 던지고, 보이던 목록은 그대로 둔다.
+  Future<void> refreshTrips();
+
+  /// 여행 하나와 동선을 다시 받는다. 실패하면 던지고, 보이던 값은 그대로 둔다.
+  Future<void> refreshTrip(String tripId);
+
+  /// 지금 보고 있는 목록과 여행을 뒤에서 다시 받는다(앱으로 돌아올 때). 실패는 무시한다.
+  void refreshWatched();
 }
 
 final tripRepositoryProvider = Provider<TripRepository>((ref) {

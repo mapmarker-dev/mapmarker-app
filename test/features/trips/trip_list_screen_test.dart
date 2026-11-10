@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/core/theme/app_tokens.dart';
 import 'package:mapmarker_app/core/time/local_date.dart';
+import 'package:mapmarker_app/data/api/api_exception.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
 import 'package:mapmarker_app/features/login/login_screen.dart';
 import 'package:mapmarker_app/features/trip_detail/trip_detail_screen.dart';
@@ -11,6 +12,7 @@ import 'package:mapmarker_app/features/trips/trip_list_screen.dart';
 import 'package:mapmarker_app/features/trips/widgets/trip_card.dart';
 
 import '../../helpers/fake_auth.dart';
+import '../../helpers/flaky_trip_repository.dart';
 import '../../helpers/test_app.dart';
 
 /// 메뉴 항목. 메뉴가 열려 있으면 칩과 메뉴에 같은 글자가 있어서 메뉴 항목으로 좁힌다.
@@ -20,6 +22,9 @@ Finder _menuItem(String text) => find.ancestor(
 );
 
 void main() {
+  _failureTests();
+  _resumeTests();
+
   testWidgets('shows a hint when there are no trips', (tester) async {
     await pumpTestApp(tester, repository: testRepository());
 
@@ -258,5 +263,93 @@ void main() {
       expect(find.byType(TripListScreen), findsOneWidget);
       expect(server.requests, isEmpty);
     });
+  });
+}
+
+void _failureTests() {
+  group('when the server fails', () {
+    late FlakyTripRepository repository;
+
+    setUp(() {
+      repository = FlakyTripRepository(testRepository([testTrip(id: 'busan')]));
+    });
+
+    testWidgets('offers a retry when the list cannot be loaded', (
+      tester,
+    ) async {
+      repository.failLoads = ApiFailure.network;
+      await pumpTestApp(tester, repository: repository);
+
+      expect(find.text(testL10n.tripListLoadFailed), findsOneWidget);
+
+      repository.failLoads = null;
+      await tester.tap(find.text(testL10n.retry));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TripCard), findsOneWidget);
+    });
+
+    testWidgets('refreshes when pulled down', (tester) async {
+      await pumpTestApp(tester, repository: repository);
+
+      await tester.fling(find.byType(TripCard), const Offset(0, 400), 1000);
+      await tester.pumpAndSettle();
+
+      expect(repository.refreshes, 1);
+      expect(find.byType(SnackBar), findsNothing);
+    });
+
+    testWidgets('says so when pulling down fails', (tester) async {
+      repository.failRefresh = ApiFailure.network;
+      await pumpTestApp(tester, repository: repository);
+
+      await tester.fling(find.byType(TripCard), const Offset(0, 400), 1000);
+      await tester.pumpAndSettle();
+
+      expect(find.text(testL10n.refreshFailed), findsOneWidget);
+      expect(find.byType(TripCard), findsOneWidget);
+    });
+
+    testWidgets('can be pulled down when there are no trips', (tester) async {
+      final empty = FlakyTripRepository(testRepository());
+      await pumpTestApp(tester, repository: empty);
+
+      await tester.fling(
+        find.textContaining('아직 여행이 없습니다.'),
+        const Offset(0, 400),
+        1000,
+      );
+      await tester.pumpAndSettle();
+
+      expect(empty.refreshes, 1);
+    });
+
+    testWidgets('says so when changing the phase fails', (tester) async {
+      await pumpTestApp(tester, repository: repository);
+      repository.failWrites = ApiFailure.network;
+
+      await tester.tap(find.text('여행 전'));
+      await tester.pumpAndSettle();
+      await tester.tap(_menuItem('여행 중'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(testL10n.saveFailedNetwork), findsOneWidget);
+      expect(find.text('여행 전'), findsOneWidget);
+    });
+  });
+}
+
+void _resumeTests() {
+  testWidgets('reloads what is on screen when the app comes back', (
+    tester,
+  ) async {
+    final repository = FlakyTripRepository(testRepository());
+    await pumpTestApp(tester, repository: repository);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+
+    expect(repository.watchedRefreshes, 1);
   });
 }

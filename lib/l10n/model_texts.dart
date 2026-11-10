@@ -1,3 +1,4 @@
+import '../data/api/api_exception.dart';
 import '../data/models/segment.dart';
 import '../data/models/stop.dart';
 import '../data/models/trip.dart';
@@ -6,6 +7,13 @@ import 'generated/app_localizations.dart';
 
 /// 모델을 화면 글자로 바꾼다. 모델(`data/`)에는 글자를 두지 않는다.
 extension ModelTexts on AppLocalizations {
+  /// 저장하지 못했을 때의 안내. 저장소는 실패하면 그 여행을 다시 불러온다.
+  String saveFailureText(ApiFailure failure) => switch (failure) {
+    ApiFailure.network => saveFailedNetwork,
+    ApiFailure.conflict => saveConflict,
+    _ => saveFailed,
+  };
+
   String tripPhaseName(TripPhase phase) => switch (phase) {
     TripPhase.before => phaseBefore,
     TripPhase.during => phaseDuring,
