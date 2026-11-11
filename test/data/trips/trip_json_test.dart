@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/core/time/local_date.dart';
 import 'package:mapmarker_app/core/time/local_time.dart';
+import 'package:mapmarker_app/data/models/candidate.dart';
 import 'package:mapmarker_app/data/models/map_provider_type.dart';
 import 'package:mapmarker_app/data/models/segment.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
@@ -68,6 +69,20 @@ Map<String, Object?> serverSegment({
   ],
   'curvature': 0,
   'type': 'gpsTrack',
+};
+
+/// 서버 응답(CandidateResponse)과 같은 모양.
+Map<String, Object?> serverCandidate({String id = 'cand-1', String? name}) => {
+  'id': id,
+  'tripId': 'trip-1',
+  'latitude': 33.5065,
+  'longitude': 127,
+  'name': name ?? '우도',
+  'kind': 'tour',
+  'description': '섬',
+  'memo': '배 시간',
+  'placeProvider': 'naver',
+  'placeId': '777',
 };
 
 Trip _trip({TripDates? dates, TripPhase? phaseOverride}) => Trip(
@@ -291,6 +306,98 @@ void main() {
         ['stop-1', 'stop-2'],
       );
       expect(detail.route.segments.single.id, 'seg-1');
+    });
+
+    test('reads candidates in the order the server sends', () {
+      final detail = tripDetailFromJson({
+        'trip': serverTrip(),
+        'stops': <Object?>[],
+        'segments': <Object?>[],
+        'candidates': [
+          serverCandidate(id: 'b', name: '비자림'),
+          serverCandidate(id: 'a', name: '우도'),
+        ],
+      });
+
+      expect([for (final c in detail.route.candidates) c.id], ['b', 'a']);
+      expect(detail.route.candidateById('a')?.name, '우도');
+    });
+
+    // 2-2단계에서 후보가 생기기 전에 기기에 저장한 여행을 읽을 수 있게.
+    test('reads a detail without candidates as having none', () {
+      final detail = tripDetailFromJson({
+        'trip': serverTrip(),
+        'stops': <Object?>[],
+        'segments': <Object?>[],
+      });
+
+      expect(detail.route.candidates, isEmpty);
+    });
+  });
+
+  group('candidate', () {
+    test('reads every field the server sends', () {
+      expect(
+        candidateFromJson(serverCandidate()),
+        const Candidate(
+          id: 'cand-1',
+          tripId: 'trip-1',
+          latitude: 33.5065,
+          longitude: 127,
+          name: '우도',
+          kind: StopKind.tour,
+          description: '섬',
+          memo: '배 시간',
+          placeProvider: MapProviderType.naver,
+          placeId: '777',
+        ),
+      );
+    });
+
+    test('creates with its ID and updates with nulls for cleared fields', () {
+      const candidate = Candidate(
+        id: 'cand-1',
+        tripId: 'trip-1',
+        latitude: 33.5,
+        longitude: 126.9,
+        name: '우도',
+      );
+
+      expect(createCandidateJson(candidate), {
+        'id': 'cand-1',
+        'latitude': 33.5,
+        'longitude': 126.9,
+        'name': '우도',
+        'kind': 'other',
+        'description': '',
+        'memo': '',
+        'placeProvider': null,
+        'placeId': null,
+      });
+      expect(updateCandidateJson(candidate), isNot(contains('id')));
+    });
+
+    test('promotes with the place in the route and the edited fields', () {
+      expect(promoteCandidateJson(_stop(plannedTime: const LocalTime(14, 0))), {
+        'day': 2,
+        'order': 1,
+        'name': '해운대',
+        'kind': 'lodging',
+        'description': '설명',
+        'memo': '메모',
+        'plannedTime': '14:00',
+        'timeZone': 'Asia/Seoul',
+      });
+    });
+
+    test('a stop turned into a candidate keeps only what candidates have', () {
+      final candidate = Candidate.fromStop(
+        _stop(plannedTime: const LocalTime(14, 0)),
+      );
+
+      expect(candidate.id, 'stop-1');
+      expect(candidate.kind, StopKind.lodging);
+      expect(candidate.memo, '메모');
     });
   });
 

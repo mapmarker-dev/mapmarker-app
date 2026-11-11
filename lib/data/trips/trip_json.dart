@@ -1,5 +1,6 @@
 import '../../core/time/local_date.dart';
 import '../../core/time/local_time.dart';
+import '../models/candidate.dart';
 import '../models/map_provider_type.dart';
 import '../models/segment.dart';
 import '../models/stop.dart';
@@ -144,6 +145,52 @@ TrashedTrip trashedTripFromJson(Object? json) {
   );
 }
 
+Candidate candidateFromJson(Object? json) {
+  final map = _map(json);
+  return Candidate(
+    id: _field(map, 'id'),
+    tripId: _field(map, 'tripId'),
+    latitude: _field<num>(map, 'latitude').toDouble(),
+    longitude: _field<num>(map, 'longitude').toDouble(),
+    name: _field(map, 'name'),
+    kind: _enum(StopKind.values, map, 'kind'),
+    description: _field(map, 'description'),
+    memo: _field(map, 'memo'),
+    placeProvider: _optionalEnum(MapProviderType.values, map, 'placeProvider'),
+    placeId: _field(map, 'placeId'),
+  );
+}
+
+/// 후보 넣기.
+Map<String, Object?> createCandidateJson(Candidate candidate) => {
+  'id': candidate.id,
+  ...updateCandidateJson(candidate),
+};
+
+/// 후보 고치기. 지운 장소 서비스 ID는 null로 보낸다.
+Map<String, Object?> updateCandidateJson(Candidate candidate) => {
+  'latitude': candidate.latitude,
+  'longitude': candidate.longitude,
+  'name': candidate.name,
+  'kind': candidate.kind.name,
+  'description': candidate.description,
+  'memo': candidate.memo,
+  'placeProvider': candidate.placeProvider?.name,
+  'placeId': candidate.placeId,
+};
+
+/// 후보를 동선에 넣기. 일차·자리와 넣으면서 고친 값을 보낸다. 좌표·장소 서비스 ID는 서버가 후보의 것을 쓴다.
+Map<String, Object?> promoteCandidateJson(Stop stop) => {
+  'day': stop.day,
+  'order': stop.order,
+  'name': stop.name,
+  'kind': stop.kind.name,
+  'description': stop.description,
+  'memo': stop.memo,
+  'plannedTime': stop.plannedTime?.toString(),
+  'timeZone': stop.timeZone,
+};
+
 TripDetail tripDetailFromJson(Object? json) {
   final map = _map(json);
   return (
@@ -151,6 +198,9 @@ TripDetail tripDetailFromJson(Object? json) {
     route: TripRoute(
       stops: _field<List<Object?>>(map, 'stops').map(stopFromJson),
       segments: _field<List<Object?>>(map, 'segments').map(segmentFromJson),
+      candidates: (_field<List<Object?>?>(map, 'candidates') ?? const []).map(
+        candidateFromJson,
+      ),
     ),
   );
 }

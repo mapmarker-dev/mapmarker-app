@@ -298,8 +298,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   TripRoute _withSavingCurve(TripRoute route) {
     final saving = _savingCurve;
     if (saving == null || !identical(saving.route, route)) return route;
-    return TripRoute(
-      stops: route.stops,
+    return route.copyWith(
       segments: [
         for (final segment in route.segments)
           segment.id == saving.segmentId

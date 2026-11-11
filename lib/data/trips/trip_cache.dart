@@ -58,6 +58,14 @@ class TripCache {
     return null;
   }
 
+  /// [candidateId] 후보가 있는 여행.
+  String? tripOfCandidate(String candidateId) {
+    for (final MapEntry(key: tripId, value: route) in routes.entries) {
+      if (route.candidateById(candidateId) != null) return tripId;
+    }
+    return null;
+  }
+
   /// [segmentId] 구간이 있는 여행.
   String? tripOfSegment(String segmentId) {
     for (final MapEntry(key: tripId, value: route) in routes.entries) {

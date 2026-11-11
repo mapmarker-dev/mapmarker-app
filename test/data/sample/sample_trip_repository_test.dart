@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mapmarker_app/data/models/candidate.dart';
 import 'package:mapmarker_app/data/models/segment.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
 import 'package:mapmarker_app/data/sample/jeju_sample.dart';
@@ -134,6 +135,23 @@ void main() {
       expect(repository.moveStop(stop.id, day: 2, order: 0), throwsStateError);
       expect(repository.deleteStop(stop.id), throwsStateError);
       expect(repository.updateSegment(segment), throwsStateError);
+      expect(
+        repository.addCandidate(
+          const Candidate(
+            id: 'new',
+            tripId: sampleTripId,
+            latitude: 33.5,
+            longitude: 126.9,
+            name: '우도',
+          ),
+        ),
+        throwsStateError,
+      );
+      expect(repository.demoteStop(stop.id), throwsStateError);
+      expect(
+        repository.promoteCandidate(testStop('new', tripId: sampleTripId)),
+        throwsStateError,
+      );
     });
   });
 }

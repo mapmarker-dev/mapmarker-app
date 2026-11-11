@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/l10n.dart';
+import '../models/candidate.dart';
 import '../models/segment.dart';
 import '../models/stop.dart';
 import '../models/trashed_trip.dart';
@@ -144,6 +145,26 @@ class SampleTripRepository implements TripRepository {
       _inner.updateSegment(_mine(segment.tripId, segment));
 
   @override
+  Future<Candidate> addCandidate(Candidate candidate) async =>
+      _inner.addCandidate(_mine(candidate.tripId, candidate));
+
+  @override
+  Future<Candidate> updateCandidate(Candidate candidate) async =>
+      _inner.updateCandidate(_mine(candidate.tripId, candidate));
+
+  @override
+  Future<void> deleteCandidate(String candidateId) async =>
+      _inner.deleteCandidate(_mineCandidate(candidateId));
+
+  @override
+  Future<Stop> promoteCandidate(Stop stop) async =>
+      _inner.promoteCandidate(_mine(stop.tripId, stop));
+
+  @override
+  Future<Candidate> demoteStop(String stopId) async =>
+      _inner.demoteStop(_mineStop(stopId));
+
+  @override
   Future<void> refreshTrips() => _inner.refreshTrips();
 
   @override
@@ -171,6 +192,13 @@ class SampleTripRepository implements TripRepository {
       throw StateError('샘플 여행은 고칠 수 없습니다');
     }
     return stopId;
+  }
+
+  String _mineCandidate(String candidateId) {
+    if (_sample.route.candidateById(candidateId) != null) {
+      throw StateError('샘플 여행은 고칠 수 없습니다');
+    }
+    return candidateId;
   }
 }
 

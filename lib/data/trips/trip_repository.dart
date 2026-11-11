@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/time/today.dart';
 import '../auth/auth_session.dart';
+import '../models/candidate.dart';
 import '../models/segment.dart';
 import '../models/stop.dart';
 import '../models/trashed_trip.dart';
@@ -71,6 +72,25 @@ abstract interface class TripRepository {
 
   /// 이동 수단·곡률·종류만 바꾼다. 어느 장소를 잇는지는 저장소가 정한다.
   Future<Segment> updateSegment(Segment segment);
+
+  /// 후보를 넣은 순서의 맨 뒤에 넣는다. 동선은 바뀌지 않는다.
+  /// 없는 여행이거나 같은 ID의 후보·장소가 있으면 [StateError]다(서버 구현은 `ApiException`).
+  Future<Candidate> addCandidate(Candidate candidate);
+
+  /// 이름·종류·설명·메모 등을 바꾼다. 넣은 순서는 그대로다.
+  Future<Candidate> updateCandidate(Candidate candidate);
+
+  /// 후보를 지운다(휴지통 없이).
+  Future<void> deleteCandidate(String candidateId);
+
+  /// 후보를 같은 ID의 장소로 바꿔 [stop]의 일차·[Stop.order] 자리에 넣는다(장소 넣기와 같은 규칙).
+  /// [stop]의 이름·종류·설명·메모·예정 시각·시간대로 넣고, 좌표·장소 서비스 ID는 후보의 것이다.
+  /// [stop.id]가 후보 ID다. 후보가 없으면 [StateError], 일차가 범위 밖이면 [RangeError]다.
+  Future<Stop> promoteCandidate(Stop stop);
+
+  /// 장소를 같은 ID의 후보로 바꿔 후보 맨 뒤에 넣는다. 앞뒤 장소는 지운 것처럼 새 구간으로 이어진다.
+  /// 일차·순서·예정 시각·방문과 닿은 구간의 이동 수단은 사라진다.
+  Future<Candidate> demoteStop(String stopId);
 
   /// 여행 목록을 다시 받는다(당겨서 새로고침). 실패하면 던지고, 보이던 목록은 그대로 둔다.
   Future<void> refreshTrips();
