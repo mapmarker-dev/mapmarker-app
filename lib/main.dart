@@ -7,14 +7,15 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker_android/image_picker_android.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart'
+    show KakaoSdk;
 
 import 'app/app.dart';
 import 'config/env.dart';
-import 'core/time/local_date.dart';
-import 'data/trips/memory_trip_repository.dart';
-import 'data/trips/trip_repository.dart';
-import 'dev/sample_trips.dart';
-import 'l10n/l10n.dart';
+import 'data/api/api_client.dart';
+import 'data/auth/auth_api.dart';
+import 'data/auth/auth_session.dart';
+import 'data/auth/token_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,24 +31,24 @@ Future<void> main() async {
       onAuthFailed: (ex) => log('네이버 지도 인증 실패: $ex'),
     );
   }
-  final now = DateTime.now();
-  final samples = sampleTrips(
-    today: LocalDate.fromDateTime(now),
-    now: now,
-    l10n: lookupAppLocalizations(appLocale),
+  // 값이 비어 있으면 서버·로그인 준비 없이 안내 화면(MissingEnvScreen)만 띄운다.
+  // 서버 주소가 비면 dio를 만들 수 없다.
+  if (Env.missing.isNotEmpty) {
+    runApp(const ProviderScope(child: MapMarkerApp()));
+    return;
+  }
+  await KakaoSdk.init(nativeAppKey: Env.kakaoNativeAppKey);
+  // 첫 화면(로그인 또는 여행 목록)을 정하려고 토큰을 먼저 읽는다. 로그인 화면이 깜빡이지 않는다.
+  final authApi = AuthApi(createDio(Env.apiBaseUrl));
+  final session = await AuthSession.restore(
+    store: const SecureTokenStore(),
+    api: authApi,
   );
   runApp(
     ProviderScope(
       overrides: [
-        // 서버가 생기기 전에는 디버그 빌드에서 샘플 여행을 미리 넣는다.
-        if (kDebugMode)
-          tripRepositoryProvider.overrideWithValue(
-            MemoryTripRepository(
-              seed: samples.trips,
-              seedStops: samples.stops,
-              seedSegments: samples.segments,
-            ),
-          ),
+        authSessionProvider.overrideWithValue(session),
+        authApiProvider.overrideWithValue(authApi),
       ],
       child: const MapMarkerApp(),
     ),

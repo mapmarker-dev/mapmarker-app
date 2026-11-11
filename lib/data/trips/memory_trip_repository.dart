@@ -2,13 +2,19 @@ import 'dart:async';
 
 import '../models/segment.dart';
 import '../models/stop.dart';
+import '../models/trashed_trip.dart';
 import '../models/trip.dart';
 import '../models/trip_route.dart';
 import 'route_links.dart';
 import 'trip_repository.dart';
 
 /// 메모리에만 두는 저장소. 앱을 끄면 사라진다.
+/// 휴지통의 여행은 [_trashedAt]에 넣은 시각이 있다. 보관 기간이 지나도 지우지 않는다(지우는 것은 서버의 일이다).
 class MemoryTripRepository implements TripRepository {
+  /// 휴지통 보관 기간. 서버(`trips/trash-retention.ts`)와 같은 값이고, 이 저장소의 지울 시각에만 쓴다.
+  /// 화면은 서버가 준 지울 시각만 본다.
+  static const trashRetention = Duration(days: 30);
+
   /// [seedStops]는 일차와 순서대로 넣고, 구간은 저장소가 잇는다.
   /// [seedSegments]는 이동 수단 등을 미리 넣을 구간이다. 이웃한 장소 쌍의 구간만 남는다.
   MemoryTripRepository({
@@ -37,17 +43,20 @@ class MemoryTripRepository implements TripRepository {
   final _trips = <String, Trip>{};
   final _stops = <String, Stop>{};
   final _segments = <String, Segment>{};
+  final _trashedAt = <String, DateTime>{};
   final _changes = StreamController<void>.broadcast();
 
   @override
   Stream<List<Trip>> watchTrips() => _watch(() {
-    final trips = _trips.values.toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final trips =
+        _trips.values.where((trip) => !_trashedAt.containsKey(trip.id)).toList()
+          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     return List.unmodifiable(trips);
   });
 
   @override
-  Stream<Trip?> watchTrip(String id) => _watch(() => _trips[id]);
+  Stream<Trip?> watchTrip(String id) =>
+      _watch(() => _trashedAt.containsKey(id) ? null : _trips[id]);
 
   @override
   Future<Trip> createTrip(Trip trip) async {
@@ -60,15 +69,16 @@ class MemoryTripRepository implements TripRepository {
 
   @override
   Future<Trip> updateTrip(Trip trip) async {
-    final saved = _trips[trip.id];
-    if (saved == null) throw StateError('없는 여행입니다: ${trip.id}');
+    final saved = _tripOf(trip.id);
     return _save(
       trip.copyWith(createdAt: saved.createdAt, updatedAt: clock().toUtc()),
     );
   }
 
   @override
-  Stream<TripRoute> watchRoute(String tripId) => _watch(() => _routeOf(tripId));
+  Stream<TripRoute> watchRoute(String tripId) => _watch(
+    () => _trashedAt.containsKey(tripId) ? TripRoute() : _routeOf(tripId),
+  );
 
   @override
   Future<Stop> addStop(Stop stop) async {
@@ -112,6 +122,43 @@ class MemoryTripRepository implements TripRepository {
   }
 
   @override
+  Future<void> trashTrip(String tripId) async {
+    if (!_trips.containsKey(tripId) || _trashedAt.containsKey(tripId)) return;
+    _trashedAt[tripId] = clock().toUtc();
+    _changes.add(null);
+  }
+
+  @override
+  Future<List<TrashedTrip>> fetchTrash() async => [
+    for (final MapEntry(key: id, value: deletedAt)
+        in _trashedAt.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value)))
+      TrashedTrip(
+        trip: _trips[id]!,
+        deletedAt: deletedAt,
+        purgeAt: deletedAt.add(trashRetention),
+      ),
+  ];
+
+  @override
+  Future<Trip> restoreTrip(String tripId) async {
+    if (_trashedAt.remove(tripId) == null) {
+      throw StateError('휴지통에 없는 여행입니다: $tripId');
+    }
+    _changes.add(null);
+    return _trips[tripId]!;
+  }
+
+  @override
+  Future<void> deleteTripForever(String tripId) async {
+    if (_trashedAt.remove(tripId) == null) return;
+    _trips.remove(tripId);
+    _stops.removeWhere((_, stop) => stop.tripId == tripId);
+    _segments.removeWhere((_, segment) => segment.tripId == tripId);
+    _changes.add(null);
+  }
+
+  @override
   Future<void> deleteStop(String stopId) async {
     final saved = _stopOf(stopId);
     final trip = _tripOf(saved.tripId);
@@ -124,7 +171,9 @@ class MemoryTripRepository implements TripRepository {
   @override
   Future<Segment> updateSegment(Segment segment) async {
     final saved = _segments[segment.id];
-    if (saved == null) throw StateError('없는 구간입니다: ${segment.id}');
+    if (saved == null || _trashedAt.containsKey(saved.tripId)) {
+      throw StateError('없는 구간입니다: ${segment.id}');
+    }
     final updated = Segment(
       id: saved.id,
       tripId: saved.tripId,
@@ -140,6 +189,16 @@ class MemoryTripRepository implements TripRepository {
     return updated;
   }
 
+  /// 메모리에 있는 것이 전부라서 다시 받을 것이 없다.
+  @override
+  Future<void> refreshTrips() async {}
+
+  @override
+  Future<void> refreshTrip(String tripId) async {}
+
+  @override
+  void refreshWatched() {}
+
   void dispose() => _changes.close();
 
   Trip _save(Trip trip) {
@@ -148,11 +207,17 @@ class MemoryTripRepository implements TripRepository {
     return trip;
   }
 
-  Trip _tripOf(String tripId) =>
-      _trips[tripId] ?? (throw StateError('없는 여행입니다: $tripId'));
+  /// 휴지통의 여행은 없는 여행이다.
+  Trip _tripOf(String tripId) => switch (_trips[tripId]) {
+    final trip? when !_trashedAt.containsKey(tripId) => trip,
+    _ => throw StateError('없는 여행입니다: $tripId'),
+  };
 
-  Stop _stopOf(String stopId) =>
-      _stops[stopId] ?? (throw StateError('없는 장소입니다: $stopId'));
+  /// 휴지통 여행의 장소는 없는 장소다.
+  Stop _stopOf(String stopId) => switch (_stops[stopId]) {
+    final stop? when !_trashedAt.containsKey(stop.tripId) => stop,
+    _ => throw StateError('없는 장소입니다: $stopId'),
+  };
 
   void _checkDay(Trip trip, int day) =>
       RangeError.checkValueInInterval(day, 1, trip.nights + 1, 'day');

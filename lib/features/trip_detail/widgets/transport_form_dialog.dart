@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/form_saving.dart';
+import '../../../core/widgets/saving.dart';
 import '../../../data/models/segment.dart';
 import '../../../l10n/l10n.dart';
 import '../transport_draft.dart';
 import '../transport_look.dart';
 
-/// 이동 수단 입력 화면을 띄운다. 저장하면 고친 값을, 그냥 닫으면 null을 돌려준다.
+/// 이동 수단 입력 화면을 띄운다. [onSave]로 저장되면 고친 값을 돌려주며 닫히고, 그냥 닫으면 null이다.
+/// 저장하지 못하면 입력한 그대로 열려 있고 화면 안에 알린다([FormSaving]).
 ///
 /// 토막이 여러 개이고 숫자 키보드가 올라와서 장소 입력 화면처럼 화면 전체를 쓴다.
 /// 경로는 만들지 않는다. 링크로 바로 열 일이 없는 화면 상태라서다.
@@ -16,11 +19,12 @@ Future<TransportDraft?> showTransportForm(
   required TransportDraft initial,
   required String from,
   required String to,
+  required Future<void> Function(TransportDraft draft) onSave,
 }) => showDialog<TransportDraft>(
   context: context,
   useSafeArea: false,
   builder: (context) =>
-      TransportFormDialog(initial: initial, from: from, to: to),
+      TransportFormDialog(initial: initial, from: from, to: to, onSave: onSave),
 );
 
 /// 구간 하나의 이동 수단. 토막을 갈아타는 차례대로 카드로 늘어놓는다.
@@ -35,9 +39,13 @@ class TransportFormDialog extends StatefulWidget {
     required this.initial,
     required this.from,
     required this.to,
+    required this.onSave,
   });
 
   final TransportDraft initial;
+
+  /// 고친 값을 저장한다. 저장하지 못하면 `ApiException`을 던진다.
+  final Future<void> Function(TransportDraft draft) onSave;
 
   /// 출발·도착 장소 이름. 제목 아래에 보여 준다.
   final String from;
@@ -47,7 +55,8 @@ class TransportFormDialog extends StatefulWidget {
   State<TransportFormDialog> createState() => _TransportFormDialogState();
 }
 
-class _TransportFormDialogState extends State<TransportFormDialog> {
+class _TransportFormDialogState extends State<TransportFormDialog>
+    with FormSaving {
   late final _legs = [
     for (final leg in widget.initial.legs) _LegFields(leg, _changed),
   ];
@@ -83,7 +92,10 @@ class _TransportFormDialogState extends State<TransportFormDialog> {
     WidgetsBinding.instance.addPostFrameCallback((_) => fields.dispose());
   }
 
-  void _save() => Navigator.of(context).pop(_draft);
+  void _save() {
+    final draft = _draft;
+    saveAndClose(() => widget.onSave(draft), draft);
+  }
 
   Future<bool> _confirmDiscard() async {
     final discard = await showDialog<bool>(
@@ -114,10 +126,13 @@ class _TransportFormDialogState extends State<TransportFormDialog> {
     final insets = MediaQuery.paddingOf(context);
     final draft = _draft;
 
+    final error = saveError;
+
     return PopScope(
-      canPop: !_dirty,
+      canPop: !_dirty && !saving,
       onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
+        // 저장하는 동안은 닫지 않는다.
+        if (didPop || saving) return;
         if (await _confirmDiscard() && context.mounted) {
           Navigator.of(context).pop();
         }
@@ -128,7 +143,7 @@ class _TransportFormDialogState extends State<TransportFormDialog> {
             leading: IconButton(
               tooltip: material.closeButtonTooltip,
               icon: const Icon(Icons.close),
-              onPressed: () => Navigator.of(context).maybePop(),
+              onPressed: saving ? null : () => Navigator.of(context).maybePop(),
             ),
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -146,70 +161,79 @@ class _TransportFormDialogState extends State<TransportFormDialog> {
               ],
             ),
             actions: [
-              TextButton(
-                onPressed: draft.isValid ? _save : null,
-                child: Text(material.saveButtonLabel),
-              ),
+              if (saving)
+                SavingIndicator(label: l10n.saving)
+              else
+                TextButton(
+                  onPressed: draft.isValid ? _save : null,
+                  child: Text(material.saveButtonLabel),
+                ),
             ],
           ),
-          body: ListView(
-            padding: EdgeInsets.fromLTRB(
-              insets.left + AppSpace.lg,
-              AppSpace.lg,
-              insets.right + AppSpace.lg,
-              insets.bottom + AppSpace.xl,
-            ),
-            children: [
-              if (_legs.isEmpty)
-                Text(
-                  l10n.transportFormEmpty,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
+          body: SavingFormBody(
+            saving: saving,
+            error: error,
+            insets: insets,
+            child: ListView(
+              padding: EdgeInsets.fromLTRB(
+                insets.left + AppSpace.lg,
+                AppSpace.lg,
+                insets.right + AppSpace.lg,
+                insets.bottom + AppSpace.xl,
+              ),
+              children: [
+                if (_legs.isEmpty)
+                  Text(
+                    l10n.transportFormEmpty,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
-                ),
-              for (final (i, fields) in _legs.indexed)
-                Padding(
-                  key: ObjectKey(fields),
-                  padding: const EdgeInsets.only(bottom: AppSpace.md),
-                  child: _LegCard(
-                    fields: fields,
-                    onModeChanged: (mode) => setState(() => fields.mode = mode),
-                    onMoveUp: i == 0 ? null : () => _move(i, -1),
-                    onMoveDown: i == _legs.length - 1
-                        ? null
-                        : () => _move(i, 1),
-                    onDelete: () => _remove(i),
+                for (final (i, fields) in _legs.indexed)
+                  Padding(
+                    key: ObjectKey(fields),
+                    padding: const EdgeInsets.only(bottom: AppSpace.md),
+                    child: _LegCard(
+                      fields: fields,
+                      onModeChanged: (mode) =>
+                          setState(() => fields.mode = mode),
+                      onMoveUp: i == 0 ? null : () => _move(i, -1),
+                      onMoveDown: i == _legs.length - 1
+                          ? null
+                          : () => _move(i, 1),
+                      onDelete: () => _remove(i),
+                    ),
                   ),
-                ),
-              const SizedBox(height: AppSpace.sm),
-              if (draft.canAddLeg) ...[
-                Text(
-                  _legs.isEmpty
-                      ? l10n.transportPickFirst
-                      : l10n.transportAddTransfer,
-                  style: textTheme.titleSmall,
-                ),
                 const SizedBox(height: AppSpace.sm),
-                Wrap(
-                  spacing: AppSpace.sm,
-                  runSpacing: AppSpace.sm,
-                  children: [
-                    for (final mode in TransportMode.values)
-                      ActionChip(
-                        avatar: Icon(transportIcon(mode)),
-                        label: Text(l10n.transportModeName(mode)),
-                        onPressed: () => _add(mode),
-                      ),
-                  ],
-                ),
-              ] else
-                Text(
-                  l10n.transportMaxLegs(TransportDraft.maxLegs),
-                  style: textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
+                if (draft.canAddLeg) ...[
+                  Text(
+                    _legs.isEmpty
+                        ? l10n.transportPickFirst
+                        : l10n.transportAddTransfer,
+                    style: textTheme.titleSmall,
                   ),
-                ),
-            ],
+                  const SizedBox(height: AppSpace.sm),
+                  Wrap(
+                    spacing: AppSpace.sm,
+                    runSpacing: AppSpace.sm,
+                    children: [
+                      for (final mode in TransportMode.values)
+                        ActionChip(
+                          avatar: Icon(transportIcon(mode)),
+                          label: Text(l10n.transportModeName(mode)),
+                          onPressed: () => _add(mode),
+                        ),
+                    ],
+                  ),
+                ] else
+                  Text(
+                    l10n.transportMaxLegs(TransportDraft.maxLegs),
+                    style: textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

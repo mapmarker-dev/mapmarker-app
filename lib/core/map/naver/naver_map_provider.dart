@@ -26,7 +26,7 @@ class NaverMapProvider implements MapProvider {
     ValueChanged<String>? onMarkerTap,
     ValueChanged<String>? onLineTap,
     ValueChanged<MapTap>? onMapTap,
-    void Function(String id, double curvature)? onCurveChanged,
+    Future<bool> Function(String id, double curvature)? onCurveChanged,
   }) => NaverMapView(
     scene: scene,
     onMarkerTap: onMarkerTap,
@@ -75,7 +75,7 @@ class NaverMapView extends StatefulWidget {
   final ValueChanged<String>? onMarkerTap;
   final ValueChanged<String>? onLineTap;
   final ValueChanged<MapTap>? onMapTap;
-  final void Function(String id, double curvature)? onCurveChanged;
+  final Future<bool> Function(String id, double curvature)? onCurveChanged;
 
   @override
   State<NaverMapView> createState() => _NaverMapViewState();
@@ -104,7 +104,8 @@ class _HandleLayout {
 /// - 터치: 그 자리에 Flutter 터치 영역을 둔다. 지도 위의 Flutter 위젯이 터치를 먼저 받아서 핸들을 잡은 동안 지도가 같이 움직이지 않는다.
 /// - 끌기: 끌기 시작할 때의 양 끝 화면 위치만으로 곡률을 계산한다([curvatureForHandle]).
 ///   끄는 동안 지도에 좌표를 다시 묻지 않고, 새 곡선과 핸들은 Flutter로 미리 그린다.
-/// - 놓으면 `onCurveChanged`로 알리고, 저장한 곡률로 장면이 다시 오면 미리보기를 지운다.
+/// - 놓으면 `onCurveChanged`로 알리고, 장면이 다시 오면 미리보기를 지운다. 앱은 저장을 기다리는 동안
+///   새 곡선을 흐리게 넘기고(원래 곡선은 빠진다), 저장되면 보통 곡선을 넘긴다.
 class _NaverMapViewState extends State<NaverMapView> {
   NaverMapController? _controller;
 
@@ -255,7 +256,7 @@ class _NaverMapViewState extends State<NaverMapView> {
     setState(() => _dragCurvature = curvature);
   }
 
-  void _endDrag() {
+  Future<void> _endDrag() async {
     _releaseHandle();
     final layout = _dragLayout;
     final curvature = _dragCurvature;
@@ -264,8 +265,15 @@ class _NaverMapViewState extends State<NaverMapView> {
       _clearDrag();
       return;
     }
-    // 저장한 곡률로 장면이 다시 오면(_showOverlays) 미리보기를 지운다.
-    widget.onCurveChanged?.call(layout.handle.id, curvature);
+    // 장면이 다시 오면(_showOverlays) 미리보기를 지운다. 앱이 저장을 기다리는 흐린 곡선을 바로 넘긴다.
+    // 저장하지 못하면 장면이 바뀌지 않으니 여기서 지운다.
+    final saved = await widget.onCurveChanged?.call(
+      layout.handle.id,
+      curvature,
+    );
+    if (saved == false && mounted && identical(_dragLayout, layout)) {
+      _clearDrag();
+    }
   }
 
   void _clearDrag() {
@@ -331,7 +339,7 @@ class _NaverMapViewState extends State<NaverMapView> {
       ...markers,
     });
     if (!mounted || version != _overlayVersion) return;
-    // 끌어 놓은 곡률이 저장돼 새 선이 올라왔다. 미리보기를 지운다.
+    // 끌어 놓은 곡선(저장을 기다리는 흐린 선이나 저장한 선)이 올라왔다. 미리보기를 지운다.
     if (_dragCurvature != null) _clearDrag();
   }
 
@@ -479,7 +487,7 @@ class _NaverMapViewState extends State<NaverMapView> {
   }
 }
 
-/// 끄는 동안 그리는 새 곡선. 손을 떼고 저장하면 네이버 선으로 바뀐다.
+/// 끄는 동안 그리는 새 곡선. 손을 떼면 앱이 넘긴 네이버 선(저장을 기다리는 흐린 선)으로 바뀐다.
 /// 무늬(점선·파선) 없이 실선으로 그린다. 원래 선은 아래에 그대로 남아 바뀌기 전 모양이 보인다.
 class _CurvePreviewPainter extends CustomPainter {
   _CurvePreviewPainter({

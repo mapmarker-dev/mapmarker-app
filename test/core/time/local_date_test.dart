@@ -39,4 +39,14 @@ void main() {
   test('prints as ISO 8601', () {
     expect(LocalDate(2026, 1, 5).toString(), '2026-01-05');
   });
+
+  test('parses what it prints', () {
+    expect(LocalDate.parse('2026-01-05'), LocalDate(2026, 1, 5));
+  });
+
+  test('refuses dates that are not real or not ISO 8601', () {
+    for (final text in ['2026-02-30', '2026-1-5', '2026/01/05', '', 'x']) {
+      expect(() => LocalDate.parse(text), throwsFormatException, reason: text);
+    }
+  });
 }

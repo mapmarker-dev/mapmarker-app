@@ -6,6 +6,7 @@ import '../../app/routes.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/time/local_date.dart';
 import '../../core/time/today.dart';
+import '../../data/api/api_exception.dart';
 import '../../data/models/trip.dart';
 import '../../l10n/l10n.dart';
 import 'trip_create_controller.dart';
@@ -47,7 +48,7 @@ class _TripCreateScreenState extends ConsumerState<TripCreateScreen> {
             ),
     );
     if (range == null || !mounted) return;
-    ref
+    final set = ref
         .read(tripCreateProvider.notifier)
         .setDates(
           TripDates(
@@ -55,6 +56,11 @@ class _TripCreateScreenState extends ConsumerState<TripCreateScreen> {
             LocalDate.fromDateTime(range.end),
           ),
         );
+    if (!set) {
+      _showMessage(
+        context.l10n.tripDatesTooLong(TripCreateController.maxDateNights),
+      );
+    }
   }
 
   Future<void> _create() async {
@@ -62,10 +68,15 @@ class _TripCreateScreenState extends ConsumerState<TripCreateScreen> {
     try {
       final trip = await ref.read(tripCreateProvider.notifier).create();
       if (mounted) context.go(Routes.trip(trip.id));
+    } on ApiException catch (error) {
+      if (mounted) _showMessage(context.l10n.saveFailureText(error.failure));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
+
+  void _showMessage(String text) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +99,11 @@ class _TripCreateScreenState extends ConsumerState<TripCreateScreen> {
         children: [
           TextField(
             autofocus: true,
+            maxLength: Trip.regionMaxLength,
+            // 지역은 짧아서 글자 수를 늘 보여 줄 필요가 없다. 상한에서 더 써지지 않을 뿐이다.
+            buildCounter:
+                (_, {required currentLength, required isFocused, maxLength}) =>
+                    null,
             textInputAction: TextInputAction.next,
             decoration: InputDecoration(
               labelText: l10n.regionLabel,
@@ -160,6 +176,7 @@ class _TripCreateScreenState extends ConsumerState<TripCreateScreen> {
           const SizedBox(height: AppSpace.xl),
           TextField(
             controller: _title,
+            maxLength: Trip.titleMaxLength,
             decoration: InputDecoration(
               labelText: l10n.titleLabel,
               hintText: l10n.defaultTripTitle(
@@ -168,6 +185,7 @@ class _TripCreateScreenState extends ConsumerState<TripCreateScreen> {
                 season: draft.season,
               ),
               helperText: l10n.titleHelperOnCreate,
+              helperMaxLines: 2,
             ),
             onChanged: controller.editTitle,
           ),

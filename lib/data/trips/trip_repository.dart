@@ -1,16 +1,23 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/time/today.dart';
+import '../auth/auth_session.dart';
 import '../models/segment.dart';
 import '../models/stop.dart';
+import '../models/trashed_trip.dart';
 import '../models/trip.dart';
 import '../models/trip_route.dart';
+import '../sample/sample_store.dart';
+import '../sample/sample_trip_repository.dart';
 import 'memory_trip_repository.dart';
+import 'server_trip_repository.dart';
+import 'trip_api.dart';
 
-/// 여행 저장소. 서버가 생기기 전에는 메모리 구현을 쓰고, 서버 API를 붙일 때 구현만 바꾼다.
+/// 여행 저장소. 서버 구현(`ServerTripRepository`)과 메모리 구현(테스트·개발용)이 있다.
 ///
 /// 화면은 `watch`로 받은 값을 보여 주고, 저장소가 바뀌면 새 값을 받아 다시 그린다.
-/// 서버 구현도 받아 온 여행을 기억해 두고, 이 앱에서 바꾼 내용을 반영해 다시 내보낸다.
+/// 서버 구현은 받아 온 여행을 기억해 두고, 이 앱에서 바꾼 내용을 반영해 다시 내보낸다.
+/// 서버 구현의 실패는 `ApiException`이다. 처음 불러오기 실패는 스트림의 오류로 나온다.
 ///
 /// 장소 순서는 일차마다 0부터 빈칸 없이 저장소가 다시 매긴다.
 /// 구간은 이웃한 장소 사이에 저장소가 만들고 지운다(`route_links.dart`).
@@ -27,6 +34,20 @@ abstract interface class TripRepository {
 
   /// 저장한 여행을 돌려준다. 없는 여행이면 [StateError]를 던진다.
   Future<Trip> updateTrip(Trip trip);
+
+  /// 여행을 장소·구간과 함께 휴지통으로 옮긴다. 목록과 여행 화면에서는 없는 여행이 된다.
+  /// 이미 없는 여행이면 옮긴 것으로 본다. 보관 기간(30일)이 지나면 서버가 지운다.
+  Future<void> trashTrip(String tripId);
+
+  /// 휴지통. 최근에 넣은 여행이 앞에 온다. 기억하지 않고 부를 때마다 받는다.
+  Future<List<TrashedTrip>> fetchTrash();
+
+  /// 휴지통에서 꺼내 목록의 원래 자리(고친 시각 그대로)에 다시 넣고 돌려준다.
+  /// 휴지통에 없으면(보관 기간이 끝났거나 다른 기기에서 지웠다) 서버 구현은 `ApiFailure.notFound`를 던진다.
+  Future<Trip> restoreTrip(String tripId);
+
+  /// 휴지통의 여행을 장소·구간과 함께 영구 삭제한다. 이미 없으면 지운 것으로 본다.
+  Future<void> deleteTripForever(String tripId);
 
   /// 여행의 장소와 구간. 장소와 구간을 한 값으로 내서, 둘이 어긋난 중간 상태가 보이지 않는다.
   /// 없는 여행이면 빈 동선을 낸다.
@@ -50,10 +71,40 @@ abstract interface class TripRepository {
 
   /// 이동 수단·곡률·종류만 바꾼다. 어느 장소를 잇는지는 저장소가 정한다.
   Future<Segment> updateSegment(Segment segment);
+
+  /// 여행 목록을 다시 받는다(당겨서 새로고침). 실패하면 던지고, 보이던 목록은 그대로 둔다.
+  Future<void> refreshTrips();
+
+  /// 여행 하나와 동선을 다시 받는다. 실패하면 던지고, 보이던 값은 그대로 둔다.
+  Future<void> refreshTrip(String tripId);
+
+  /// 지금 보고 있는 목록과 여행을 뒤에서 다시 받는다(앱으로 돌아올 때). 실패는 무시한다.
+  void refreshWatched();
 }
 
+/// 로그인한 사용자의 서버 저장소. 로그인·로그아웃마다 새로 만든다.
+/// 앞 사용자의 여행을 기억한 저장소를 다음 사용자가 쓰지 않게 하려는 것이다.
+/// 로그아웃 상태에서는 빈 메모리 저장소다(곧 로그인 화면으로 가서 쓰지 않는다).
+/// 로그인한 동안은 샘플 여행([SampleTripRepository])을 더해 보여 준다.
 final tripRepositoryProvider = Provider<TripRepository>((ref) {
-  final repository = MemoryTripRepository(clock: ref.watch(clockProvider));
+  ref.watch(authGenerationProvider);
+  final clock = ref.watch(clockProvider);
+  if (!ref.read(authSessionProvider).isLoggedIn) {
+    final empty = MemoryTripRepository(clock: clock);
+    ref.onDispose(empty.dispose);
+    return empty;
+  }
+  final server = ServerTripRepository(
+    api: ref.watch(tripApiProvider),
+    clock: clock,
+  );
+  ref.onDispose(server.dispose);
+  // 처음 쓰는 사람을 위한 샘플 여행을 하나 더해 보여 준다(서버에는 없다).
+  final repository = SampleTripRepository(
+    inner: server,
+    store: ref.watch(sampleStoreProvider),
+    sample: ref.watch(sampleTripProvider),
+  );
   ref.onDispose(repository.dispose);
   return repository;
 });

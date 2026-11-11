@@ -27,6 +27,12 @@ abstract final class AppPalette {
 
   /// 숙소 마커. 숙소는 이틀에 걸쳐 쓰여서 일차 색과 겹치지 않는 진한 색을 쓴다.
   static const ink700 = Color(0xFF3A3550);
+
+  /// 로그인 버튼의 브랜드 색. 두 회사의 버튼 규칙에 정해져 있어 바꾸지 않는다.
+  static const kakaoYellow = Color(0xFFFEE500);
+  static const kakaoLabel = Color(0xD9000000);
+  static const naverGreen = Color(0xFF03A94D);
+  static const naverLabel = Color(0xFFFFFFFF);
 }
 
 /// 1단계 기본 값: 간격. 4의 배수로 둔다.
@@ -50,6 +56,12 @@ abstract final class AppRadius {
 
   /// 대화상자.
   static const dialog = BorderRadius.all(Radius.circular(28));
+}
+
+/// 1단계 기본 값: 흐리게 보이는 정도.
+abstract final class AppOpacity {
+  /// 놓았지만 아직 저장되지 않은 것(끌어 옮긴 장소, 끌어 놓은 곡선). 저장되면 또렷해진다.
+  static const pending = 0.4;
 }
 
 /// 1단계 기본 값: 글꼴. `pubspec.yaml`에 넣은 굵기만 쓴다.

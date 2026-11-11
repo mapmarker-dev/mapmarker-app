@@ -81,6 +81,22 @@ void main() {
     expect(draft().nights, 4);
   });
 
+  test('refuses dates longer than the server allows', () {
+    final container = _container();
+    final controller = container.read(tripCreateProvider.notifier);
+
+    final tooLong = controller.setDates(
+      TripDates(LocalDate(2026, 1, 1), LocalDate(2027, 1, 2)),
+    );
+    final longest = controller.setDates(
+      TripDates(LocalDate(2026, 1, 1), LocalDate(2027, 1, 1)),
+    );
+
+    expect(tooLong, isFalse);
+    expect(longest, isTrue);
+    expect(container.read(tripCreateProvider).nights, 365);
+  });
+
   test('keeps the length between 당일치기 and 30 nights', () {
     controller().setNights(-1);
     expect(draft().nights, 0);

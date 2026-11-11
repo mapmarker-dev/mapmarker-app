@@ -46,6 +46,12 @@ dependencies:
   # gen-l10n이 만든 코드가 쓴다. 버전은 flutter_localizations가 정한다.
   intl: any
   url_launcher: ^6.3.3
+  dio: ^5.11.1
+  flutter_secure_storage: ^11.2.0
+  kakao_flutter_sdk_user: ^2.1.0
+  # 고정: Client Secret을 로그에 찍지 않는 버전이다. 올리기 전에 로그 출력을 다시 본다.
+  naver_login_flutter: 4.1.0
+  shared_preferences: ^2.5.6
 
 dev_dependencies:
   flutter_test:
@@ -75,6 +81,8 @@ flutter:
   # 글꼴 라이선스(OFL). main.dart에서 라이선스 화면에 등록한다.
   assets:
     - assets/fonts/OFL.txt
+    # 카카오·네이버 공식 로그인 심볼. 원본 그대로 넣는다.
+    - assets/login/
 
   # 나눔스퀘어라운드(네이버, OFL). 원본 그대로 넣고, 쓰는 굵기만 넣는다.
   fonts:

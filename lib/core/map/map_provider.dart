@@ -13,12 +13,14 @@ abstract interface class MapProvider {
   /// - [onLineTap]: 선이나 선 아이콘을 누르면 [MapLine.id]([MapLineIcon.id])로 부른다. 화살표는 누를 수 없다.
   /// - [onMapTap]: 마커와 선이 아닌 곳을 누르면 부른다.
   /// - [onCurveChanged]: [MapScene.curveHandle]을 끌었다 놓으면 그 구간 ID와 새 곡률로 부른다.
+  ///   앱은 저장을 기다리는 동안 새 곡선을 흐리게 그린 장면을 바로 넘기고, 지도 구현은 장면이 바뀌면 미리보기를 지운다.
+  ///   저장하지 못했으면 false를 돌려준다. 그러면 지도 구현은 끄는 동안의 미리보기를 지운다.
   Widget buildMap(
     MapScene scene, {
     ValueChanged<String>? onMarkerTap,
     ValueChanged<String>? onLineTap,
     ValueChanged<MapTap>? onMapTap,
-    void Function(String id, double curvature)? onCurveChanged,
+    Future<bool> Function(String id, double curvature)? onCurveChanged,
   });
 }
 

@@ -10,6 +10,143 @@
   "@createTripTooltip": {
     "description": "여행 목록의 + 버튼"
   },
+  "retry": "다시 시도",
+  "@retry": {
+    "description": "불러오지 못한 화면의 버튼"
+  },
+  "refreshFailed": "새로 불러오지 못했습니다.",
+  "@refreshFailed": {
+    "description": "여행 목록을 당겨서 새로고침하다 실패했을 때. 보이던 목록은 그대로다"
+  },
+  "saving": "저장하는 중",
+  "@saving": {
+    "description": "저장을 기다리는 동안 뜨는 진행 표시의 읽어 주기 글(끌어 옮긴 장소·곡선, 입력 화면의 저장 버튼, 상태 칩 등)"
+  },
+  "saveFailedNetwork": "인터넷에 연결되지 않아 저장하지 못했습니다.",
+  "saveFailed": "저장하지 못했습니다. 다시 시도해 주세요.",
+  "saveConflict": "다른 곳에서 바뀐 내용이 있어 다시 불러왔습니다. 확인하고 다시 시도해 주세요.",
+  "@saveConflict": {
+    "description": "서버가 409로 거절해 여행을 다시 불러왔을 때"
+  },
+  "tripDatesTooLong": "기간은 {nights}박까지 정할 수 있습니다.",
+  "@tripDatesTooLong": {
+    "placeholders": {
+      "nights": {"type": "int", "example": "365"}
+    }
+  },
+  "moreMenuTooltip": "더 보기",
+  "@moreMenuTooltip": {
+    "description": "여행 목록 앱 바의 ⋮ 메뉴"
+  },
+
+  "loginWithKakao": "카카오 로그인",
+  "@loginWithKakao": {
+    "description": "로그인 버튼. 카카오 버튼 규칙의 문구다"
+  },
+  "loginWithNaver": "네이버 로그인",
+  "@loginWithNaver": {
+    "description": "로그인 버튼. 네이버 버튼 규칙의 문구다"
+  },
+  "loginFailedNetwork": "인터넷에 연결되지 않았습니다. 연결을 확인하고 다시 시도해 주세요.",
+  "loginFailedUnavailable": "지금은 로그인할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+  "@loginFailedUnavailable": {
+    "description": "서버가 카카오·네이버에 닿지 못했을 때"
+  },
+  "loginFailedRetry": "로그인하지 못했습니다. 다시 시도해 주세요.",
+  "logOut": "로그아웃",
+  "logOutConfirmTitle": "로그아웃할까요?",
+  "tripMenuTooltip": "여행 메뉴",
+  "@tripMenuTooltip": {
+    "description": "여행 카드 오른쪽 위 ⋮ 메뉴"
+  },
+  "sampleBadge": "샘플",
+  "@sampleBadge": {
+    "description": "샘플 여행 카드의 표시"
+  },
+  "sampleBanner": "둘러보기만 할 수 있는 샘플 여행입니다. 마음에 들면 내 여행으로 가져가 고쳐 보세요.",
+  "useSample": "실제로 사용하기",
+  "@useSample": {
+    "description": "샘플 여행을 내 여행으로 복사하는 버튼. 복사하면 샘플은 사라진다"
+  },
+  "deleteSample": "샘플 지우기",
+  "deleteSampleTitle": "샘플 여행을 지울까요?",
+  "deleteSampleMessage": "이 기기에서는 다시 보이지 않습니다.",
+  "sampleJejuRegion": "제주",
+  "@sampleJejuRegion": {
+    "description": "샘플 여행(제주 3박 4일 가을 여행)의 지역. 아래 sampleJeju… 글은 그 여행의 장소 이름·설명·메모다"
+  },
+  "sampleJejuAirport": "제주국제공항",
+  "sampleJejuYongduam": "용두암",
+  "sampleJejuYongduamDescription": "바다를 향해 머리를 든 용 모양의 바위. 해 질 녘이 특히 예쁘다.",
+  "sampleJejuDongmun": "동문재래시장",
+  "sampleJejuDongmunMemo": "귤, 오메기떡 사기",
+  "sampleJejuCityHotel": "제주시 숙소",
+  "sampleJejuHyeopjae": "협재해수욕장",
+  "sampleJejuHyeopjaeDescription": "에메랄드빛 바다와 비양도가 보이는 해변.",
+  "sampleJejuOsulloc": "오설록 티뮤지엄",
+  "sampleJejuSeongsan": "성산일출봉",
+  "sampleJejuSeongsanDescription": "해 뜨는 시각에 맞춰 오르면 좋다. 오르는 데 20~30분.",
+  "sampleJejuUdo": "우도",
+  "sampleJejuOlleMarket": "매일올레시장",
+  "sampleJejuSeogwipoHotel": "서귀포 숙소",
+  "sampleJejuCheonjiyeon": "천지연폭포",
+  "deleteTrip": "여행 지우기",
+  "deleteTripTitle": "여행을 지울까요?",
+  "deleteTripMessage": "‘{title}’ 여행은 휴지통으로 옮겨지고 30일 뒤 완전히 지워집니다. 그전에는 휴지통에서 되살릴 수 있습니다.",
+  "@deleteTripMessage": {
+    "description": "여행 지우기 확인 창. 30일은 서버의 휴지통 보관 기간이다",
+    "placeholders": {
+      "title": {"type": "String", "example": "제주 3박 4일 가을 여행"}
+    }
+  },
+  "trash": "휴지통",
+  "@trash": {
+    "description": "여행 목록 ⋮ 메뉴 항목이자 휴지통 화면 제목"
+  },
+  "trashEmpty": "휴지통이 비어 있습니다.\n지운 여행은 여기에서 30일 동안 보관됩니다.",
+  "trashLoadFailed": "휴지통을 불러오지 못했습니다.",
+  "trashItemMenuTooltip": "휴지통 여행 메뉴",
+  "@trashItemMenuTooltip": {
+    "description": "휴지통 화면의 여행 줄 오른쪽 ⋮ 메뉴"
+  },
+  "trashItemSummary": "{region} · {purge}",
+  "@trashItemSummary": {
+    "description": "휴지통 여행 줄의 둘째 줄. 예: 부산 · 29일 뒤 삭제",
+    "placeholders": {
+      "region": {"type": "String", "example": "부산"},
+      "purge": {"type": "String", "example": "29일 뒤 삭제"}
+    }
+  },
+  "trashPurgeInDays": "{days}일 뒤 삭제",
+  "@trashPurgeInDays": {
+    "description": "휴지통 여행이 완전히 지워질 때까지 남은 날(올림). 하루 이상 남았을 때",
+    "placeholders": {
+      "days": {"type": "int"}
+    }
+  },
+  "trashPurgeWithinDay": "하루 안에 삭제",
+  "@trashPurgeWithinDay": {
+    "description": "휴지통 여행이 하루 안에 완전히 지워질 때"
+  },
+  "restoreTrip": "되살리기",
+  "tripRestored": "‘{title}’ 여행을 되살렸습니다.",
+  "@tripRestored": {
+    "placeholders": {
+      "title": {"type": "String", "example": "제주 3박 4일 가을 여행"}
+    }
+  },
+  "restoreGone": "휴지통에 없는 여행입니다. 보관 기간이 끝났거나 다른 기기에서 지웠을 수 있습니다.",
+  "@restoreGone": {
+    "description": "되살리려는데 서버 휴지통에 없을 때(404). 휴지통을 다시 불러온다"
+  },
+  "deleteTripForever": "영구 삭제",
+  "deleteForeverTitle": "여행을 영구 삭제할까요?",
+  "deleteForeverMessage": "‘{title}’ 여행의 장소와 이동 수단이 모두 지워집니다. 되돌릴 수 없습니다.",
+  "@deleteForeverMessage": {
+    "placeholders": {
+      "title": {"type": "String", "example": "제주 3박 4일 가을 여행"}
+    }
+  },
 
   "phaseBefore": "여행 전",
   "phaseDuring": "여행 중",

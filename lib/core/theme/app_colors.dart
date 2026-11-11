@@ -33,6 +33,8 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.routeLodging,
     required this.routeHalo,
     required this.routeViaOpacity,
+    required this.kakaoLogin,
+    required this.naverLogin,
   });
 
   factory AppColors.light(ColorScheme scheme) => AppColors(
@@ -51,6 +53,8 @@ class AppColors extends ThemeExtension<AppColors> {
     routeLodging: ChipColors(AppPalette.ink700, scheme.surfaceContainerLowest),
     routeHalo: scheme.surfaceContainerLowest,
     routeViaOpacity: 0.5,
+    kakaoLogin: const ChipColors(AppPalette.kakaoYellow, AppPalette.kakaoLabel),
+    naverLogin: const ChipColors(AppPalette.naverGreen, AppPalette.naverLabel),
   );
 
   /// 상태 칩: 여행 전(민트), 여행 중(코랄), 여행 후(모래).
@@ -76,6 +80,10 @@ class AppColors extends ThemeExtension<AppColors> {
   /// "숙소를 거침" 선(숙소를 끈 보기에서 낮에 들른 숙소 앞뒤를 바로 잇는 선)의 불투명도. [routeVia]로 읽는다.
   final double routeViaOpacity;
 
+  /// 로그인 버튼. 다크 모드에서도 브랜드 색 그대로다.
+  final ChipColors kakaoLogin;
+  final ChipColors naverLogin;
+
   /// [day]일차의 색. 일차가 색 수보다 많으면 처음 색부터 다시 쓴다.
   ChipColors routeDay(int day) => routeDays[(day - 1) % routeDays.length];
 
@@ -94,6 +102,8 @@ class AppColors extends ThemeExtension<AppColors> {
     ChipColors? routeLodging,
     Color? routeHalo,
     double? routeViaOpacity,
+    ChipColors? kakaoLogin,
+    ChipColors? naverLogin,
   }) => AppColors(
     phaseBefore: phaseBefore ?? this.phaseBefore,
     phaseDuring: phaseDuring ?? this.phaseDuring,
@@ -104,6 +114,8 @@ class AppColors extends ThemeExtension<AppColors> {
     routeLodging: routeLodging ?? this.routeLodging,
     routeHalo: routeHalo ?? this.routeHalo,
     routeViaOpacity: routeViaOpacity ?? this.routeViaOpacity,
+    kakaoLogin: kakaoLogin ?? this.kakaoLogin,
+    naverLogin: naverLogin ?? this.naverLogin,
   );
 
   @override
@@ -122,6 +134,8 @@ class AppColors extends ThemeExtension<AppColors> {
       routeLodging: ChipColors.lerp(routeLodging, other.routeLodging, t),
       routeHalo: Color.lerp(routeHalo, other.routeHalo, t)!,
       routeViaOpacity: lerpDouble(routeViaOpacity, other.routeViaOpacity, t)!,
+      kakaoLogin: ChipColors.lerp(kakaoLogin, other.kakaoLogin, t),
+      naverLogin: ChipColors.lerp(naverLogin, other.naverLogin, t),
     );
   }
 }
