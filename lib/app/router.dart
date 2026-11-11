@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../data/auth/auth_session.dart';
 import '../dev/snapshot_lab/snapshot_lab_screen.dart';
 import '../features/login/login_screen.dart';
+import '../features/trash/trash_screen.dart';
 import '../features/trip_detail/trip_detail_screen.dart';
 import '../features/trips/trip_create_screen.dart';
 import '../features/trips/trip_list_screen.dart';
@@ -38,6 +39,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: 'trips/:tripId',
             builder: (context, state) =>
                 TripDetailScreen(tripId: state.pathParameters['tripId']!),
+          ),
+          GoRoute(
+            path: 'trash',
+            builder: (context, state) => const TrashScreen(),
           ),
           if (kDebugMode)
             GoRoute(

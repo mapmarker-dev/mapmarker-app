@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/routes.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/widgets/confirm_delete_dialog.dart';
 import '../../core/time/local_date.dart';
 import '../../core/time/today.dart';
 import '../../data/api/api_exception.dart';
@@ -14,7 +15,6 @@ import '../../data/sample/jeju_sample.dart';
 import '../../data/trips/trip_repository.dart';
 import '../../l10n/l10n.dart';
 import 'trip_list_controller.dart';
-import 'widgets/delete_trip_dialog.dart';
 import 'widgets/trip_card.dart';
 
 /// 한 줄에 놓는 여행 카드 수. 휴대폰은 2개, 태블릿은 폭에 따라 3~4개다.
@@ -25,7 +25,7 @@ int tripGridColumns(double width) => switch (width) {
 };
 
 /// 앱 바 ⋮ 메뉴의 항목.
-enum _Menu { logOut }
+enum _Menu { trash, logOut }
 
 /// 당겨서 서버에서 다시 받는다. 실패하면 알리고 보이던 목록은 그대로 둔다.
 class _PullToRefresh extends ConsumerWidget {
@@ -106,9 +106,11 @@ class TripListScreen extends ConsumerWidget {
           PopupMenuButton<_Menu>(
             tooltip: l10n.moreMenuTooltip,
             onSelected: (item) => switch (item) {
+              _Menu.trash => context.go(Routes.trash),
               _Menu.logOut => _confirmLogOut(context, ref),
             },
             itemBuilder: (context) => [
+              PopupMenuItem(value: _Menu.trash, child: Text(l10n.trash)),
               PopupMenuItem(value: _Menu.logOut, child: Text(l10n.logOut)),
             ],
           ),
@@ -227,12 +229,13 @@ class TripListScreen extends ConsumerWidget {
       context: context,
       builder: (context) {
         final l10n = context.l10n;
-        return DeleteTripDialog(
+        return ConfirmDeleteDialog(
           title: sample ? l10n.deleteSampleTitle : l10n.deleteTripTitle,
           message: sample
               ? l10n.deleteSampleMessage
               : l10n.deleteTripMessage(trip.title),
-          onDelete: () => repository.trashTrip(trip.id),
+          confirmLabel: l10n.deleteStop,
+          onConfirm: () => repository.trashTrip(trip.id),
         );
       },
     );

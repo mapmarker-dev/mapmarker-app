@@ -413,17 +413,25 @@ void _deleteTests() {
       season: Season.spring,
     );
 
-    testWidgets('deletes the trip after confirming', (tester) async {
+    testWidgets('moves the trip to the trash after confirming', (tester) async {
       await pumpTestApp(tester, repository: repository);
 
       await openDelete(tester, titleOf('부산'));
       expect(find.byType(AlertDialog), findsOneWidget);
+      expect(
+        find.text(testL10n.deleteTripMessage(titleOf('부산'))),
+        findsOneWidget,
+      );
       await tester.tap(find.widgetWithText(TextButton, '지우기'));
       await tester.pumpAndSettle();
 
       expect(find.byType(AlertDialog), findsNothing);
       expect(find.text(titleOf('부산')), findsNothing);
       expect(find.text(titleOf('제주')), findsOneWidget);
+      expect(
+        [for (final t in await repository.inner.fetchTrash()) t.trip.id],
+        ['busan'],
+      );
     });
 
     testWidgets('keeps the trip when cancelled', (tester) async {

@@ -92,8 +92,57 @@
   "sampleJejuCheonjiyeon": "천지연폭포",
   "deleteTrip": "여행 지우기",
   "deleteTripTitle": "여행을 지울까요?",
-  "deleteTripMessage": "‘{title}’의 장소와 이동 수단이 모두 지워집니다. 되돌릴 수 없습니다.",
+  "deleteTripMessage": "‘{title}’ 여행은 휴지통으로 옮겨지고 30일 뒤 완전히 지워집니다. 그전에는 휴지통에서 되살릴 수 있습니다.",
   "@deleteTripMessage": {
+    "description": "여행 지우기 확인 창. 30일은 서버의 휴지통 보관 기간이다",
+    "placeholders": {
+      "title": {"type": "String", "example": "제주 3박 4일 가을 여행"}
+    }
+  },
+  "trash": "휴지통",
+  "@trash": {
+    "description": "여행 목록 ⋮ 메뉴 항목이자 휴지통 화면 제목"
+  },
+  "trashEmpty": "휴지통이 비어 있습니다.\n지운 여행은 여기에서 30일 동안 보관됩니다.",
+  "trashLoadFailed": "휴지통을 불러오지 못했습니다.",
+  "trashItemMenuTooltip": "휴지통 여행 메뉴",
+  "@trashItemMenuTooltip": {
+    "description": "휴지통 화면의 여행 줄 오른쪽 ⋮ 메뉴"
+  },
+  "trashItemSummary": "{region} · {purge}",
+  "@trashItemSummary": {
+    "description": "휴지통 여행 줄의 둘째 줄. 예: 부산 · 29일 뒤 삭제",
+    "placeholders": {
+      "region": {"type": "String", "example": "부산"},
+      "purge": {"type": "String", "example": "29일 뒤 삭제"}
+    }
+  },
+  "trashPurgeInDays": "{days}일 뒤 삭제",
+  "@trashPurgeInDays": {
+    "description": "휴지통 여행이 완전히 지워질 때까지 남은 날(올림). 하루 이상 남았을 때",
+    "placeholders": {
+      "days": {"type": "int"}
+    }
+  },
+  "trashPurgeWithinDay": "하루 안에 삭제",
+  "@trashPurgeWithinDay": {
+    "description": "휴지통 여행이 하루 안에 완전히 지워질 때"
+  },
+  "restoreTrip": "되살리기",
+  "tripRestored": "‘{title}’ 여행을 되살렸습니다.",
+  "@tripRestored": {
+    "placeholders": {
+      "title": {"type": "String", "example": "제주 3박 4일 가을 여행"}
+    }
+  },
+  "restoreGone": "휴지통에 없는 여행입니다. 보관 기간이 끝났거나 다른 기기에서 지웠을 수 있습니다.",
+  "@restoreGone": {
+    "description": "되살리려는데 서버 휴지통에 없을 때(404). 휴지통을 다시 불러온다"
+  },
+  "deleteTripForever": "영구 삭제",
+  "deleteForeverTitle": "여행을 영구 삭제할까요?",
+  "deleteForeverMessage": "‘{title}’ 여행의 장소와 이동 수단이 모두 지워집니다. 되돌릴 수 없습니다.",
+  "@deleteForeverMessage": {
     "placeholders": {
       "title": {"type": "String", "example": "제주 3박 4일 가을 여행"}
     }
