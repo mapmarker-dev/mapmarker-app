@@ -36,6 +36,8 @@ IconData? kindBadge(StopKind kind) => switch (kind) {
 /// - 저장을 기다리는 구간([savingSegmentId], 끌어 놓은 곡선): 선을 [AppOpacity.pending]만큼 흐리게 그리고,
 ///   화살표와 선 아이콘은 그리지 않는다. 저장되면 보통 선으로 돌아온다.
 /// - 숙소를 거침([RouteView.vias]): 흐린 가는 파선([MapLineStyle.faint]) 직선 하나. 선 목록 맨 앞이다.
+/// - [faded]("후보" 보기): 후보가 어디쯤인지 보이게 동선 전체를 [AppOpacity.backdrop]만큼 흐리게 깐다.
+///   마커와 선만 그리고 화살표·선 아이콘·곡선 핸들은 없다. 마커는 누를 수 있다(그 일차로 간다).
 ({
   List<MapMarker> markers,
   List<MapLine> lines,
@@ -49,18 +51,22 @@ routeOverlays({
   required AppColors colors,
   String? curveSegmentId,
   String? savingSegmentId,
+  bool faded = false,
 }) {
+  Color backdrop(Color color) =>
+      faded ? color.withValues(alpha: color.a * AppOpacity.backdrop) : color;
   final markers = <MapMarker>[];
   final drawn = <Stop>[];
   for (final stop in view.stops) {
     if (drawn.any(stop.isSamePlaceAs)) continue;
     drawn.add(stop);
+    final look = markerLookOf(route, stop, colors);
     markers.add(
       MapMarker(
         id: stop.id,
         position: stop.position,
         caption: stop.name,
-        look: markerLookOf(route, stop, colors),
+        look: faded ? look.faded(AppOpacity.backdrop) : look,
       ),
     );
   }
@@ -72,8 +78,8 @@ routeOverlays({
       MapLine(
         id: via.id,
         points: [via.from.position, via.to.position],
-        color: colors.routeVia(via.to.day),
-        outline: colors.routeHalo,
+        color: backdrop(colors.routeVia(via.to.day)),
+        outline: backdrop(colors.routeHalo),
         style: MapLineStyle.faint,
       ),
   ];
@@ -90,8 +96,9 @@ routeOverlays({
     final mode = representativeMode(segment.legs);
     final curvature = segment.curvature;
     final saving = segment.id == savingSegmentId;
-    Color dim(Color color) =>
-        saving ? color.withValues(alpha: color.a * AppOpacity.pending) : color;
+    Color dim(Color color) => saving
+        ? color.withValues(alpha: color.a * AppOpacity.pending)
+        : backdrop(color);
     lines.add(
       MapLine(
         id: segment.id,
@@ -101,7 +108,7 @@ routeOverlays({
         style: lineStyleOf(mode),
       ),
     );
-    if (saving) continue;
+    if (saving || faded) continue;
     if (segment.id == curveSegmentId) {
       curveHandle = MapCurveHandle(
         id: segment.id,
@@ -183,6 +190,34 @@ MarkerLook markerLookOf(TripRoute route, Stop stop, AppColors colors) {
     badge: kindBadge(stop.kind),
   );
 }
+
+/// 후보 장소 마커들. 흰 바탕·회색 테두리의 작은 원에 종류 아이콘, 흐린 이름이다([MapMarker.secondary]).
+/// 일차 색을 쓰지 않아 동선과 구분되고, 지도에서 동선의 마커·선 아이콘보다 아래에 그린다.
+/// 마커 ID는 후보 ID다(장소 ID와 겹치지 않는다).
+List<MapMarker> candidateMarkers(TripRoute route, AppColors colors) => [
+  for (final candidate in route.candidates)
+    MapMarker(
+      id: candidate.id,
+      position: candidate.position,
+      caption: candidate.name,
+      look: candidateLookOf(candidate.kind, colors),
+      secondary: true,
+    ),
+];
+
+/// 후보의 마커 그림. 후보 목록의 줄도 같은 그림을 쓴다.
+MarkerLook candidateLookOf(StopKind kind, AppColors colors) => MarkerLook(
+  fill: colors.routeCandidate.background,
+  foreground: colors.routeCandidate.foreground,
+  halo: colors.routeHalo,
+  ring: colors.routeCandidateRing,
+  icon: switch (kind) {
+    StopKind.lodging => lodgingIcon,
+    StopKind.food || StopKind.tour => kindBadge(kind),
+    StopKind.other => Icons.place,
+  },
+  small: true,
+);
 
 /// [markerId] 마커가 나타내는 장소들. 같은 자리의 보이는 장소를 동선 순서로 모은다.
 /// 지도에 없는 마커면 빈 목록이다.

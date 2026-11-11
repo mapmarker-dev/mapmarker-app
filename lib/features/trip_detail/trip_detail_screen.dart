@@ -31,6 +31,7 @@ import 'stop_draft.dart';
 import 'stop_placement.dart';
 import 'transport_draft.dart';
 import 'trip_detail_controller.dart';
+import 'widgets/candidate_list.dart';
 import 'widgets/rename_trip_dialog.dart';
 import 'route_sheet_layout.dart';
 import 'widgets/day_itinerary_list.dart';
@@ -237,6 +238,15 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     String markerId,
   ) async {
     if (markerId == draftMarkerId) return _addStop(route, day);
+    // 후보를 누르면 "후보" 보기로 가서 그 줄을 펼친다. 이미 "후보" 보기면 카메라는 그대로 둔다.
+    if (route.candidateById(markerId) != null) {
+      if (ref.read(routeChoiceProvider(trip.id)).candidateView) {
+        _choices.focusOn([markerId]);
+      } else {
+        _choices.selectCandidates(focus: [markerId]);
+      }
+      return;
+    }
     final stops = stopsAtMarker(view, markerId);
     if (stops.isEmpty) return;
     if (day != null) {
@@ -285,9 +295,9 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   /// 지도 빈 곳(또는 지도에 원래 있는 장소 이름)을 누르면 그 자리에 임시 핀을 꽂는다.
   /// 아래 시트가 올라와 있으면 시트만 접는다.
   /// 오른쪽 패널은 지도를 덮지 않아서 접을 것이 없다.
-  void _onMapTap(MapTap tap, int? day) {
+  void _onMapTap(MapTap tap, {required bool hasList}) {
     if (_readOnly) return;
-    if (_layout == RouteSheetLayout.bottom && day != null && _sheetLift > 0) {
+    if (_layout == RouteSheetLayout.bottom && hasList && _sheetLift > 0) {
       _sheetKey.currentState?.collapse();
       return;
     }
@@ -578,9 +588,10 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     });
   }
 
-  Future<void> _openMap(Stop stop) async {
+  /// 장소나 후보를 외부 지도(네이버)에서 연다. 영업시간·리뷰는 거기서 본다.
+  Future<void> _openMap(String name, LatLng position) async {
     final opened = await ref.read(openLinkProvider)(
-      naverMapSearchUri(stop.name, stop.position),
+      naverMapSearchUri(name, position),
     );
     if (opened || !mounted) return;
     ScaffoldMessenger.of(
@@ -680,9 +691,12 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     final l10n = context.l10n;
     final insets = MediaQuery.paddingOf(context);
     final choice = ref.watch(routeChoiceProvider(trip.id));
-    ref.listen(routeChoiceProvider(trip.id).select((c) => c.day), (_, day) {
+    ref.listen(routeChoiceProvider(trip.id).select((c) => (c.day, c.hasList)), (
+      _,
+      next,
+    ) {
       // 전체 보기로 나가면 시트가 사라진다. 다시 들어오면 접힌 시트로 시작한다.
-      if (day == null) _sheetLift = 0;
+      if (!next.$2) _sheetLift = 0;
       // 다른 보기로 가면 꽂아 둔 임시 핀은 버린다.
       if (_draftPlace != null) setState(() => _draftPlace = null);
       // 펼친 장소와 고른 줄도 비운다. 지도에서 눌러 들어온 것이면 목록이 그 줄을 다시 고른다.
@@ -702,6 +716,9 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
         DayItinerary.of(route, view, day),
       _ => null,
     };
+    // 아래 시트나 오른쪽 패널에 목록(그날의 동선이나 후보)이 있다.
+    final hasList =
+        itinerary != null || (choice.candidateView && route.hasValue);
     final screen = MediaQuery.sizeOf(context);
     final layout = routeSheetLayoutOf(screen);
     final isSide = layout == RouteSheetLayout.side;
@@ -709,12 +726,13 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     _layout = layout;
     // 오른쪽 패널을 열면 지도 영역은 패널 왼쪽까지다.
     final panelWidth = sidePanelWidth(screen.width);
-    final panelShown = isSide && itinerary != null && choice.panelOpen;
+    final panelShown = isSide && hasList && choice.panelOpen;
     final right = panelShown ? panelWidth + insets.right : insets.right;
     // 아래 시트가 있으면 지도와 버튼은 접힌 시트 위에 둔다.
-    final bottom = itinerary == null || isSide
+    final bottom = !hasList || isSide
         ? insets.bottom
         : insets.bottom + _sheetHeaderHeight;
+    final hasCandidates = route.value?.candidates.isNotEmpty ?? false;
 
     return Scaffold(
       body: Stack(
@@ -737,8 +755,10 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                     bottom: bottom,
                   ),
                   // 로고는 왼쪽 아래라서 오른쪽 패널에는 가리지 않는다.
-                  logoLift: itinerary == null || isSide ? 0 : _sheetLift,
+                  logoLift: !hasList || isSide ? 0 : _sheetLift,
                   draft: _draftPlace,
+                  candidateView: choice.candidateView,
+                  showCandidates: choice.candidateView || choice.showCandidates,
                   // 저장을 기다리는 동안에는 핸들이 없어 다시 끌 수 없다.
                   curveSegmentId: savingSegmentId == null && !_readOnly
                       ? _curveSegmentId(view, day)
@@ -746,7 +766,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                   savingSegmentId: savingSegmentId,
                   onMarkerTap: (id) => _onMarkerTap(route, view, day, id),
                   onLineTap: (id) => _onLineTap(route, day, id),
-                  onMapTap: (tap) => _onMapTap(tap, day),
+                  onMapTap: (tap) => _onMapTap(tap, hasList: hasList),
                   onCurveChanged: (id, curvature) =>
                       _changeCurvature(route, id, curvature),
                 ),
@@ -760,7 +780,9 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                 bottom: bottom,
                 child: Center(child: _MessageCard(message)),
               ),
-          if (view != null && view.stops.isNotEmpty)
+          if (view != null &&
+              (view.stops.isNotEmpty ||
+                  (choice.candidateView && hasCandidates)))
             Positioned(
               right: right + AppSpace.lg,
               bottom: bottom + AppSpace.lg,
@@ -790,7 +812,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
               ),
           if (route case AsyncData(
             value: final route,
-          ) when itinerary != null && overlayHeight != null)
+          ) when hasList && overlayHeight != null)
             if (isSide)
               // 닫혀도 그려 둔다. 다시 열 때 넘긴 자리와 펼친 줄이 그대로다.
               AnimatedPositioned(
@@ -800,46 +822,39 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                 bottom: 0,
                 width: panelWidth + insets.right,
                 right: choice.panelOpen ? 0 : -(panelWidth + insets.right),
-                child: RouteDayPanel(
-                  header: ItineraryHeader(
-                    trip: trip,
-                    itinerary: itinerary,
-                    onClose: _choices.closePanel,
+                child: switch (_listParts(
+                  route,
+                  itinerary,
+                  choice,
+                  side: true,
+                  savingSegmentId: savingSegmentId,
+                )) {
+                  (:final header, :final list) => RouteDayPanel(
+                    header: header,
+                    list: list,
                   ),
-                  list: _itineraryList(
-                    route,
-                    itinerary,
-                    choice,
-                    padding: EdgeInsets.only(bottom: insets.bottom),
-                    // 패널은 일차를 고르거나 지도를 누를 때 이미 열린다.
-                    onReveal: () async {},
-                    savingSegmentId: savingSegmentId,
-                  ),
-                ),
+                },
               )
             else
               Positioned.fill(
                 top: overlayHeight,
-                child: RouteDaySheet(
-                  key: _sheetKey,
-                  controller: _sheetController,
-                  headerHeight: _sheetHeaderHeight,
-                  header: ItineraryHeader(
-                    trip: trip,
-                    itinerary: itinerary,
-                    showHandle: true,
+                child: switch (_listParts(
+                  route,
+                  itinerary,
+                  choice,
+                  side: false,
+                  savingSegmentId: savingSegmentId,
+                )) {
+                  (:final header, :final list) => RouteDaySheet(
+                    key: _sheetKey,
+                    controller: _sheetController,
+                    headerHeight: _sheetHeaderHeight,
+                    header: header,
+                    list: list,
+                    onHeaderSize: _onSheetHeaderSize,
+                    onLift: _onSheetLift,
                   ),
-                  list: _itineraryList(
-                    route,
-                    itinerary,
-                    choice,
-                    padding: insets.copyWith(top: 0),
-                    onReveal: () async => _sheetKey.currentState?.reveal(),
-                    savingSegmentId: savingSegmentId,
-                  ),
-                  onHeaderSize: _onSheetHeaderSize,
-                  onLift: _onSheetLift,
-                ),
+                },
               ),
           Positioned(
             top: 0,
@@ -874,6 +889,63 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
 
   static const _panelDuration = Duration(milliseconds: 250);
 
+  /// 아래 시트나 오른쪽 패널([side])에 넣을 제목 줄과 목록.
+  /// 일차 보기([itinerary]가 있음)는 그날의 동선, "후보" 보기는 후보 목록이다.
+  /// 시트는 위에 끌기 손잡이를, 패널은 닫기 버튼을 단다.
+  ({Widget header, Widget list}) _listParts(
+    TripRoute route,
+    DayItinerary? itinerary,
+    RouteChoice choice, {
+    required bool side,
+    required String? savingSegmentId,
+  }) {
+    final insets = MediaQuery.paddingOf(context);
+    final padding = side
+        ? EdgeInsets.only(bottom: insets.bottom)
+        : insets.copyWith(top: 0);
+    // 패널은 일차를 고르거나 지도를 누를 때 이미 열린다. 시트는 목록이 보이게 올린다.
+    Future<void> onReveal() async {
+      if (!side) await _sheetKey.currentState?.reveal();
+    }
+
+    final onClose = side ? _choices.closePanel : null;
+    if (itinerary == null) {
+      return (
+        header: CandidateHeader(
+          count: route.candidates.length,
+          showHandle: !side,
+          onClose: onClose,
+        ),
+        list: CandidateList(
+          route: route,
+          selection: _selection,
+          focus: choice.focus,
+          focusCount: choice.focusCount,
+          onReveal: onReveal,
+          onOpenMap: (candidate) =>
+              _openMap(candidate.name, candidate.position),
+          padding: padding,
+        ),
+      );
+    }
+    return (
+      header: ItineraryHeader(
+        trip: trip,
+        itinerary: itinerary,
+        showHandle: !side,
+        onClose: onClose,
+      ),
+      list: _itineraryList(
+        route,
+        itinerary,
+        choice,
+        padding: padding,
+        onReveal: onReveal,
+        savingSegmentId: savingSegmentId,
+      ),
+    );
+  }
+
   /// 그날의 목록. 아래 시트와 오른쪽 패널이 같은 목록과 같은 고른 줄([_selection])을 쓴다.
   Widget _itineraryList(
     TripRoute route,
@@ -894,7 +966,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     focusCount: choice.focusCount,
     onReveal: onReveal,
     padding: padding,
-    onOpenMap: _openMap,
+    onOpenMap: (stop) => _openMap(stop.name, stop.position),
     onEdit: (stop, {required canDelete}) =>
         _editStop(route, stop, canDelete: canDelete),
     onEditSegment: (segment) => _editSegment(route, segment),
@@ -915,7 +987,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   void _onLayoutChanged(RouteSheetLayout layout, RouteChoice choice) {
     _sheetLift = 0;
     if (layout == RouteSheetLayout.bottom &&
-        choice.day != null &&
+        choice.hasList &&
         choice.panelOpen) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _sheetKey.currentState?.reveal();
@@ -931,6 +1003,8 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     final l10n = context.l10n;
     return switch (route) {
       AsyncError() => l10n.tripLoadFailed,
+      // "후보" 보기는 시트·패널의 후보 목록이 안내한다(비었을 때 포함).
+      _ when choice.candidateView => null,
       AsyncData(value: final route) when route.stops.isEmpty => l10n.routeEmpty,
       _ when view == null || view.stops.isNotEmpty => null,
       _ => switch (choice.day) {
@@ -1000,9 +1074,13 @@ class _TopOverlay extends ConsumerWidget {
           RouteDayChips(
             days: trip.nights + 1,
             selectedDay: choice.day,
+            candidateView: choice.candidateView,
             showLodging: choice.showLodging,
+            showCandidates: choice.showCandidates,
             onDaySelected: choices.selectDay,
+            onCandidatesSelected: choices.selectCandidates,
             onShowLodgingChanged: choices.setShowLodging,
+            onShowCandidatesChanged: choices.setShowCandidates,
             padding: side,
           ),
           const SizedBox(height: AppSpace.sm),
@@ -1021,6 +1099,8 @@ class _RouteMap extends ConsumerWidget {
     required this.padding,
     required this.logoLift,
     required this.draft,
+    required this.candidateView,
+    required this.showCandidates,
     required this.curveSegmentId,
     required this.savingSegmentId,
     required this.onMarkerTap,
@@ -1038,6 +1118,12 @@ class _RouteMap extends ConsumerWidget {
 
   /// 임시 핀 자리. 카메라 맞춤에는 넣지 않는다.
   final MapTap? draft;
+
+  /// "후보" 보기. 동선을 흐리게 깔고, 카메라는 후보에 맞춘다(후보가 없으면 동선에).
+  final bool candidateView;
+
+  /// 후보 마커를 그린다. 다른 보기에서는 카메라 맞춤에 후보를 넣지 않는다.
+  final bool showCandidates;
 
   /// 곡선 핸들을 둘 구간. 없으면 null이다.
   final String? curveSegmentId;
@@ -1063,11 +1149,17 @@ class _RouteMap extends ConsumerWidget {
       colors: colors,
       curveSegmentId: curveSegmentId,
       savingSegmentId: savingSegmentId,
+      faded: candidateView,
     );
     final draft = this.draft;
+    final candidates = route.candidates;
+    final fitted = candidateView && candidates.isNotEmpty
+        ? candidates.map((candidate) => candidate.position)
+        : view.stops.map((stop) => stop.position);
     return map.buildMap(
       MapScene(
         markers: [
+          if (showCandidates) ...candidateMarkers(route, colors),
           ...markers,
           if (draft != null)
             draftMarker(draft, Theme.of(context).colorScheme, colors),
@@ -1078,7 +1170,7 @@ class _RouteMap extends ConsumerWidget {
         curveHandle: curveHandle,
         camera: MapCameraRequest(
           key: cameraKey,
-          bounds: cameraBoundsFor(view.stops.map((stop) => stop.position)),
+          bounds: cameraBoundsFor(fitted),
         ),
         padding: padding,
         logoLift: logoLift,

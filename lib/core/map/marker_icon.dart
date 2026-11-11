@@ -12,7 +12,14 @@ class MarkerIcon extends StatelessWidget {
   /// 원(지름 [_circle])과, 원 오른쪽 위에 걸친 배지(지름 [_badge])가 들어가는 크기.
   static const size = Size.square(32);
 
+  /// 작은 마커([MarkerLook.small])의 크기. 배지 없이 원(지름 [_smallCircle])만 들어간다.
+  static const smallSize = Size.square(22);
+
+  /// [look] 그림의 크기. 지도 구현이 마커 크기로 쓴다.
+  static Size sizeOf(MarkerLook look) => look.small ? smallSize : size;
+
   static const _circle = 24.0;
+  static const _smallCircle = 18.0;
   static const _border = 2.0;
   static const _badge = 14.0;
 
@@ -26,25 +33,26 @@ class MarkerIcon extends StatelessWidget {
       color: look.foreground,
       height: 1,
     );
+    final circle = look.small ? _smallCircle : _circle;
     return SizedBox.fromSize(
-      size: size,
+      size: sizeOf(look),
       child: Stack(
         alignment: Alignment.center,
         children: [
           Container(
-            width: _circle,
-            height: _circle,
+            width: circle,
+            height: circle,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: look.fill,
               shape: BoxShape.circle,
-              border: Border.all(color: look.halo, width: _border),
+              border: Border.all(color: look.ring ?? look.halo, width: _border),
             ),
             child: switch (look) {
               MarkerLook(:final label?) => Text(label, style: labelStyle),
               MarkerLook(:final icon?) => Icon(
                 icon,
-                size: 14,
+                size: look.small ? 11 : 14,
                 color: look.foreground,
               ),
               _ => null,

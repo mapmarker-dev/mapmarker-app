@@ -104,6 +104,7 @@ class MapMarker {
     required this.position,
     required this.caption,
     required this.look,
+    this.secondary = false,
   });
 
   final String id;
@@ -111,16 +112,21 @@ class MapMarker {
   final String caption;
   final MarkerLook look;
 
+  /// 보조 마커(예: 후보 장소). 캡션 글자가 흐리고, 선 아이콘·장소 마커보다 아래, 선·화살표보다 위에 그린다.
+  /// 겹치면 동선의 마커가 눌린다.
+  final bool secondary;
+
   @override
   bool operator ==(Object other) =>
       other is MapMarker &&
       other.id == id &&
       other.position == position &&
       other.caption == caption &&
-      other.look == look;
+      other.look == look &&
+      other.secondary == secondary;
 
   @override
-  int get hashCode => Object.hash(id, position, caption, look);
+  int get hashCode => Object.hash(id, position, caption, look, secondary);
 }
 
 /// 마커 그림. 테두리 있는 원 가운데에 번호나 아이콘이 있고, 오른쪽 위에 작은 배지가 붙을 수 있다.
@@ -135,6 +141,8 @@ class MarkerLook {
     this.label,
     this.icon,
     this.badge,
+    this.ring,
+    this.small = false,
   });
 
   /// 원 바탕색.
@@ -143,8 +151,11 @@ class MarkerLook {
   /// 번호·아이콘 색. 배지 아이콘도 이 색이다.
   final Color foreground;
 
-  /// 테두리와 배지 바탕색. 지도 위에서 마커가 묻히지 않게 한다.
+  /// 테두리와 배지 바탕색. 지도 위에서 마커가 묻히지 않게 한다. 캡션 글자의 테두리도 이 색이다.
   final Color halo;
+
+  /// 원 테두리 색. 없으면 [halo]다. 흰 바탕 마커(예: 후보)가 지도에서 보이게 테두리만 다른 색으로 그린다.
+  final Color? ring;
 
   /// 원 가운데 번호. 없으면 [icon]을 그린다.
   final String? label;
@@ -153,18 +164,39 @@ class MarkerLook {
   /// 오른쪽 위 배지 아이콘.
   final IconData? badge;
 
+  /// 작은 마커. 동선의 장소보다 덜 눈에 띄어야 하는 것(예: 후보)에 쓴다.
+  final bool small;
+
+  /// 모든 색을 [opacity]만큼 흐리게 한 그림. 다른 것을 보려고 뒤로 물린 동선에 쓴다.
+  MarkerLook faded(double opacity) {
+    Color dim(Color color) => color.withValues(alpha: color.a * opacity);
+    return MarkerLook(
+      fill: dim(fill),
+      foreground: dim(foreground),
+      halo: dim(halo),
+      ring: ring == null ? null : dim(ring!),
+      label: label,
+      icon: icon,
+      badge: badge,
+      small: small,
+    );
+  }
+
   @override
   bool operator ==(Object other) =>
       other is MarkerLook &&
       other.fill == fill &&
       other.foreground == foreground &&
       other.halo == halo &&
+      other.ring == ring &&
       other.label == label &&
       other.icon == icon &&
-      other.badge == badge;
+      other.badge == badge &&
+      other.small == small;
 
   @override
-  int get hashCode => Object.hash(fill, foreground, halo, label, icon, badge);
+  int get hashCode =>
+      Object.hash(fill, foreground, halo, ring, label, icon, badge, small);
 }
 
 /// 선 모양. 무늬 길이는 지도 구현이 정한다.

@@ -33,6 +33,8 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.routeLodging,
     required this.routeHalo,
     required this.routeViaOpacity,
+    required this.routeCandidate,
+    required this.routeCandidateRing,
     required this.kakaoLogin,
     required this.naverLogin,
   });
@@ -53,6 +55,11 @@ class AppColors extends ThemeExtension<AppColors> {
     routeLodging: ChipColors(AppPalette.ink700, scheme.surfaceContainerLowest),
     routeHalo: scheme.surfaceContainerLowest,
     routeViaOpacity: 0.5,
+    routeCandidate: ChipColors(
+      scheme.surfaceContainerLowest,
+      scheme.onSurfaceVariant,
+    ),
+    routeCandidateRing: scheme.outline,
     kakaoLogin: const ChipColors(AppPalette.kakaoYellow, AppPalette.kakaoLabel),
     naverLogin: const ChipColors(AppPalette.naverGreen, AppPalette.naverLabel),
   );
@@ -80,6 +87,12 @@ class AppColors extends ThemeExtension<AppColors> {
   /// "숙소를 거침" 선(숙소를 끈 보기에서 낮에 들른 숙소 앞뒤를 바로 잇는 선)의 불투명도. [routeVia]로 읽는다.
   final double routeViaOpacity;
 
+  /// 후보 장소 마커. 바탕은 원, 글자는 종류 아이콘이다. 일차 색을 쓰지 않아 동선과 구분된다.
+  final ChipColors routeCandidate;
+
+  /// 후보 장소 마커의 테두리. 흰 바탕이 지도에 묻히지 않게 한다.
+  final Color routeCandidateRing;
+
   /// 로그인 버튼. 다크 모드에서도 브랜드 색 그대로다.
   final ChipColors kakaoLogin;
   final ChipColors naverLogin;
@@ -102,6 +115,8 @@ class AppColors extends ThemeExtension<AppColors> {
     ChipColors? routeLodging,
     Color? routeHalo,
     double? routeViaOpacity,
+    ChipColors? routeCandidate,
+    Color? routeCandidateRing,
     ChipColors? kakaoLogin,
     ChipColors? naverLogin,
   }) => AppColors(
@@ -114,6 +129,8 @@ class AppColors extends ThemeExtension<AppColors> {
     routeLodging: routeLodging ?? this.routeLodging,
     routeHalo: routeHalo ?? this.routeHalo,
     routeViaOpacity: routeViaOpacity ?? this.routeViaOpacity,
+    routeCandidate: routeCandidate ?? this.routeCandidate,
+    routeCandidateRing: routeCandidateRing ?? this.routeCandidateRing,
     kakaoLogin: kakaoLogin ?? this.kakaoLogin,
     naverLogin: naverLogin ?? this.naverLogin,
   );
@@ -134,6 +151,12 @@ class AppColors extends ThemeExtension<AppColors> {
       routeLodging: ChipColors.lerp(routeLodging, other.routeLodging, t),
       routeHalo: Color.lerp(routeHalo, other.routeHalo, t)!,
       routeViaOpacity: lerpDouble(routeViaOpacity, other.routeViaOpacity, t)!,
+      routeCandidate: ChipColors.lerp(routeCandidate, other.routeCandidate, t),
+      routeCandidateRing: Color.lerp(
+        routeCandidateRing,
+        other.routeCandidateRing,
+        t,
+      )!,
       kakaoLogin: ChipColors.lerp(kakaoLogin, other.kakaoLogin, t),
       naverLogin: ChipColors.lerp(naverLogin, other.naverLogin, t),
     );

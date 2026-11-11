@@ -3,6 +3,7 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/core/map/geo.dart';
 import 'package:mapmarker_app/core/map/map_provider.dart';
+import 'package:mapmarker_app/core/map/marker_icon.dart';
 import 'package:mapmarker_app/core/map/naver/naver_map_provider.dart';
 import 'package:mapmarker_app/core/map/route_arrow.dart';
 
@@ -63,6 +64,34 @@ void main() {
     );
 
     expect(() => marker.payload, returnsNormally);
+  });
+
+  test('sends secondary markers small and below the route markers', () {
+    const look = MarkerLook(
+      fill: Colors.white,
+      foreground: Colors.grey,
+      halo: Colors.white,
+      ring: Colors.grey,
+      icon: Icons.place,
+      small: true,
+    );
+    final marker = naverMarkerOf(
+      const MapMarker(
+        id: 'candidate',
+        position: LatLng(33.5, 126.95),
+        caption: '우도',
+        look: look,
+        secondary: true,
+      ),
+      icon: null,
+      captionColor: Colors.grey,
+    );
+
+    final payload = marker.payload;
+
+    // 선 아이콘(150000)·장소 마커(200000)보다 아래, 화살표(100000)보다 위.
+    expect(payload['globalZIndex'], inExclusiveRange(100000, 150000));
+    expect(marker.size, MarkerIcon.smallSize);
   });
 
   test('sends arrows the SDK can read, turned flat on the map', () {
