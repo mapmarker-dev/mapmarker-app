@@ -206,7 +206,7 @@ void main() {
       await tapMap(tester, _somewhere, placeName: '성산일출봉');
 
       expect(_draft(tester)?.caption, '성산일출봉');
-      expect(find.text('‘성산일출봉’'), findsOneWidget);
+      expect(find.text('성산일출봉'), findsOneWidget);
     });
 
     testWidgets('waits for the sheet to fold first in a day view', (
@@ -401,7 +401,7 @@ void main() {
       await _openAddForm(tester);
 
       expect(_slotOrder(tester), 2);
-      expect(_slotOption('‘hotel’ 앞 (기본)'), findsOneWidget);
+      expect(_slotOption('hotel 앞 (기본)'), findsOneWidget);
       expect(_inForm(find.text(preview)), findsNothing);
 
       await _tapInForm(tester, _slotField);
@@ -417,7 +417,7 @@ void main() {
         ))
           (item.child as Text).data,
       ];
-      expect(options, ['‘a’ 앞', '‘a’ 뒤', '‘hotel’ 앞 (기본)']);
+      expect(options, ['a 앞', 'a 뒤', 'hotel 앞 (기본)']);
     });
 
     testWidgets('puts the stop where it is chosen', (tester) async {
@@ -426,7 +426,7 @@ void main() {
       await _openAddForm(tester);
 
       await tester.enterText(_nameField, '오름');
-      await _chooseSlot(tester, '‘a’ 앞');
+      await _chooseSlot(tester, 'a 앞');
       await _save(tester);
 
       expect(_tileNames(tester), ['오름', 'a', 'b', 'hotel']);
@@ -441,7 +441,7 @@ void main() {
       expect(_inForm(find.text('1일차 b → hotel')), findsOneWidget);
       expect(_inForm(find.text('도보')), findsOneWidget);
 
-      await _chooseSlot(tester, '‘a’ 뒤');
+      await _chooseSlot(tester, 'a 뒤');
 
       expect(_inForm(find.text(preview)), findsNothing);
     });
@@ -476,9 +476,9 @@ void main() {
 
       // 숙소는 맨 뒤가 기본이다.
       expect(_slotOrder(tester), 3);
-      expect(_slotOption('‘hotel’ 뒤 (기본)'), findsOneWidget);
+      expect(_slotOption('hotel 뒤 (기본)'), findsOneWidget);
 
-      await _chooseSlot(tester, '‘a’ 뒤');
+      await _chooseSlot(tester, 'a 뒤');
       await _chooseKind(tester, '음식');
 
       expect(_slotOrder(tester), 1);
@@ -492,7 +492,7 @@ void main() {
       await _openAddForm(tester);
       await tester.enterText(_nameField, '새 숙소');
       await _chooseKind(tester, '숙소');
-      await _chooseSlot(tester, '‘hotel’ 뒤 (기본)');
+      await _chooseSlot(tester, 'hotel 뒤 (기본)');
 
       // 숙소 뒤는 숙소만 고를 수 있다. 종류를 바꾸면 기본 자리로 돌아간다.
       await _chooseKind(tester, '음식');
@@ -508,12 +508,12 @@ void main() {
       await _pumpJeju(tester);
       await tapChip(tester, '1일차');
       await _openAddForm(tester);
-      await _chooseSlot(tester, '‘a’ 앞');
+      await _chooseSlot(tester, 'a 앞');
 
       await _chooseDay(tester, '2일차');
 
       expect(_slotOrder(tester), 2);
-      expect(_slotOption('‘hotel2’ 앞 (기본)'), findsOneWidget);
+      expect(_slotOption('hotel2 앞 (기본)'), findsOneWidget);
 
       await _chooseDay(tester, '3일차');
 
@@ -614,9 +614,9 @@ void main() {
       await _chooseDay(tester, '1일차');
 
       expect(_slotOrder(tester), 2);
-      expect(_slotOption('‘hotel’ 앞 (기본)'), findsOneWidget);
+      expect(_slotOption('hotel 앞 (기본)'), findsOneWidget);
 
-      await _chooseSlot(tester, '‘a’ 뒤');
+      await _chooseSlot(tester, 'a 뒤');
       await _save(tester);
 
       await tapChip(tester, '1일차');
@@ -901,7 +901,7 @@ void main() {
 
       expect(_tileNames(tester), ['hotel2']);
 
-      await tester.tap(find.text('오늘 밤도 ‘hotel2’에서 묵기'));
+      await tester.tap(find.text('오늘 밤도 hotel2에서 묵기'));
       await tester.pumpAndSettle();
 
       // 그날 첫 장소가 전날과 같은 숙소면 출발 숙소 줄은 따로 보이지 않는다(같은 숙소가 두 번 보이지 않게).
@@ -937,7 +937,7 @@ void main() {
         );
         await tapChip(tester, '2일차');
         await _openSheet(tester);
-        await tester.tap(find.text('오늘 밤도 ‘hotel’에서 묵기'));
+        await tester.tap(find.text('오늘 밤도 hotel에서 묵기'));
         await tester.pumpAndSettle();
         return container;
       }
@@ -947,7 +947,7 @@ void main() {
 
         expect(find.text('이동 수단이 사라집니다'), findsOneWidget);
         expect(
-          find.text('‘hotel’에서 묵으면 아래 구간의 이동 수단이 지워집니다. 넣을까요?'),
+          find.text('hotel에서 묵으면 아래 구간의 이동 수단이 지워집니다. 넣을까요?'),
           findsOneWidget,
         );
         expect(find.text('2일차 c → 3일차 e'), findsOneWidget);
@@ -991,8 +991,8 @@ void main() {
         testStop('r', tripId: 'jeju', day: 2, order: 2),
         testStop('e', tripId: 'jeju', day: 3),
       ];
-      const tonightAtB = '오늘 밤은 ‘B’에서 묵기';
-      const againAtHotel = '오늘 밤도 ‘hotel’에서 묵기';
+      const tonightAtB = '오늘 밤은 B에서 묵기';
+      const againAtHotel = '오늘 밤도 hotel에서 묵기';
 
       testWidgets('offers it before the lodging of the night before', (
         tester,

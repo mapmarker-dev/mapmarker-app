@@ -83,7 +83,7 @@ void main() {
 
       await tapMap(tester, tapped, placeName: '협재해수욕장');
 
-      expect(find.text('‘협재해수욕장’'), findsOneWidget);
+      expect(find.text('협재해수욕장'), findsOneWidget);
       expect(find.widgetWithText(FilledButton, '동선에 넣기'), findsOneWidget);
       await tester.tap(find.widgetWithText(OutlinedButton, '후보로 저장'));
       await tester.pumpAndSettle();
@@ -272,7 +272,7 @@ void main() {
       await tester.tap(delete);
       await tester.pumpAndSettle();
 
-      expect(find.text('‘우도’ 후보 지우기'), findsOneWidget);
+      expect(find.text('우도 후보 지우기'), findsOneWidget);
       await tester.tap(
         find.descendant(
           of: find.byType(AlertDialog),

@@ -32,7 +32,7 @@ FlakyTripRepository _repository() => FlakyTripRepository(
   ),
 );
 
-/// 1일차: hotel(숙소) > a. 그날 밤 숙소가 없어서 "오늘 밤은 ‘hotel’에서 묵기"가 있다.
+/// 1일차: hotel(숙소) > a. 그날 밤 숙소가 없어서 "오늘 밤은 hotel에서 묵기"가 있다.
 FlakyTripRepository _lodgingRepository() => FlakyTripRepository(
   testRepository(
     [testTrip(id: 'jeju', region: '제주')],

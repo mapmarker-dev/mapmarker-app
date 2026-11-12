@@ -271,7 +271,7 @@ void main() {
       expect(route.stops.map((s) => s.id), ['b', 'hotel', 'c']);
       expect(route.candidates.map((c) => c.id), ['udo', 'a']);
       expect(route.candidateById('a')!.kind, StopKind.tour);
-      expect(find.text('‘a’ 장소를 후보로 뺐습니다.'), findsOneWidget);
+      expect(find.text('a 장소를 후보로 뺐습니다.'), findsOneWidget);
       // 보기는 그대로다.
       expect(_choice(container).day, 1);
 
@@ -291,7 +291,7 @@ void main() {
 
       await _tapInForm(tester, _demote);
 
-      expect(find.text('‘b’ 후보로 빼기'), findsOneWidget);
+      expect(find.text('b 후보로 빼기'), findsOneWidget);
       expect(_inDialog(find.text('예정 시각 오전 10:00')), findsOneWidget);
       expect(_inDialog(find.text('1일차 a → b')), findsOneWidget);
       expect(_inDialog(find.text('도보')), findsOneWidget);
@@ -342,7 +342,7 @@ void main() {
       await _tapInForm(tester, _demote);
 
       expect(_route(container).candidateById('a')!.name, '협재');
-      expect(find.text('‘협재’ 장소를 후보로 뺐습니다.'), findsOneWidget);
+      expect(find.text('협재 장소를 후보로 뺐습니다.'), findsOneWidget);
     });
 
     testWidgets('cannot move without a name', (tester) async {

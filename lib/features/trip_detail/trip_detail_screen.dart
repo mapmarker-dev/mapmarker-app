@@ -1369,7 +1369,7 @@ class _DraftCard extends StatelessWidget {
                 const SizedBox(width: AppSpace.sm),
                 Expanded(
                   child: Text(
-                    name == null ? l10n.addStopHere : l10n.addNamedStop(name),
+                    name ?? l10n.addStopHere,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),

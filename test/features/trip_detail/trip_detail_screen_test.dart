@@ -524,7 +524,7 @@ void main() {
       await tester.tap(deleteButton);
       await tester.pumpAndSettle();
 
-      expect(find.text('‘d’ 지우기'), findsOneWidget);
+      expect(find.text('d 지우기'), findsOneWidget);
 
       await tester.tap(find.text('취소'));
       await tester.pumpAndSettle();

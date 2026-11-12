@@ -320,7 +320,7 @@
     "description": "후보 입력 화면 맨 위의 안내"
   },
   "candidateFormDelete": "후보 지우기",
-  "deleteCandidateTitle": "‘{name}’ 후보 지우기",
+  "deleteCandidateTitle": "{name} 후보 지우기",
   "@deleteCandidateTitle": {
     "placeholders": {
       "name": {"type": "String", "example": "우도"}
@@ -347,7 +347,7 @@
   "@stopFormDemote": {
     "description": "장소 편집 화면의 버튼(장소 지우기 위). 장소를 동선에서 빼서 후보로 둔다"
   },
-  "demoteStopTitle": "‘{name}’ 후보로 빼기",
+  "demoteStopTitle": "{name} 후보로 빼기",
   "@demoteStopTitle": {
     "placeholders": {
       "name": {"type": "String", "example": "성산일출봉"}
@@ -364,7 +364,7 @@
     }
   },
   "demoteStopConfirm": "빼기",
-  "stopDemoted": "‘{name}’ 장소를 후보로 뺐습니다.",
+  "stopDemoted": "{name} 장소를 후보로 뺐습니다.",
   "@stopDemoted": {
     "description": "장소를 후보로 뺀 뒤의 스낵바. 버튼(후보 보기)을 누르면 후보 목록에서 그 후보를 보여 준다",
     "placeholders": {
@@ -466,7 +466,7 @@
   "@deleteStop": {
     "description": "장소 지우기 확인 대화상자의 버튼"
   },
-  "deleteStopTitle": "‘{name}’ 지우기",
+  "deleteStopTitle": "{name} 지우기",
   "@deleteStopTitle": {
     "placeholders": {
       "name": {"type": "String", "example": "성산일출봉"}
@@ -477,7 +477,7 @@
   "@moveStopDropsTransportTitle": {
     "description": "장소를 끌어 옮기거나 연박 숙소를 넣으면 이웃이 바뀌는 구간에 적어 둔 이동 수단이 있을 때 묻는 대화상자 제목"
   },
-  "moveStopDropsTransportMessage": "‘{name}’ 장소를 옮기면 아래 구간의 이동 수단이 지워집니다. 옮길까요?",
+  "moveStopDropsTransportMessage": "{name} 장소를 옮기면 아래 구간의 이동 수단이 지워집니다. 옮길까요?",
   "@moveStopDropsTransportMessage": {
     "placeholders": {
       "name": {"type": "String", "example": "용두암"}
@@ -503,21 +503,21 @@
       "to": {"type": "String", "example": "용두암"}
     }
   },
-  "stayAgain": "오늘 밤도 ‘{name}’에서 묵기",
+  "stayAgain": "오늘 밤도 {name}에서 묵기",
   "@stayAgain": {
     "description": "일차 동선 시트 맨 아래 버튼. 전날 밤 숙소를 이 일차 밤 숙소로 한 번 더 넣는다(연박)",
     "placeholders": {
       "name": {"type": "String", "example": "제주시 숙소"}
     }
   },
-  "stayTonight": "오늘 밤은 ‘{name}’에서 묵기",
+  "stayTonight": "오늘 밤은 {name}에서 묵기",
   "@stayTonight": {
     "description": "일차 동선 시트 맨 아래 버튼. 그날 들른 숙소(체크인하고 다시 나간 경우 등)를 이 일차 밤 숙소로 맨 뒤에 한 번 더 넣는다",
     "placeholders": {
       "name": {"type": "String", "example": "서귀포 숙소"}
     }
   },
-  "stayAgainDropsTransportMessage": "‘{name}’에서 묵으면 아래 구간의 이동 수단이 지워집니다. 넣을까요?",
+  "stayAgainDropsTransportMessage": "{name}에서 묵으면 아래 구간의 이동 수단이 지워집니다. 넣을까요?",
   "@stayAgainDropsTransportMessage": {
     "description": "밤 숙소(연박이나 그날 들른 숙소)를 그날 맨 뒤에 넣으면 그날 마지막 장소에서 다음 날로 가는 구간의 이동 수단이 지워질 때",
     "placeholders": {
@@ -528,14 +528,7 @@
 
   "addStopHere": "지도에서 고른 곳",
   "@addStopHere": {
-    "description": "지도 빈 곳을 누르면 뜨는 카드의 제목. 아래에 [후보로 저장] [동선에 넣기]가 있다"
-  },
-  "addNamedStop": "‘{name}’",
-  "@addNamedStop": {
-    "description": "네이버 지도의 장소 이름(심볼)을 누르면 뜨는 카드의 제목",
-    "placeholders": {
-      "name": {"type": "String", "example": "성산일출봉"}
-    }
+    "description": "지도 빈 곳을 누르면 뜨는 카드의 제목. 아래에 [후보로 저장] [동선에 넣기]가 있다. 네이버 지도의 장소 이름(심볼)을 누르면 그 이름이 제목이다"
   },
   "stopAddedToDay": "{day}일차에 넣었습니다.",
   "@stopAddedToDay": {
@@ -565,14 +558,14 @@
   "@stopSlotOnly": {
     "description": "넣을 자리 칸. 장소가 없는 일차라 고를 자리가 하나뿐일 때"
   },
-  "stopSlotBefore": "‘{name}’ 앞",
+  "stopSlotBefore": "{name} 앞",
   "@stopSlotBefore": {
     "description": "넣을 자리 칸의 선택지. 맨 앞이거나 바로 뒤가 숙소인 자리",
     "placeholders": {
       "name": {"type": "String", "example": "제주시 숙소"}
     }
   },
-  "stopSlotAfter": "‘{name}’ 뒤",
+  "stopSlotAfter": "{name} 뒤",
   "@stopSlotAfter": {
     "description": "넣을 자리 칸의 선택지. 바로 앞 장소로 가리키는 자리",
     "placeholders": {
@@ -583,7 +576,7 @@
   "@stopSlotDefault": {
     "description": "넣을 자리 칸에서 기본 자리(맨 뒤, 마지막이 숙소면 숙소 앞)에 붙인다",
     "placeholders": {
-      "slot": {"type": "String", "example": "‘제주시 숙소’ 앞"}
+      "slot": {"type": "String", "example": "제주시 숙소 앞"}
     }
   },
   "stopSlotDropsTransportAdd": "이 자리에 넣으면 아래 이동 수단이 지워집니다.",
