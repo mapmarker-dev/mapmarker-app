@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/app/routes.dart';
 import 'package:mapmarker_app/core/links/open_link.dart';
@@ -79,7 +80,38 @@ Finder _inCandidate(String name, Finder finder) => find.descendant(
 );
 
 void main() {
-  group('"후보 보기" chip', () {
+  testWidgets('puts the views on the first row and the filters below', (
+    tester,
+  ) async {
+    await _pumpJeju(tester);
+
+    Rect chip(String label) => tester.getRect(
+      find.ancestor(
+        of: find.text(label),
+        matching: find.byWidgetPredicate(
+          (w) => w is ChoiceChip || w is FilterChip,
+        ),
+      ),
+    );
+    final all = chip('전체');
+    // 첫 줄: 하나만 고르는 보기.
+    expect(chip('1일차').top, all.top);
+    expect(chip('후보 목록').top, all.top);
+    expect(find.widgetWithText(ChoiceChip, '후보 목록'), findsOneWidget);
+    // 둘째 줄: "함께 보기" 뒤의 켜고 끄는 필터.
+    final label = tester.getRect(find.text('함께 보기'));
+    expect(label.top, greaterThan(all.bottom));
+    for (final filter in ['숙소', '후보']) {
+      expect(find.widgetWithText(FilterChip, filter), findsOneWidget);
+      expect(chip(filter).left, greaterThan(label.right));
+      expect(
+        chip(filter).center.dy,
+        moreOrLessEquals(label.center.dy, epsilon: 1),
+      );
+    }
+  });
+
+  group('"후보" filter chip', () {
     testWidgets('shows candidates with the route from the start', (
       tester,
     ) async {
@@ -106,7 +138,7 @@ void main() {
       await _pumpJeju(tester);
       final fit = mapScene(tester).camera.key;
 
-      await tapChip(tester, '후보 보기');
+      await tapChip(tester, '후보');
 
       expect(_candidateMarkers(mapScene(tester)), isEmpty);
       // 카메라는 그대로다(후보는 카메라 맞춤에 들지 않는다).
@@ -124,7 +156,7 @@ void main() {
     ) async {
       await _pumpJeju(tester);
 
-      await tapChip(tester, '후보');
+      await tapChip(tester, '후보 목록');
 
       final scene = mapScene(tester);
       expect(_candidateMarkers(scene), ['udo', 'cafe']);
@@ -147,11 +179,13 @@ void main() {
       expect(names, ['우도', '카페']);
     });
 
-    testWidgets('shows candidates even when "후보 보기" is off', (tester) async {
+    testWidgets('shows candidates even when the "후보" filter is off', (
+      tester,
+    ) async {
       await _pumpJeju(tester);
-      await tapChip(tester, '후보 보기');
-
       await tapChip(tester, '후보');
+
+      await tapChip(tester, '후보 목록');
 
       expect(_candidateMarkers(mapScene(tester)), ['udo', 'cafe']);
 
@@ -164,7 +198,7 @@ void main() {
     testWidgets('says there are no candidates yet', (tester) async {
       await _pumpJeju(tester, candidates: []);
 
-      await tapChip(tester, '후보');
+      await tapChip(tester, '후보 목록');
 
       expect(find.textContaining('아직 후보가 없습니다.'), findsOneWidget);
       expect(find.text('없음'), findsOneWidget);
@@ -177,7 +211,7 @@ void main() {
 
     testWidgets('expands a candidate to show its memo', (tester) async {
       await _pumpJeju(tester);
-      await tapChip(tester, '후보');
+      await tapChip(tester, '후보 목록');
       expect(find.text('배 시간 확인'), findsNothing);
 
       await tester.tap(find.text('우도'));
@@ -195,7 +229,7 @@ void main() {
           return true;
         },
       );
-      await tapChip(tester, '후보');
+      await tapChip(tester, '후보 목록');
 
       await tester.tap(_inCandidate('카페', find.text('네이버 지도에서 영업시간·리뷰 보기')));
       await tester.pumpAndSettle();
@@ -207,7 +241,7 @@ void main() {
       tester,
     ) async {
       await _pumpJeju(tester);
-      await tapChip(tester, '후보');
+      await tapChip(tester, '후보 목록');
 
       await tapMarker(tester, 'c');
 
@@ -238,7 +272,7 @@ void main() {
       tester,
     ) async {
       await _pumpJeju(tester);
-      await tapChip(tester, '후보');
+      await tapChip(tester, '후보 목록');
       final fit = mapScene(tester).camera.key;
 
       await tapMarker(tester, 'udo');

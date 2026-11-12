@@ -142,7 +142,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   RouteChoiceController get _choices =>
       ref.read(routeChoiceProvider(trip.id).notifier);
 
-  /// 띄워 둔 버튼 있는 알림 스낵바([숙소 켜기]·[후보 보기]). 스낵바는 앱 전체의 `ScaffoldMessenger`에 떠서 이 화면을 나가도 남는다.
+  /// 띄워 둔 버튼 있는 알림 스낵바([숙소 켜기]·[후보 켜기]·[후보 목록]). 스낵바는 앱 전체의 `ScaffoldMessenger`에 떠서 이 화면을 나가도 남는다.
   /// 그래서 화면을 나갈 때 닫는다.
   ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? _notice;
 
@@ -241,7 +241,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     String markerId,
   ) async {
     if (markerId == draftMarkerId) return _addStop(route, day);
-    // 후보를 누르면 "후보" 보기로 가서 그 줄을 펼친다. 이미 "후보" 보기면 카메라는 그대로 둔다.
+    // 후보를 누르면 "후보 목록" 보기로 가서 그 줄을 펼친다. 이미 "후보 목록" 보기면 카메라는 그대로 둔다.
     if (route.candidateById(markerId) != null) {
       if (ref.read(routeChoiceProvider(trip.id)).candidateView) {
         _choices.focusOn([markerId]);
@@ -370,8 +370,8 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
 
   /// 임시 핀 자리를 후보로 저장한다. 후보 입력 화면에서 이름·종류·설명·메모를 받는다.
   ///
-  /// "후보" 보기면 목록에서 그 줄을 보여 준다. "후보 보기"를 끈 보기면 지도에 보이지 않으니
-  /// 그렇다고 알리고 [후보 보기]로 켜게 한다(보기 설정은 몰래 바꾸지 않는다).
+  /// "후보 목록" 보기면 목록에서 그 줄을 보여 준다. 함께 보기의 "후보"를 끈 보기면 지도에 보이지 않으니
+  /// 그렇다고 알리고 [후보 켜기]로 켜게 한다(보기 설정은 몰래 바꾸지 않는다).
   Future<void> _saveCandidate() async {
     final place = _draftPlace;
     if (place == null) return;
@@ -448,7 +448,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     }
   }
 
-  /// 후보로 뺀 장소를 알리고, [후보 보기]로 후보 목록에서 그 후보를 보여 준다.
+  /// 후보로 뺀 장소를 알리고, [후보 목록]으로 후보 목록에서 그 후보를 보여 준다.
   /// 지금 보기는 그대로 둔다. 빼고 나서 그 일차를 이어서 고칠 때가 많아서다.
   void _showDemoted(String stopId, String name) => _showNotice(
     context.l10n.stopDemoted(name),
@@ -457,7 +457,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   );
 
   /// 저장한 후보를 보여 준다. 카메라는 움직이지 않는다.
-  /// "후보" 보기면 목록에서 그 줄을, "후보 보기"를 끈 다른 보기면 보이지 않는다고 알린다.
+  /// "후보 목록" 보기면 목록에서 그 줄을, 함께 보기의 "후보"를 끈 다른 보기면 보이지 않는다고 알린다([후보 켜기]).
   void _showCandidate(String candidateId) {
     final choice = ref.read(routeChoiceProvider(trip.id));
     if (choice.candidateView) {
@@ -465,7 +465,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     } else if (!choice.showCandidates) {
       _showNotice(
         context.l10n.candidatesHiddenSaved,
-        actionLabel: context.l10n.routeShowCandidates,
+        actionLabel: context.l10n.candidatesHiddenShow,
         show: () => _choices.setShowCandidates(true),
       );
     }
@@ -697,7 +697,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       );
 
   /// [message]를 알리고, [actionLabel] 버튼으로 [show]를 한 뒤 [then]을 한다.
-  /// 보기 필터(숙소, 후보 보기)가 꺼져 있어서 할 수 없거나 보이지 않는 것을 알리고 켜게 하거나,
+  /// 보기 필터(함께 보기의 숙소·후보)가 꺼져 있어서 할 수 없거나 보이지 않는 것을 알리고 켜게 하거나,
   /// 후보로 뺀 장소를 후보 목록에서 보여 줄 때 쓴다.
   void _showNotice(
     String message, {
@@ -1032,7 +1032,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   static const _panelDuration = Duration(milliseconds: 250);
 
   /// 아래 시트나 오른쪽 패널([side])에 넣을 제목 줄과 목록.
-  /// 일차 보기([itinerary]가 있음)는 그날의 동선, "후보" 보기는 후보 목록이다.
+  /// 일차 보기([itinerary]가 있음)는 그날의 동선, "후보 목록" 보기는 후보 목록이다.
   /// 시트는 위에 끌기 손잡이를, 패널은 닫기 버튼을 단다.
   ({Widget header, Widget list}) _listParts(
     TripRoute route,
@@ -1149,7 +1149,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     final l10n = context.l10n;
     return switch (route) {
       AsyncError() => l10n.tripLoadFailed,
-      // "후보" 보기는 시트·패널의 후보 목록이 안내한다(비었을 때 포함).
+      // "후보 목록" 보기는 시트·패널의 후보 목록이 안내한다(비었을 때 포함).
       _ when choice.candidateView => null,
       AsyncData(value: final route) when route.stops.isEmpty => l10n.routeEmpty,
       _ when view == null || view.stops.isNotEmpty => null,
@@ -1265,7 +1265,7 @@ class _RouteMap extends ConsumerWidget {
   /// 임시 핀 자리. 카메라 맞춤에는 넣지 않는다.
   final MapTap? draft;
 
-  /// "후보" 보기. 동선을 흐리게 깔고, 카메라는 후보에 맞춘다(후보가 없으면 동선에).
+  /// "후보 목록" 보기. 동선을 흐리게 깔고, 카메라는 후보에 맞춘다(후보가 없으면 동선에).
   final bool candidateView;
 
   /// 후보 마커를 그린다. 다른 보기에서는 카메라 맞춤에 후보를 넣지 않는다.

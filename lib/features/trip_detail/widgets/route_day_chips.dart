@@ -4,10 +4,14 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../l10n/l10n.dart';
 
-/// 일차 칩 줄: 전체, 1일차, 2일차 …, 후보, 그리고 필터 칩 숙소·후보 보기. 일차가 많으면 가로로 넘긴다.
+/// 동선 페이지의 칩 두 줄.
 ///
+/// 첫 줄은 하나만 고르는 보기다: 전체, 1일차, 2일차 …, 후보 목록. 일차가 많으면 가로로 넘긴다.
 /// 일차 칩의 점은 그 일차의 동선 색이다. 장소가 없는 일차도 칩은 보인다.
-/// "후보"는 일차처럼 고르는 보기(후보 목록)이고, "후보 보기"는 다른 보기에도 후보를 보일지 켜고 끄는 필터다.
+///
+/// 둘째 줄은 "함께 보기" 뒤에 켜고 끄는 필터 숙소·후보다. 숙소는 지도와 목록에서 숙소를 숨기고,
+/// 후보는 전체·일차 보기의 지도에 후보 점을 보인다. 보기와 필터를 한 줄에 두었더니 "후보"(보기)와
+/// "후보 보기"(필터)가 헷갈려서 줄을 나눴다.
 class RouteDayChips extends StatelessWidget {
   const RouteDayChips({
     super.key,
@@ -29,7 +33,7 @@ class RouteDayChips extends StatelessWidget {
   /// null이면 여행 전체다([candidateView]가 아닐 때).
   final int? selectedDay;
 
-  /// "후보" 보기를 고르고 있다.
+  /// "후보 목록" 보기를 고르고 있다.
   final bool candidateView;
 
   final bool showLodging;
@@ -67,7 +71,7 @@ class RouteDayChips extends StatelessWidget {
       onSelected: (_) => onDaySelected(day),
     );
 
-    return SingleChildScrollView(
+    final views = SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: padding,
       child: Row(
@@ -93,20 +97,67 @@ class RouteDayChips extends StatelessWidget {
             backgroundColor: background,
             onSelected: (_) => onCandidatesSelected(),
           ),
-          FilterChip(
-            label: Text(l10n.routeShowLodging),
-            selected: showLodging,
-            backgroundColor: background,
-            onSelected: onShowLodgingChanged,
-          ),
-          FilterChip(
-            label: Text(l10n.routeShowCandidates),
-            selected: showCandidates,
-            backgroundColor: background,
-            onSelected: onShowCandidatesChanged,
-          ),
         ],
       ),
+    );
+
+    // 필터 칩은 보기 칩보다 작게, 글과 함께 바탕 하나에 묶는다(지도 위에서 글이 묻히지 않게).
+    // 지도를 덜 가리려고 누르는 영역도 보이는 크기로 줄인다.
+    Widget filter(String label, bool selected, ValueChanged<bool> onChanged) =>
+        FilterChip(
+          label: Text(label),
+          selected: selected,
+          visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          backgroundColor: background,
+          onSelected: onChanged,
+        );
+    final filters = SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: padding,
+      child: DecoratedBox(
+        decoration: ShapeDecoration(
+          color: background,
+          shape: const StadiumBorder(),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpace.xs,
+            vertical: 2,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: AppSpace.xs,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs),
+                child: Text(
+                  l10n.routeAlsoShow,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              filter(l10n.routeShowLodging, showLodging, onShowLodgingChanged),
+              filter(
+                l10n.routeShowCandidates,
+                showCandidates,
+                onShowCandidatesChanged,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      // 보기 칩의 누르는 영역(48)이 보이는 칩보다 위아래로 커서 줄 사이는 따로 띄우지 않는다.
+      children: [
+        views,
+        Align(alignment: AlignmentDirectional.centerStart, child: filters),
+      ],
     );
   }
 }

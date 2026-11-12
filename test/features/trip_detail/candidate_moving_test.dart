@@ -103,9 +103,9 @@ Future<void> _tapInForm(WidgetTester tester, Finder finder) async {
   await tester.pumpAndSettle();
 }
 
-/// "후보" 보기에서 [name] 후보 줄을 펼치고 [동선에 넣기]를 누른다.
+/// "후보 목록" 보기에서 [name] 후보 줄을 펼치고 [동선에 넣기]를 누른다.
 Future<void> _openPromote(WidgetTester tester, String name) async {
-  await tapChip(tester, '후보');
+  await tapChip(tester, '후보 목록');
   await tester.tap(find.text(name));
   await tester.pumpAndSettle();
   await tester.tap(find.widgetWithText(FilledButton, '동선에 넣기'));
@@ -226,7 +226,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(_choice(container).day, 2);
-      expect(find.text('숙소가 꺼져 있어 지도에 보이지 않습니다.'), findsOneWidget);
+      expect(find.text('숙소로 저장했습니다.'), findsOneWidget);
 
       await tester.tap(find.widgetWithText(SnackBarAction, '숙소 켜기'));
       await tester.pumpAndSettle();
@@ -275,7 +275,7 @@ void main() {
       // 보기는 그대로다.
       expect(_choice(container).day, 1);
 
-      await tester.tap(find.widgetWithText(SnackBarAction, '후보 보기'));
+      await tester.tap(find.widgetWithText(SnackBarAction, '후보 목록'));
       await tester.pumpAndSettle();
 
       expect(_choice(container).candidateView, isTrue);

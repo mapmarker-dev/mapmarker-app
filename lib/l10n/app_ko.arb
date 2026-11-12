@@ -289,17 +289,21 @@
       "day": {"type": "int"}
     }
   },
+  "routeAlsoShow": "함께 보기",
+  "@routeAlsoShow": {
+    "description": "동선 페이지 칩 둘째 줄 맨 앞의 글. 뒤에 켜고 끄는 칩 숙소·후보가 온다"
+  },
   "routeShowLodging": "숙소",
   "@routeShowLodging": {
-    "description": "동선 페이지에서 숙소를 지도에 보일지 켜고 끄는 칩"
+    "description": "동선 페이지 칩 둘째 줄(함께 보기). 숙소를 지도와 목록에 보일지 켜고 끈다"
   },
-  "routeCandidates": "후보",
+  "routeCandidates": "후보 목록",
   "@routeCandidates": {
-    "description": "동선 페이지의 일차 칩 줄 끝. 후보 장소 목록을 보는 보기"
+    "description": "동선 페이지 칩 첫 줄 끝(전체, 1일차 … 다음). 후보 장소 목록을 보는 보기"
   },
-  "routeShowCandidates": "후보 보기",
+  "routeShowCandidates": "후보",
   "@routeShowCandidates": {
-    "description": "동선 페이지에서 전체·일차 보기에도 후보 장소를 지도에 보일지 켜고 끄는 칩"
+    "description": "동선 페이지 칩 둘째 줄(함께 보기). 전체·일차 보기의 지도에도 후보 장소를 보일지 켜고 끈다"
   },
   "candidateListTitle": "후보 장소",
   "@candidateListTitle": {
@@ -327,9 +331,13 @@
     }
   },
   "deleteCandidateMessage": "지운 후보는 되살릴 수 없습니다.",
-  "candidatesHiddenSaved": "후보 보기가 꺼져 있어 지도에 보이지 않습니다.",
+  "candidatesHiddenSaved": "후보로 저장했습니다.",
   "@candidatesHiddenSaved": {
-    "description": "'후보 보기'를 끈 보기에서 후보를 저장했을 때. 버튼(후보 보기)으로 켠다"
+    "description": "함께 보기의 '후보'를 끈 보기에서 후보를 저장했을 때. 지도에 보이지 않으니 버튼(후보 켜기)으로 켜게 한다. 길게 설명하지 않는다"
+  },
+  "candidatesHiddenShow": "후보 켜기",
+  "@candidatesHiddenShow": {
+    "description": "후보가 꺼져 있다고 알리는 스낵바의 버튼. 누르면 함께 보기의 후보 필터를 켠다"
   },
   "draftSaveCandidate": "후보로 저장",
   "@draftSaveCandidate": {
@@ -366,12 +374,12 @@
   "demoteStopConfirm": "빼기",
   "stopDemoted": "{name} 장소를 후보로 뺐습니다.",
   "@stopDemoted": {
-    "description": "장소를 후보로 뺀 뒤의 스낵바. 버튼(후보 보기)을 누르면 후보 목록에서 그 후보를 보여 준다",
+    "description": "장소를 후보로 뺀 뒤의 스낵바. 버튼(후보 목록)을 누르면 후보 목록에서 그 후보를 보여 준다",
     "placeholders": {
       "name": {"type": "String", "example": "성산일출봉"}
     }
   },
-  "stopDemotedShow": "후보 보기",
+  "stopDemotedShow": "후보 목록",
   "candidateListEmpty": "아직 후보가 없습니다.\n갈지 말지 정하지 않은 곳을 모아 두는 곳입니다.",
   "@candidateListEmpty": {
     "description": "후보가 하나도 없을 때 후보 목록에 보이는 안내"
@@ -441,9 +449,9 @@
   "@lodgingHiddenReorder": {
     "description": "숙소를 끈 시트에서 흐린 순서 손잡이를 눌렀을 때. 숨긴 숙소 사이의 자리가 보이지 않아서 끌어 옮기기를 막는다"
   },
-  "lodgingHiddenSaved": "숙소가 꺼져 있어 지도에 보이지 않습니다.",
+  "lodgingHiddenSaved": "숙소로 저장했습니다.",
   "@lodgingHiddenSaved": {
-    "description": "숙소를 끈 보기에서 숙소를 추가하거나 종류를 숙소로 바꿔 저장했을 때"
+    "description": "숙소를 끈 보기에서 숙소를 추가하거나 종류를 숙소로 바꿔 저장했을 때. 지도에 보이지 않으니 버튼(숙소 켜기)으로 켜게 한다. 길게 설명하지 않는다"
   },
   "lodgingHiddenVia": "숙소를 켜면 이 사이의 이동 수단을 볼 수 있습니다.",
   "@lodgingHiddenVia": {

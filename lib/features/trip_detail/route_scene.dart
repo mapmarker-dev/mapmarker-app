@@ -36,7 +36,7 @@ IconData? kindBadge(StopKind kind) => switch (kind) {
 /// - 저장을 기다리는 구간([savingSegmentId], 끌어 놓은 곡선): 선을 [AppOpacity.pending]만큼 흐리게 그리고,
 ///   화살표와 선 아이콘은 그리지 않는다. 저장되면 보통 선으로 돌아온다.
 /// - 숙소를 거침([RouteView.vias]): 흐린 가는 파선([MapLineStyle.faint]) 직선 하나. 선 목록 맨 앞이다.
-/// - [faded]("후보" 보기): 후보가 어디쯤인지 보이게 동선 전체를 [AppOpacity.backdrop]만큼 흐리게 깐다.
+/// - [faded]("후보 목록" 보기): 후보가 어디쯤인지 보이게 동선 전체를 [AppOpacity.backdrop]만큼 흐리게 깐다.
 ///   마커와 선만 그리고 화살표·선 아이콘·곡선 핸들은 없다. 마커는 누를 수 있다(그 일차로 간다).
 ({
   List<MapMarker> markers,

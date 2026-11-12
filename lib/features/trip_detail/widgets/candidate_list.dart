@@ -10,7 +10,7 @@ import '../route_scene.dart';
 import 'day_itinerary_list.dart';
 import 'itinerary_tiles.dart';
 
-/// "후보" 보기의 후보 목록. 넣은 순서다. 아래 시트와 오른쪽 패널이 함께 쓴다.
+/// "후보 목록" 보기의 후보 목록. 넣은 순서다. 아래 시트와 오른쪽 패널이 함께 쓴다.
 ///
 /// 줄을 누르면 고르고 펼친다(일차 동선 목록과 같은 [ItinerarySelection]을 쓴다).
 /// 지도에서 누른 후보([focus])는 [onReveal]로 틀을 연 뒤 그 줄로 넘기고 펼친다.

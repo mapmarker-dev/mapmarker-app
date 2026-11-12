@@ -64,9 +64,9 @@ Future<void> _pumpWhileSaving(WidgetTester tester) async {
   }
 }
 
-/// "후보" 보기에서 [name] 후보 줄을 누르고 연필로 후보 입력 화면을 연다.
+/// "후보 목록" 보기에서 [name] 후보 줄을 누르고 연필로 후보 입력 화면을 연다.
 Future<void> _openEdit(WidgetTester tester, String name) async {
-  await tapChip(tester, '후보');
+  await tapChip(tester, '후보 목록');
   await tester.tap(find.text(name));
   await tester.pumpAndSettle();
   await tester.tap(_inTile(name, find.byTooltip('후보 고치기')));
@@ -144,20 +144,22 @@ void main() {
       );
     });
 
-    testWidgets('says where it went when "후보 보기" is off', (tester) async {
+    testWidgets('says where it went when the "후보" filter is off', (
+      tester,
+    ) async {
       await _pump(tester, _repository());
-      await tapChip(tester, '후보 보기');
+      await tapChip(tester, '후보');
       await tapMap(tester, const LatLng(33.46, 126.31), placeName: '협재');
       await tester.tap(find.widgetWithText(OutlinedButton, '후보로 저장'));
       await tester.pumpAndSettle();
       await tester.tap(_save);
       await tester.pumpAndSettle();
 
-      expect(find.text('후보 보기가 꺼져 있어 지도에 보이지 않습니다.'), findsOneWidget);
+      expect(find.text('후보로 저장했습니다.'), findsOneWidget);
       // 앱이 몰래 켜지 않는다.
       expect(mapScene(tester).markers.where((m) => m.secondary), isEmpty);
 
-      await tester.tap(find.widgetWithText(SnackBarAction, '후보 보기'));
+      await tester.tap(find.widgetWithText(SnackBarAction, '후보 켜기'));
       await tester.pumpAndSettle();
 
       expect(
@@ -168,7 +170,7 @@ void main() {
 
     testWidgets('shows the new candidate in the "후보" view', (tester) async {
       await _pump(tester, _repository());
-      await tapChip(tester, '후보');
+      await tapChip(tester, '후보 목록');
       await tapMap(tester, const LatLng(33.46, 126.31), placeName: '협재');
       await tester.tap(find.widgetWithText(OutlinedButton, '후보로 저장'));
       await tester.pumpAndSettle();

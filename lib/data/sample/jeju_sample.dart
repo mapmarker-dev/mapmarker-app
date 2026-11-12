@@ -191,7 +191,7 @@ SampleTrip jejuSample(AppLocalizations l10n) {
           curvature: curves[pair] ?? 0,
         ),
   ];
-  // 갈지 말지 정하지 않은 곳. "후보" 보기와 지도의 후보 점이 어떻게 보이는지 알 수 있게 넣었다.
+  // 갈지 말지 정하지 않은 곳. "후보 목록" 보기와 지도의 후보 점이 어떻게 보이는지 알 수 있게 넣었다.
   final candidatePlaces = [
     _Place(
       l10n.sampleJejuBijarim,

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -562,6 +563,42 @@ void main() {
       expect(mapScene(tester).captions, contains('용머리해안'));
     });
 
+    testWidgets('picks the planned time on a 5-minute wheel', (tester) async {
+      await _pumpJeju(tester);
+      await tapChip(tester, '2일차');
+      await _openSheet(tester);
+      await openEditor(tester, 'd');
+
+      await _tapInForm(tester, _inForm(find.text('오후 2:30')));
+
+      // 원형 시계가 아니라 휠이고, 분은 5분 단위다. 지금 시각에서 시작한다.
+      expect(find.byType(TimePickerDialog), findsNothing);
+      final wheel = tester.widget<CupertinoDatePicker>(
+        find.byType(CupertinoDatePicker),
+      );
+      expect(wheel.mode, CupertinoDatePickerMode.time);
+      expect(wheel.minuteInterval, 5);
+      expect(wheel.initialDateTime.hour, 14);
+      expect(wheel.initialDateTime.minute, 30);
+
+      // 취소하면 그대로다.
+      await tester.tap(find.widgetWithText(TextButton, '취소'));
+      await tester.pumpAndSettle();
+      expect(_inForm(find.text('오후 2:30')), findsOneWidget);
+
+      await _tapInForm(tester, _inForm(find.text('오후 2:30')));
+      tester
+          .widget<CupertinoDatePicker>(find.byType(CupertinoDatePicker))
+          .onDateTimeChanged(DateTime(2000, 1, 1, 9, 45));
+      await tester.pump();
+      await tester.tap(find.widgetWithText(TextButton, '확인'));
+      await tester.pumpAndSettle();
+
+      expect(_inForm(find.text('오전 9:45')), findsOneWidget);
+      await _save(tester);
+      expect(_tile(tester, 'd').stop.plannedTime, const LocalTime(9, 45));
+    });
+
     testWidgets('clears the planned time', (tester) async {
       await _pumpJeju(tester);
       await tapChip(tester, '2일차');
@@ -826,7 +863,7 @@ void main() {
       await _chooseKind(tester, '숙소');
       await _save(tester);
 
-      expect(find.text('숙소가 꺼져 있어 지도에 보이지 않습니다.'), findsOneWidget);
+      expect(find.text('숙소로 저장했습니다.'), findsOneWidget);
       expect(_tileNames(tester), ['q', 'r']);
 
       await tapShowLodging(tester);
@@ -847,7 +884,7 @@ void main() {
       await _chooseKind(tester, '숙소');
       await _save(tester);
 
-      expect(find.text('숙소가 꺼져 있어 지도에 보이지 않습니다.'), findsOneWidget);
+      expect(find.text('숙소로 저장했습니다.'), findsOneWidget);
       expect(_tileNames(tester), ['q']);
     });
 

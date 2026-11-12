@@ -120,7 +120,7 @@ void main() {
     ) async {
       await pumpApp(tester, location: Routes.trip(sampleTripId));
 
-      // "후보 보기"는 켜져 있어서 전체 보기에도 후보 점이 보인다.
+      // 함께 보기의 "후보"는 켜져 있어서 전체 보기에도 후보 점이 보인다.
       expect(
         mapScene(
           tester,
@@ -128,7 +128,7 @@ void main() {
         ['비자림', '애월 카페거리', '한라산 영실 탐방로'],
       );
 
-      await tapChip(tester, '후보');
+      await tapChip(tester, '후보 목록');
       expect(find.text('3곳'), findsOneWidget);
       await tester.tap(find.text('비자림'));
       await tester.pumpAndSettle();

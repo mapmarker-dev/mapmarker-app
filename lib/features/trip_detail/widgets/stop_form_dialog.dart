@@ -14,6 +14,7 @@ import '../stop_draft.dart';
 import '../stop_placement.dart';
 import 'dropped_transport_list.dart';
 import 'place_fields.dart';
+import 'time_wheel_sheet.dart';
 
 /// 장소 입력 화면을 띄운다. 저장하면 고친 값을, 그냥 닫으면 null을 돌려준다.
 ///
@@ -251,17 +252,9 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
   bool get _placing => widget.stop == null || _draft.day != widget.stop!.day;
 
   Future<void> _pickTime() async {
-    final time = _draft.plannedTime;
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(hour: time?.hour ?? 12, minute: time?.minute ?? 0),
-    );
+    final picked = await showTimeWheel(context, initial: _draft.plannedTime);
     if (picked == null || !mounted) return;
-    setState(
-      () => _draft = _draft.copyWith(
-        plannedTime: () => LocalTime(picked.hour, picked.minute),
-      ),
-    );
+    setState(() => _draft = _draft.copyWith(plannedTime: () => picked));
   }
 
   @override
