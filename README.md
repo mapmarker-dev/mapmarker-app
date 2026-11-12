@@ -4,11 +4,9 @@
 
 ## 지금 상태
 
-- 1단계(MVP) 중 앱의 지도·동선 편집과 서버 연동을 마쳤습니다. 카카오·네이버로 로그인하고, 여행 목록과 만들기·지우기, 여행 동선 페이지(네이버 지도), 일차 동선 시트, 장소·이동 수단·곡선 편집이 되며, 모두 서버([mapmarker-server](https://github.com/mapmarker-dev/mapmarker-server))에 저장됩니다.
-- 처음 쓰는 사람을 위해 보기만 되는 제주 샘플 여행이 하나 있습니다. [실제로 사용하기]로 내 여행으로 가져갈 수 있습니다.
-- Android만 지원합니다. iOS는 MVP 이후에 넣습니다.
-
-단계별 계획은 [PLAN](https://github.com/mapmarker-dev/.github/blob/main/docs/PLAN.md)에 있습니다.
+- 1단계(MVP)를 진행하고 있습니다. 카카오·네이버 로그인, 여행 목록과 만들기·지우기(휴지통), 여행 동선 페이지(네이버 지도), 일차 동선 시트, 장소·이동 수단·곡선 편집, 후보 장소가 되며, 모두 서버([mapmarker-server](https://github.com/mapmarker-dev/mapmarker-server))에 저장됩니다.
+- 처음 쓰는 사람을 위한 보기 전용 제주 샘플 여행이 있고, [실제로 사용하기]로 내 여행에 가져갑니다.
+- Android만 지원합니다(iOS는 MVP 이후). 단계별 계획은 [PLAN](https://github.com/mapmarker-dev/.github/blob/main/docs/PLAN.md)에 있습니다.
 
 ## 준비물
 
@@ -19,21 +17,16 @@
 
 ## 시작하기
 
-저장소들을 같은 폴더 아래에 나란히 클론합니다. 이 저장소의 `CLAUDE.md`가 `../.github/CLAUDE.md`의 공통 규칙을 불러오기 때문입니다.
+저장소들을 같은 폴더 아래에 나란히 클론합니다(`CLAUDE.md`가 `../.github/CLAUDE.md`의 공통 규칙을 불러옵니다).
 
 ```bash
 git clone https://github.com/mapmarker-dev/.github.git
 git clone https://github.com/mapmarker-dev/mapmarker-app.git
 cd mapmarker-app
-```
-
-`.env.example`을 `.env`로 복사하고 값을 채웁니다. 네이버 로그인 값은 `android/local.properties`에 넣습니다. 둘 다 커밋하지 않으며, 값의 위치와 서버에 붙는 순서는 [CLAUDE.md](CLAUDE.md)에 있습니다.
-
-```bash
 cp .env.example .env
 ```
 
-의존성을 받고(다국어 코드도 이때 만들어집니다) 실행합니다. VS Code는 `.vscode/launch.json`에 같은 설정이 있습니다.
+`.env` 값을 채우고, 네이버 로그인 값은 `android/local.properties`에 넣습니다. 둘 다 커밋하지 않으며, 값의 위치와 서버에 붙는 순서는 [CLAUDE.md](CLAUDE.md)에 있습니다. 의존성을 받고(다국어 코드도 이때 만들어집니다) 실행합니다. VS Code는 `.vscode/launch.json`에 같은 설정이 있습니다.
 
 ```bash
 flutter pub get
@@ -60,7 +53,7 @@ lib/
 ├─ config/          환경 변수(Env)
 ├─ data/            모델, 저장소, 서버 API, 로그인, 샘플 여행. 여러 기능이 함께 쓴다
 ├─ core/            디자인 토큰·테마, 지도 인터페이스(MapProvider)와 네이버 구현, 곡선 계산
-├─ features/        화면과 상태(Riverpod): login, trips, trip_detail, export
+├─ features/        화면과 상태(Riverpod): login, trips, trip_detail, trash, export
 ├─ l10n/            화면 글자(app_ko.arb)
 └─ dev/             디버그 빌드 전용 화면
 ```
