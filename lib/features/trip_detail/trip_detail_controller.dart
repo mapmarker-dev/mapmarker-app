@@ -68,6 +68,14 @@ class TripDetailController extends StreamNotifier<Trip?> {
   /// 휴지통 없이 바로 지운다.
   Future<void> deleteCandidate(String candidateId) =>
       ref.read(tripRepositoryProvider).deleteCandidate(candidateId);
+
+  /// 후보를 같은 ID의 장소로 [Stop.day]일차의 [Stop.order] 자리에 넣는다. 좌표는 후보 것이다.
+  Future<Stop> promoteCandidate(Stop stop) =>
+      ref.read(tripRepositoryProvider).promoteCandidate(stop);
+
+  /// 장소를 같은 ID의 후보로 바꿔 후보 맨 뒤에 넣는다. 앞뒤 장소는 저장소가 새 구간으로 잇는다.
+  Future<Candidate> demoteStop(String stopId) =>
+      ref.read(tripRepositoryProvider).demoteStop(stopId);
 }
 
 /// 여행의 장소와 구간.

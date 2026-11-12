@@ -330,6 +330,39 @@
   "@draftAddToRoute": {
     "description": "지도를 누르면 뜨는 카드의 버튼. 장소 입력 화면을 연다"
   },
+  "candidatePromote": "동선에 넣기",
+  "@candidatePromote": {
+    "description": "펼친 후보 줄의 버튼과, 그 버튼이 여는 장소 입력 화면의 제목. 후보를 동선의 장소로 넣는다"
+  },
+  "stopFormDemote": "후보로 빼기",
+  "@stopFormDemote": {
+    "description": "장소 편집 화면의 버튼(장소 지우기 위). 장소를 동선에서 빼서 후보로 둔다"
+  },
+  "demoteStopTitle": "‘{name}’ 후보로 빼기",
+  "@demoteStopTitle": {
+    "placeholders": {
+      "name": {"type": "String", "example": "성산일출봉"}
+    }
+  },
+  "demoteStopMessage": "후보로 빼면 아래 내용이 사라집니다. 앞뒤 장소는 바로 이어집니다.",
+  "@demoteStopMessage": {
+    "description": "후보로 빼기 확인 대화상자. 아래에 사라지는 예정 시각과 이동 수단이 나온다"
+  },
+  "demoteStopPlannedTime": "예정 시각 {time}",
+  "@demoteStopPlannedTime": {
+    "placeholders": {
+      "time": {"type": "String", "example": "오후 2:00"}
+    }
+  },
+  "demoteStopConfirm": "빼기",
+  "stopDemoted": "‘{name}’ 장소를 후보로 뺐습니다.",
+  "@stopDemoted": {
+    "description": "장소를 후보로 뺀 뒤의 스낵바. 버튼(후보 보기)을 누르면 후보 목록에서 그 후보를 보여 준다",
+    "placeholders": {
+      "name": {"type": "String", "example": "성산일출봉"}
+    }
+  },
+  "stopDemotedShow": "후보 보기",
   "candidateListEmpty": "아직 후보가 없습니다.\n갈지 말지 정하지 않은 곳을 모아 두는 곳입니다.",
   "@candidateListEmpty": {
     "description": "후보가 하나도 없을 때 후보 목록에 보이는 안내"

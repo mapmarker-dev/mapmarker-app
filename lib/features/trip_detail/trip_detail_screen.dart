@@ -142,12 +142,12 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   RouteChoiceController get _choices =>
       ref.read(routeChoiceProvider(trip.id).notifier);
 
-  /// 띄워 둔 [숙소 켜기]·[후보 보기] 스낵바. 스낵바는 앱 전체의 `ScaffoldMessenger`에 떠서 이 화면을 나가도 남는다.
+  /// 띄워 둔 버튼 있는 알림 스낵바([숙소 켜기]·[후보 보기]). 스낵바는 앱 전체의 `ScaffoldMessenger`에 떠서 이 화면을 나가도 남는다.
   /// 그래서 화면을 나갈 때 닫는다.
-  ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? _hiddenNotice;
+  ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? _notice;
 
-  /// [_hiddenNotice]를 띄운 곳. 화면을 정리할 때는 위젯 트리에서 찾을 수 없어서 띄울 때 잡아 둔다.
-  ScaffoldMessengerState? _hiddenNoticeMessenger;
+  /// [_notice]를 띄운 곳. 화면을 정리할 때는 위젯 트리에서 찾을 수 없어서 띄울 때 잡아 둔다.
+  ScaffoldMessengerState? _noticeMessenger;
 
   @override
   void dispose() {
@@ -155,8 +155,8 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     _selection.dispose();
     // 화면을 정리하는 중에는 다른 위젯(ScaffoldMessenger)을 바꿀 수 없어서, 이 프레임이 끝난 뒤에 닫는다.
     // 앱 전체가 닫히는 중이면 ScaffoldMessenger도 함께 사라져서 닫을 것이 없다.
-    final notice = _hiddenNotice;
-    final messenger = _hiddenNoticeMessenger;
+    final notice = _notice;
+    final messenger = _noticeMessenger;
     if (notice != null && messenger != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (messenger.mounted) notice.close();
@@ -407,6 +407,55 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     );
   }
 
+  /// 후보를 동선에 넣는다. 장소 입력 화면을 후보 값(이름·종류·설명·메모)으로 채워 새 장소처럼 연다
+  /// (일차·넣을 자리·예정 시각). 넣을 자리 때문에 지워질 이동 수단은 입력 화면이 칸 아래에 미리 보여 준다.
+  ///
+  /// 넣으면 그 일차로 가서 넣은 장소를 보여 준다. 숙소를 끈 보기에 숙소로 넣었으면 먼저 그렇다고 알린다.
+  /// 같은 ID의 장소가 된다. 좌표와 장소 서비스 ID는 저장소가 후보 것을 쓴다.
+  Future<void> _promoteCandidate(TripRoute route, Candidate candidate) async {
+    final latest = _latestRoute(route);
+    final draft = await showStopForm(
+      context,
+      trip: trip,
+      route: latest,
+      title: context.l10n.candidatePromote,
+      initial: StopDraft(
+        name: candidate.name,
+        kind: candidate.kind,
+        day: defaultDayForNewStop(latest),
+        description: candidate.description,
+        memo: candidate.memo,
+      ),
+      onSave: (draft) => ref
+          .read(tripDetailProvider(trip.id).notifier)
+          .promoteCandidate(
+            draft.toNewStop(
+              id: candidate.id,
+              tripId: trip.id,
+              position: candidate.position,
+              order: placedOrder(_latestRoute(route), draft),
+            ),
+          ),
+    );
+    if (draft == null || !mounted) return;
+    final hidden = _hidesLodging(draft.kind);
+    _choices.selectDay(draft.day, focus: hidden ? const [] : [candidate.id]);
+    if (hidden) {
+      _showLodgingHiddenNotice(
+        context.l10n.lodgingHiddenSaved,
+        then: () => _choices.focusOn([candidate.id]),
+      );
+    }
+  }
+
+  /// 후보로 뺀 장소를 알리고, [후보 보기]로 후보 목록에서 그 후보를 보여 준다.
+  /// 지금 보기는 그대로 둔다. 빼고 나서 그 일차를 이어서 고칠 때가 많아서다.
+  void _showDemoted(String stopId, String name) => _showNotice(
+    context.l10n.stopDemoted(name),
+    actionLabel: context.l10n.stopDemotedShow,
+    show: () => _choices.selectCandidates(focus: [stopId]),
+  );
+
   /// 저장한 후보를 보여 준다. 카메라는 움직이지 않는다.
   /// "후보" 보기면 목록에서 그 줄을, "후보 보기"를 끈 다른 보기면 보이지 않는다고 알린다.
   void _showCandidate(String candidateId) {
@@ -414,7 +463,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     if (choice.candidateView) {
       _choices.focusOn([candidateId]);
     } else if (!choice.showCandidates) {
-      _showHiddenNotice(
+      _showNotice(
         context.l10n.candidatesHiddenSaved,
         actionLabel: context.l10n.routeShowCandidates,
         show: () => _choices.setShowCandidates(true),
@@ -427,10 +476,13 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       kind == StopKind.lodging &&
       !ref.read(routeChoiceProvider(trip.id)).showLodging;
 
-  /// [canDelete]가 false면(출발 장소) 입력 화면에 지우기가 없다.
+  /// [canDelete]가 false면(출발 장소) 입력 화면에 지우기와 후보로 빼기가 없다.
   ///
   /// 다른 일차로 옮기면 입력 화면에 넣을 자리 칸이 생기고, 지워질 이동 수단을 칸 아래에 미리 보여 준다.
   /// 그걸 보고 저장한 것이라 따로 묻지 않는다.
+  ///
+  /// 후보로 빼면 입력 화면에서 고친 이름·종류·설명·메모를 먼저 저장하고 뺀다(후보에 남는 값이라서).
+  /// 고치기와 빼기는 따로 저장해서, 빼기만 실패해도 다시 누르면 둘 다 다시 보낸다.
   Future<void> _editStop(
     TripRoute route,
     Stop stop, {
@@ -438,6 +490,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   }) async {
     final initial = StopDraft.of(stop);
     final controller = ref.read(tripDetailProvider(trip.id).notifier);
+    String? demotedName;
     // 입력 화면이 저장까지 맡는다. 저장되기 전까지 닫히지 않고, 실패는 그 화면 안에서 알린다.
     final draft = await showStopForm(
       context,
@@ -459,8 +512,23 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
         }
       },
       onDelete: canDelete ? () => controller.deleteStop(stop.id) : null,
+      onDemote: canDelete
+          ? (draft) async {
+              final edited = draft.applyTo(stop);
+              if (edited.name != stop.name ||
+                  edited.kind != stop.kind ||
+                  edited.description != stop.description ||
+                  edited.memo != stop.memo) {
+                await controller.updateStop(edited);
+              }
+              await controller.demoteStop(stop.id);
+              demotedName = edited.name;
+            }
+          : null,
     );
-    if (draft == null || draft == initial || !mounted) return;
+    if (!mounted) return;
+    if (demotedName case final name?) return _showDemoted(stop.id, name);
+    if (draft == null || draft == initial) return;
     final moved = draft.day != stop.day;
     // 숙소를 끈 보기에서 종류를 숙소로 바꾸면 저장하자마자 숨는다. 같은 일차여도 알린다.
     final hidden = _hidesLodging(draft.kind);
@@ -621,16 +689,17 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   /// 버튼이 있는 스낵바는 Flutter가 기본으로 닫지 않는데(`persist`), 이건 알림이라 몇 초 뒤 닫는다.
   /// 접근성 탐색을 켠 기기에서는 Flutter가 원래 저절로 닫지 않는다.
   void _showLodgingHiddenNotice(String message, {VoidCallback? then}) =>
-      _showHiddenNotice(
+      _showNotice(
         message,
         actionLabel: context.l10n.lodgingHiddenShow,
         show: () => _choices.setShowLodging(true),
         then: then,
       );
 
-  /// 보기 필터(숙소, 후보 보기)가 꺼져 있어서 할 수 없거나 보이지 않는 것을 알리고,
-  /// [actionLabel] 버튼으로 [show](필터 켜기)를 한 뒤 [then]을 한다.
-  void _showHiddenNotice(
+  /// [message]를 알리고, [actionLabel] 버튼으로 [show]를 한 뒤 [then]을 한다.
+  /// 보기 필터(숙소, 후보 보기)가 꺼져 있어서 할 수 없거나 보이지 않는 것을 알리고 켜게 하거나,
+  /// 후보로 뺀 장소를 후보 목록에서 보여 줄 때 쓴다.
+  void _showNotice(
     String message, {
     required String actionLabel,
     required VoidCallback show,
@@ -653,10 +722,10 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
         ),
       ),
     );
-    _hiddenNotice = notice;
-    _hiddenNoticeMessenger = messenger;
+    _notice = notice;
+    _noticeMessenger = messenger;
     notice.closed.then((_) {
-      if (_hiddenNotice == notice) _hiddenNotice = null;
+      if (_notice == notice) _notice = null;
     });
   }
 
@@ -998,6 +1067,9 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
           onOpenMap: (candidate) =>
               _openMap(candidate.name, candidate.position),
           onEdit: _readOnly ? null : _editCandidate,
+          onPromote: _readOnly
+              ? null
+              : (candidate) => _promoteCandidate(route, candidate),
           padding: padding,
         ),
       );

@@ -24,6 +24,7 @@ class CandidateList extends StatefulWidget {
     required this.onReveal,
     required this.onOpenMap,
     this.onEdit,
+    this.onPromote,
     this.padding = EdgeInsets.zero,
   });
 
@@ -42,6 +43,10 @@ class CandidateList extends StatefulWidget {
   /// 후보 줄의 연필 아이콘을 눌렀다(후보 입력 화면을 연다). 연필은 목록에서 누른 줄에만 보인다.
   /// null이면 연필이 없다(보기만 하는 샘플).
   final ValueChanged<Candidate>? onEdit;
+
+  /// 펼친 후보 줄의 [동선에 넣기]를 눌렀다(후보 값으로 채운 장소 입력 화면을 연다).
+  /// 지도에서 눌러 펼친 줄에도 있다. 보고 바로 넣기로 정할 수 있어서다. null이면 없다(보기만 하는 샘플).
+  final ValueChanged<Candidate>? onPromote;
 
   /// 목록 바깥 여백. 아래 시트는 시스템 여백을 더한다.
   final EdgeInsets padding;
@@ -122,6 +127,7 @@ class _CandidateListState extends State<CandidateList> {
     final selection = widget.selection;
     final candidates = widget.route.candidates;
     final onEdit = widget.onEdit;
+    final onPromote = widget.onPromote;
     final side = EdgeInsets.only(
       left: widget.padding.left + AppSpace.sm,
       right: widget.padding.right + AppSpace.sm,
@@ -161,6 +167,13 @@ class _CandidateListState extends State<CandidateList> {
                   onEdit: onEdit != null && selection.active == candidate.id
                       ? () => onEdit(candidate)
                       : null,
+                  actions: onPromote == null
+                      ? null
+                      : FilledButton.tonalIcon(
+                          onPressed: () => onPromote(candidate),
+                          icon: const Icon(Icons.add_location_alt_outlined),
+                          label: Text(context.l10n.candidatePromote),
+                        ),
                 ),
             ],
           ),
