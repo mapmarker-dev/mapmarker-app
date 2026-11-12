@@ -146,7 +146,7 @@ Finder _slotOption(String slot) =>
 /// 임시 핀을 꽂고 입력 화면을 연다.
 Future<void> _openAddForm(WidgetTester tester) async {
   await tapMap(tester, _somewhere);
-  await tester.tap(find.widgetWithText(FilledButton, '추가'));
+  await tester.tap(find.widgetWithText(FilledButton, '동선에 넣기'));
   await tester.pumpAndSettle();
 }
 
@@ -180,7 +180,7 @@ void main() {
       await tapMap(tester, _somewhere);
 
       expect(_draft(tester)?.position, _somewhere);
-      expect(find.text('여기에 장소 추가'), findsOneWidget);
+      expect(find.text('지도에서 고른 곳'), findsOneWidget);
       // 카메라는 장소에만 맞춘다.
       expect(
         mapScene(tester).camera.bounds,
@@ -195,7 +195,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(_draft(tester), isNull);
-      expect(find.text('여기에 장소 추가'), findsNothing);
+      expect(find.text('지도에서 고른 곳'), findsNothing);
     });
 
     testWidgets('names itself after a place written on the map', (
@@ -206,7 +206,7 @@ void main() {
       await tapMap(tester, _somewhere, placeName: '성산일출봉');
 
       expect(_draft(tester)?.caption, '성산일출봉');
-      expect(find.text('‘성산일출봉’ 추가'), findsOneWidget);
+      expect(find.text('‘성산일출봉’'), findsOneWidget);
     });
 
     testWidgets('waits for the sheet to fold first in a day view', (
@@ -282,7 +282,7 @@ void main() {
       await _pumpJeju(tester);
       await tapMap(tester, _somewhere, placeName: '성산일출봉');
 
-      await tester.tap(find.widgetWithText(FilledButton, '추가'));
+      await tester.tap(find.widgetWithText(FilledButton, '동선에 넣기'));
       await tester.pumpAndSettle();
 
       expect(find.text('장소 추가'), findsOneWidget);
@@ -306,7 +306,7 @@ void main() {
       await _pumpJeju(tester);
       await tapChip(tester, '1일차');
       await tapMap(tester, _somewhere);
-      await tester.tap(find.widgetWithText(FilledButton, '추가'));
+      await tester.tap(find.widgetWithText(FilledButton, '동선에 넣기'));
       await tester.pumpAndSettle();
 
       await tester.enterText(_nameField, '  돌하르방 카페 ');
@@ -323,7 +323,7 @@ void main() {
       await _pumpJeju(tester);
       await tapChip(tester, '1일차');
       await tapMap(tester, _somewhere);
-      await tester.tap(find.widgetWithText(FilledButton, '추가'));
+      await tester.tap(find.widgetWithText(FilledButton, '동선에 넣기'));
       await tester.pumpAndSettle();
 
       await tester.enterText(_nameField, '오름');
@@ -337,7 +337,7 @@ void main() {
     testWidgets('cannot be saved without a name', (tester) async {
       await _pumpJeju(tester);
       await tapMap(tester, _somewhere);
-      await tester.tap(find.widgetWithText(FilledButton, '추가'));
+      await tester.tap(find.widgetWithText(FilledButton, '동선에 넣기'));
       await tester.pumpAndSettle();
 
       expect(tester.widget<TextButton>(_saveButton).onPressed, isNull);
@@ -351,7 +351,7 @@ void main() {
     testWidgets('asks before throwing away what was written', (tester) async {
       await _pumpJeju(tester);
       await tapMap(tester, _somewhere);
-      await tester.tap(find.widgetWithText(FilledButton, '추가'));
+      await tester.tap(find.widgetWithText(FilledButton, '동선에 넣기'));
       await tester.pumpAndSettle();
       await tester.enterText(_nameField, '오름');
       // 고친 것을 화면이 알게 한 프레임 그린다.
@@ -381,7 +381,7 @@ void main() {
     testWidgets('closes right away when nothing was written', (tester) async {
       await _pumpJeju(tester);
       await tapMap(tester, _somewhere, placeName: '성산일출봉');
-      await tester.tap(find.widgetWithText(FilledButton, '추가'));
+      await tester.tap(find.widgetWithText(FilledButton, '동선에 넣기'));
       await tester.pumpAndSettle();
 
       await tester.tap(_inForm(find.byTooltip('닫기')));

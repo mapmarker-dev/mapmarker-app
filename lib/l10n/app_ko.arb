@@ -304,6 +304,32 @@
     }
   },
   "candidateEditTooltip": "후보 고치기",
+  "candidateFormAddTitle": "후보로 저장",
+  "candidateFormEditTitle": "후보 고치기",
+  "candidateFormHelper": "갈지 말지 정하지 않은 곳을 모아 둡니다. 일차와 예정 시각은 동선에 넣을 때 정합니다.",
+  "@candidateFormHelper": {
+    "description": "후보 입력 화면 맨 위의 안내"
+  },
+  "candidateFormDelete": "후보 지우기",
+  "deleteCandidateTitle": "‘{name}’ 후보 지우기",
+  "@deleteCandidateTitle": {
+    "placeholders": {
+      "name": {"type": "String", "example": "우도"}
+    }
+  },
+  "deleteCandidateMessage": "지운 후보는 되살릴 수 없습니다.",
+  "candidatesHiddenSaved": "후보 보기가 꺼져 있어 지도에 보이지 않습니다.",
+  "@candidatesHiddenSaved": {
+    "description": "'후보 보기'를 끈 보기에서 후보를 저장했을 때. 버튼(후보 보기)으로 켠다"
+  },
+  "draftSaveCandidate": "후보로 저장",
+  "@draftSaveCandidate": {
+    "description": "지도를 누르면 뜨는 카드의 버튼. 후보 입력 화면을 연다"
+  },
+  "draftAddToRoute": "동선에 넣기",
+  "@draftAddToRoute": {
+    "description": "지도를 누르면 뜨는 카드의 버튼. 장소 입력 화면을 연다"
+  },
   "candidateListEmpty": "아직 후보가 없습니다.\n갈지 말지 정하지 않은 곳을 모아 두는 곳입니다.",
   "@candidateListEmpty": {
     "description": "후보가 하나도 없을 때 후보 목록에 보이는 안내"
@@ -458,18 +484,17 @@
   },
   "stayAgainConfirm": "넣기",
 
-  "addStopHere": "여기에 장소 추가",
+  "addStopHere": "지도에서 고른 곳",
   "@addStopHere": {
-    "description": "지도 빈 곳을 누르면 뜨는 카드"
+    "description": "지도 빈 곳을 누르면 뜨는 카드의 제목. 아래에 [후보로 저장] [동선에 넣기]가 있다"
   },
-  "addNamedStop": "‘{name}’ 추가",
+  "addNamedStop": "‘{name}’",
   "@addNamedStop": {
-    "description": "네이버 지도의 장소 이름(심볼)을 누르면 뜨는 카드",
+    "description": "네이버 지도의 장소 이름(심볼)을 누르면 뜨는 카드의 제목",
     "placeholders": {
       "name": {"type": "String", "example": "성산일출봉"}
     }
   },
-  "addStop": "추가",
   "stopAddedToDay": "{day}일차에 넣었습니다.",
   "@stopAddedToDay": {
     "description": "일차 보기에서 다른 일차에 장소를 넣었을 때",

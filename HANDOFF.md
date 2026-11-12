@@ -4,11 +4,14 @@
 
 ## 지금 하는 일
 
-후보 장소(PLAN "1-2 후속")를 만드는 중이다. 서버 API는 끝났다(`../mapmarker-server/HANDOFF.md`, 서버 `CLAUDE.md` "후보"). 앱은 커밋 5개로 나눴다: ① 모델·JSON·API·저장소(끝) → ② 지도 후보 점·"후보" 보기 칩·"후보 보기" 필터·후보 목록(끝, 보기만) → ③ 후보로 저장·고치기·지우기 → ④ 동선에 넣기·후보로 빼기 → ⑤ 제주 샘플 후보와 복사. 그다음 실기기 확인, 문서, dev → main PR.
+후보 장소(PLAN "1-2 후속")를 만드는 중이다. 서버 API는 끝났다(`../mapmarker-server/HANDOFF.md`, 서버 `CLAUDE.md` "후보"). 앱은 커밋 5개로 나눴다: ① 모델·JSON·API·저장소(끝) → ② 지도 후보 점·"후보" 보기 칩·"후보 보기" 필터·후보 목록(끝) → ③ 후보로 저장·고치기·지우기(끝) → ④ 동선에 넣기·후보로 빼기 → ⑤ 제주 샘플 후보와 복사. 그다음 실기기 확인, 문서, dev → main PR.
 
 ## 다음에 할 첫 단계
 
-1. ③ 후보로 저장·고치기·지우기: 임시 핀 카드(`_DraftCard`)를 두 줄 [후보로 저장] [동선에 넣기]로 바꾸고, 후보 입력 화면(이름·종류·설명·메모, `FormSaving`, 고칠 때만 지우기 + 확인 창)을 만든다. 후보 줄(`CandidateTile`)의 연필(`onEdit`, 목록에서 누른 줄에만)로 같은 화면을 연다. "후보 보기"가 꺼진 상태에서 후보를 저장하면 [후보 보기] 스낵바(숙소의 `_showLodgingHiddenNotice`처럼).
+1. ④ 동선에 넣기·후보로 빼기
+   - 동선에 넣기: 펼친 후보 줄의 `CandidateTile.actions`에 [동선에 넣기]. 누르면 `showStopForm`을 후보 값(이름·종류·설명·메모)으로 채운 새 장소처럼 연다(일차·넣을 자리·예정 시각, 지워질 이동 수단 미리 알림). 저장은 `promoteCandidate`(같은 ID의 `Stop`, 일차·`placedOrder`). 저장하면 그 일차로 가서 넣은 장소를 보여 준다(`selectDay(focus:)`). 샘플은 버튼이 없다.
+   - 후보로 빼기: 장소 입력 화면에 `onDemote`를 더해 "장소 지우기" 위에 `FormActionButton`(지우기처럼 출발 장소엔 없음). 사라지는 것(닿은 구간 중 이동 수단을 적은 것 = 지우기와 같은 구간, 예정 시각)이 있으면 확인 창에 `DroppedTransportList`와 예정 시각, 없으면 바로 뺀다. 끝나면 "후보로 뺐다" 스낵바와 [후보 보기](눌러서 "후보" 보기로 가 그 줄을 보여 준다).
+   - ③ 구조: 이름·종류·설명·메모 칸과 지우기 버튼·확인 창은 `widgets/place_fields.dart`로 옮겨 장소·후보 입력 화면이 함께 쓴다. 후보 입력 화면은 `widgets/candidate_form_dialog.dart`(+ `candidate_draft.dart`). 필터가 꺼져 보이지 않는다는 스낵바는 `_showHiddenNotice` 하나로 숙소·후보가 함께 쓴다. 지도의 임시 핀(+) 자체를 누르면 지금처럼 장소 입력 화면이 열린다.
    - ② 구조: 보기 상태는 `RouteChoice.candidateView`·`showCandidates`(`hasList` = 일차 보기 또는 "후보" 보기), 시트·패널 내용은 `_listParts`, 지도는 `candidateMarkers`(`MapMarker.secondary`, `MarkerLook.small`·`ring`)와 `routeOverlays(faded:)`. 후보 목록은 `widgets/candidate_list.dart`이고 펼침·고름·지도 탭 보여 주기는 일차 목록과 같은 `ItinerarySelection`을 쓴다.
    - 확정한 설계 전체(②~⑤)는 `.github` 문서에 아직 없다. 작업 폴더의 `.claude/plans/2026-11-11-candidates.md`(저장소 밖)와 아래 "아직 문서에 없는 결정"을 본다. 기획 문서는 마지막에 한 번에 고친다.
    - 진행 방식: 커밋마다 `flutter analyze`·`flutter test` → 이 파일 수정 → 커밋 메시지를 주고 멈춘다. 커밋과 push는 사용자가 한다.
@@ -16,7 +19,7 @@
 
 ## 현재 상태
 
-- `flutter analyze` 0건, `flutter test` 649개 통과, `flutter build apk --debug` 성공(후보 전). 후보 화면은 아직 실기기에서 보지 않았다(③~⑤ 뒤에 한 번에 본다).
+- `flutter analyze` 0건, `flutter test` 659개 통과, `flutter build apk --debug` 성공(후보 전). 후보 화면은 아직 실기기에서 보지 않았다(③~⑤ 뒤에 한 번에 본다).
 - 태블릿(카카오톡 없음, 네이버 앱 있음)에서 확인: 카카오 계정·네이버 로그인, 다시 켜도 유지(서버가 꺼져 있어도 켤 때 묻지 않음), 로그아웃, 카카오 취소(안내 없음), 서버 끔 안내, 사용자를 지운 뒤 재가입, 여행·장소·구간 저장과 유지, 계정별 여행, 저장 중 표시와 실패 안내, 샘플과 여행 삭제, 휴지통(옮기기·남은 날·되살리기 뒤 원래 자리와 동선·영구 삭제·빈 휴지통·당겨서 새로고침·긴 제목·서버를 끈 실패 안내).
 - 코드 위치: `lib/data/api/`(`ApiClient` 토큰·재발급), `lib/data/auth/`(`AuthSession`, `Account`, `SocialSdk`), `lib/data/trips/`(`TripApi`, `trip_json.dart`, `ServerTripRepository`, `TripCache`), `lib/data/sample/`, `lib/features/login/`, `lib/features/trash/`. 값의 위치·실행 순서·`/login` 예외는 `CLAUDE.md`.
 - `tripRepositoryProvider`는 로그인·로그아웃마다(`authGenerationProvider`) `ServerTripRepository`를 새로 만들고 `SampleTripRepository`로 감싼다. 로그아웃 상태에서는 빈 메모리 저장소다.
@@ -73,6 +76,7 @@
 
 - 알려진 한계: 재발급 응답만 유실되면 다음 재발급이 재사용으로 걸려 그 기기가 로그아웃된다. 자주 생기면 서버 유예 시간을 사용자에게 묻는다.
 - **다음 단위로 정함(사용자 결정, 후보 장소를 마친 뒤): "장소 검색 + 동선 사이 +".** 요즘은 지도를 눌러 넣기보다 검색으로 넣어서, 동선 사이의 +나 후보 목록의 +에서 검색해 그 자리(또는 후보)에 넣는다. 지도 누르기는 검색에 안 나오는 곳을 위해 보조로 남긴다. 검색 API는 서버를 거친다(키가 비밀값). 국내 API 선택(네이버 지역 검색은 결과가 적고 장소 ID가 없다, 카카오 로컬은 결과가 많지만 네이버 지도 위에 써도 되는지 약관 확인)과 약관 확인부터 설계한다. PLAN에는 후보 장소 문서 갱신 때 넣는다.
+  - 사용자 제안: 사람들은 장소를 네이버 지도·구글 맵에서 찾으니, 앱 안 검색 대신 거기서 주소를 복사해 붙여 넣으면 된다. 검토: 주소 → 좌표는 지오코딩 API가 필요하고(역시 서버, 키), 이름은 따로 입력해야 한다. 공유 링크(`naver.me`, `maps.app.goo.gl`)를 풀어 좌표를 얻는 것은 지도 회사 페이지를 긁는 것이라 약관·안정성 때문에 권하지 않았다. 대안으로 지도 앱의 [공유] → MapMarker로 공유된 글을 받는 방법(Android 공유 인텐트)을 제안했다. 다음 단위 설계 때 "주소 붙여넣기 + 지오코딩 / 지도 앱에서 공유 받기 / 앱 안 검색"을 실기기에서 공유 글 형식을 확인한 뒤 비교해 정한다.
 - 미룬 후보: 지워진 이동 수단 되살리기(OVERVIEW 규칙 변경과 서버 설계가 필요. 대안은 [실행 취소] 스낵바), 가까운 자리로 자동 넣기(틀릴 때 이유를 알 수 없어 권하지 않는다).
 - 카드에 동선 미리보기나 사진을 넣을지는 1-5단계 때 다시 본다.
 - 영어를 넣는 시점과 언어 고르는 방식은 미정(PLAN "아직 확인할 것"). 지금은 `appLocale`(ko) 고정. 넣을 때 `MaterialApp`의 `locale`과 `l10nProvider`를 맞추고 iOS `Info.plist`에 `CFBundleLocalizations`(ko, en)를 더한다.

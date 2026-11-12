@@ -11,6 +11,7 @@ import '../../../l10n/l10n.dart';
 import '../stop_draft.dart';
 import '../stop_placement.dart';
 import 'dropped_transport_list.dart';
+import 'place_fields.dart';
 
 /// 장소 입력 화면을 띄운다. 저장하면 고친 값을, 그냥 닫으면 null을 돌려준다.
 ///
@@ -137,38 +138,16 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
 
   /// 확인을 받아 지운다. 저장하지 않은 고친 내용이 있어도 장소를 지우면 함께 버린다. 따로 묻지 않는다.
   Future<void> _delete(Future<void> Function() delete) async {
-    if (!await _confirmDelete() || !mounted) return;
+    final l10n = context.l10n;
+    final confirmed = await confirmDelete(
+      context,
+      title: l10n.deleteStopTitle(widget.stop?.name ?? _draft.name),
+      message: l10n.deleteStopMessage,
+    );
+    if (!confirmed || !mounted) return;
     setState(() => _deleting = true);
     await saveAndClose(delete);
     if (mounted) setState(() => _deleting = false);
-  }
-
-  Future<bool> _confirmDelete() async {
-    final name = widget.stop?.name ?? _draft.name;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        final l10n = context.l10n;
-        return AlertDialog(
-          title: Text(l10n.deleteStopTitle(name)),
-          content: Text(l10n.deleteStopMessage),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.error,
-              ),
-              child: Text(l10n.deleteStop),
-            ),
-          ],
-        );
-      },
-    );
-    return confirmed ?? false;
   }
 
   /// 넣을 자리 칸이 보이는지. 새 장소이거나, 편집에서 다른 일차로 옮길 때다.
@@ -189,32 +168,10 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
     );
   }
 
-  Future<bool> _confirmDiscard() async {
-    final discard = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.discardChangesTitle),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(context.l10n.discardChanges),
-          ),
-        ],
-      ),
-    );
-    return discard ?? false;
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final material = MaterialLocalizations.of(context);
-    final textTheme = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
     final insets = MediaQuery.paddingOf(context);
     const gap = SizedBox(height: AppSpace.lg);
 
@@ -225,7 +182,7 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
       onPopInvokedWithResult: (didPop, _) async {
         // 저장하는 동안은 닫지 않는다.
         if (didPop || saving) return;
-        if (await _confirmDiscard() && context.mounted) {
+        if (await confirmDiscardChanges(context) && context.mounted) {
           Navigator.of(context).pop();
         }
       },
@@ -262,30 +219,16 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
                 insets.bottom + AppSpace.xl,
               ),
               children: [
-                TextField(
+                PlaceNameField(
                   controller: _name,
                   enabled: !saving,
                   autofocus: widget.isNew && widget.initial.name.isEmpty,
-                  maxLength: StopDraft.nameMaxLength,
-                  textInputAction: TextInputAction.next,
-                  decoration: InputDecoration(labelText: l10n.stopNameLabel),
                 ),
                 gap,
-                Text(l10n.stopKindLabel, style: textTheme.titleSmall),
-                const SizedBox(height: AppSpace.sm),
-                Wrap(
-                  spacing: AppSpace.sm,
-                  runSpacing: AppSpace.sm,
-                  children: [
-                    for (final kind in StopKind.values)
-                      ChoiceChip(
-                        label: Text(l10n.stopKindName(kind)),
-                        selected: _draft.kind == kind,
-                        onSelected: (_) => setState(
-                          () => _draft = _draft.copyWith(kind: kind),
-                        ),
-                      ),
-                  ],
+                PlaceKindChips(
+                  kind: _draft.kind,
+                  onChanged: (kind) =>
+                      setState(() => _draft = _draft.copyWith(kind: kind)),
                 ),
                 gap,
                 DropdownButtonFormField<int>(
@@ -327,52 +270,19 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
                   ),
                 ),
                 gap,
-                TextField(
-                  controller: _description,
+                PlaceNotesFields(
+                  description: _description,
+                  memo: _memo,
                   enabled: !saving,
-                  minLines: 2,
-                  maxLines: 6,
-                  maxLength: StopDraft.textMaxLength,
-                  decoration: InputDecoration(
-                    labelText: l10n.stopDescriptionLabel,
-                    helperText: l10n.stopDescriptionHelper,
-                    helperMaxLines: 2,
-                    alignLabelWithHint: true,
-                  ),
-                ),
-                gap,
-                TextField(
-                  controller: _memo,
-                  enabled: !saving,
-                  minLines: 2,
-                  maxLines: 6,
-                  maxLength: StopDraft.textMaxLength,
-                  decoration: InputDecoration(
-                    labelText: l10n.stopMemoLabel,
-                    helperText: l10n.stopMemoHelper,
-                    helperMaxLines: 2,
-                    alignLabelWithHint: true,
-                  ),
                 ),
                 if (widget.onDelete case final onDelete?) ...[
                   const SizedBox(height: AppSpace.xl),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: OutlinedButton.icon(
-                      onPressed: saving ? null : () => _delete(onDelete),
-                      icon: _deleting
-                          ? SavingIndicator(
-                              label: l10n.saving,
-                              padded: false,
-                              color: scheme.error,
-                            )
-                          : const Icon(Icons.delete_outline),
-                      label: Text(l10n.stopFormDelete),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: scheme.error,
-                        side: BorderSide(color: scheme.error),
-                      ),
-                    ),
+                  FormActionButton(
+                    icon: Icons.delete_outline,
+                    label: l10n.stopFormDelete,
+                    onPressed: saving ? null : () => _delete(onDelete),
+                    busy: _deleting,
+                    danger: true,
                   ),
                 ],
               ],

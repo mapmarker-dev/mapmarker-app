@@ -154,7 +154,7 @@ void main() {
     expect(_draft(tester), isNotNull);
     expect(_panelOpen(tester), isTrue);
     expect(
-      tester.getBottomRight(find.text('여기에 장소 추가')).dx,
+      tester.getBottomRight(find.text('지도에서 고른 곳')).dx,
       lessThan(_tablet.width - _panelWidth),
     );
   });

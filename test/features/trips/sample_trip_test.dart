@@ -112,7 +112,7 @@ void main() {
       expect(mapScene(tester).curveHandle, isNull);
       // 지도를 눌러도 장소를 넣을 핀이 꽂히지 않는다.
       await tapMap(tester, const LatLng(33.4, 126.5));
-      expect(find.widgetWithText(FilledButton, '추가'), findsNothing);
+      expect(find.widgetWithText(FilledButton, '동선에 넣기'), findsNothing);
     });
 
     testWidgets('becomes a trip of the user with "use it"', (tester) async {

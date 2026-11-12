@@ -23,6 +23,7 @@ class CandidateList extends StatefulWidget {
     required this.focusCount,
     required this.onReveal,
     required this.onOpenMap,
+    this.onEdit,
     this.padding = EdgeInsets.zero,
   });
 
@@ -37,6 +38,10 @@ class CandidateList extends StatefulWidget {
   final Future<void> Function() onReveal;
 
   final ValueChanged<Candidate> onOpenMap;
+
+  /// 후보 줄의 연필 아이콘을 눌렀다(후보 입력 화면을 연다). 연필은 목록에서 누른 줄에만 보인다.
+  /// null이면 연필이 없다(보기만 하는 샘플).
+  final ValueChanged<Candidate>? onEdit;
 
   /// 목록 바깥 여백. 아래 시트는 시스템 여백을 더한다.
   final EdgeInsets padding;
@@ -116,6 +121,7 @@ class _CandidateListState extends State<CandidateList> {
     final colors = context.appColors;
     final selection = widget.selection;
     final candidates = widget.route.candidates;
+    final onEdit = widget.onEdit;
     final side = EdgeInsets.only(
       left: widget.padding.left + AppSpace.sm,
       right: widget.padding.right + AppSpace.sm,
@@ -151,6 +157,10 @@ class _CandidateListState extends State<CandidateList> {
                   highlighted: selection.highlighted.contains(candidate.id),
                   onToggle: () => selection.tapStop(candidate.id),
                   onOpenMap: () => widget.onOpenMap(candidate),
+                  // 목록에서 누른 줄에만 연필이 보인다(일차 동선 목록과 같다).
+                  onEdit: onEdit != null && selection.active == candidate.id
+                      ? () => onEdit(candidate)
+                      : null,
                 ),
             ],
           ),

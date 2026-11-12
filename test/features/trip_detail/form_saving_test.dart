@@ -187,7 +187,7 @@ void main() {
     final repository = _repository()..failWrites = ApiFailure.network;
     final container = await _openDayOne(tester, repository);
     await tapMap(tester, const LatLng(35.2, 129.2), placeName: '오름');
-    await tester.tap(find.widgetWithText(FilledButton, '추가'));
+    await tester.tap(find.widgetWithText(FilledButton, '동선에 넣기'));
     await tester.pumpAndSettle();
 
     await tester.tap(_stopSave);

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/models/candidate.dart';
 import '../../data/models/segment.dart';
 import '../../data/models/stop.dart';
 import '../../data/models/trip.dart';
@@ -56,6 +57,17 @@ class TripDetailController extends StreamNotifier<Trip?> {
   /// 이동 수단을 바꾼다. 비우면 미정이다.
   Future<Segment> updateSegment(Segment segment) =>
       ref.read(tripRepositoryProvider).updateSegment(segment);
+
+  /// 후보를 넣은 순서의 맨 뒤에 넣는다. 동선은 바뀌지 않는다.
+  Future<Candidate> addCandidate(Candidate candidate) =>
+      ref.read(tripRepositoryProvider).addCandidate(candidate);
+
+  Future<Candidate> updateCandidate(Candidate candidate) =>
+      ref.read(tripRepositoryProvider).updateCandidate(candidate);
+
+  /// 휴지통 없이 바로 지운다.
+  Future<void> deleteCandidate(String candidateId) =>
+      ref.read(tripRepositoryProvider).deleteCandidate(candidateId);
 }
 
 /// 여행의 장소와 구간.

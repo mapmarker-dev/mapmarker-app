@@ -13,7 +13,9 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/time/today.dart';
 import '../../data/api/api_exception.dart';
+import '../../data/models/candidate.dart';
 import '../../data/models/map_provider_type.dart';
+import '../../data/models/new_id.dart';
 import '../../data/models/segment.dart';
 import '../../data/models/stop.dart';
 import '../../data/models/trip.dart';
@@ -21,28 +23,29 @@ import '../../data/models/trip_route.dart';
 import '../../data/sample/copy_trip.dart';
 import '../../data/sample/jeju_sample.dart';
 import '../../data/sample/sample_trip_repository.dart';
+import '../../data/trips/route_links.dart';
 import '../../data/trips/trip_repository.dart';
 import '../../l10n/l10n.dart';
-import '../../data/models/new_id.dart';
-import '../../data/trips/route_links.dart';
+import 'candidate_draft.dart';
 import 'day_itinerary.dart';
 import 'route_scene.dart';
+import 'route_sheet_layout.dart';
 import 'stop_draft.dart';
 import 'stop_placement.dart';
 import 'transport_draft.dart';
 import 'trip_detail_controller.dart';
+import 'widgets/candidate_form_dialog.dart';
 import 'widgets/candidate_list.dart';
-import 'widgets/rename_trip_dialog.dart';
-import 'route_sheet_layout.dart';
 import 'widgets/day_itinerary_list.dart';
 import 'widgets/dropped_transport_list.dart';
+import 'widgets/rename_trip_dialog.dart';
 import 'widgets/route_day_chips.dart';
 import 'widgets/route_day_panel.dart';
 import 'widgets/route_day_sheet.dart';
 import 'widgets/route_title_bar.dart';
 import 'widgets/sample_banner.dart';
-import 'widgets/stop_form_dialog.dart';
 import 'widgets/size_reporter.dart';
+import 'widgets/stop_form_dialog.dart';
 import 'widgets/transport_form_dialog.dart';
 
 /// 여행 동선 페이지. 지도에 장소와 구간을 보여 주고, 여행 전체와 일차별 보기를 오간다.
@@ -139,12 +142,12 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   RouteChoiceController get _choices =>
       ref.read(routeChoiceProvider(trip.id).notifier);
 
-  /// 띄워 둔 [숙소 켜기] 스낵바. 스낵바는 앱 전체의 `ScaffoldMessenger`에 떠서 이 화면을 나가도 남는다.
+  /// 띄워 둔 [숙소 켜기]·[후보 보기] 스낵바. 스낵바는 앱 전체의 `ScaffoldMessenger`에 떠서 이 화면을 나가도 남는다.
   /// 그래서 화면을 나갈 때 닫는다.
-  ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? _lodgingNotice;
+  ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? _hiddenNotice;
 
-  /// [_lodgingNotice]를 띄운 곳. 화면을 정리할 때는 위젯 트리에서 찾을 수 없어서 띄울 때 잡아 둔다.
-  ScaffoldMessengerState? _lodgingNoticeMessenger;
+  /// [_hiddenNotice]를 띄운 곳. 화면을 정리할 때는 위젯 트리에서 찾을 수 없어서 띄울 때 잡아 둔다.
+  ScaffoldMessengerState? _hiddenNoticeMessenger;
 
   @override
   void dispose() {
@@ -152,8 +155,8 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     _selection.dispose();
     // 화면을 정리하는 중에는 다른 위젯(ScaffoldMessenger)을 바꿀 수 없어서, 이 프레임이 끝난 뒤에 닫는다.
     // 앱 전체가 닫히는 중이면 ScaffoldMessenger도 함께 사라져서 닫을 것이 없다.
-    final notice = _lodgingNotice;
-    final messenger = _lodgingNoticeMessenger;
+    final notice = _hiddenNotice;
+    final messenger = _hiddenNoticeMessenger;
     if (notice != null && messenger != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (messenger.mounted) notice.close();
@@ -365,6 +368,60 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     );
   }
 
+  /// 임시 핀 자리를 후보로 저장한다. 후보 입력 화면에서 이름·종류·설명·메모를 받는다.
+  ///
+  /// "후보" 보기면 목록에서 그 줄을 보여 준다. "후보 보기"를 끈 보기면 지도에 보이지 않으니
+  /// 그렇다고 알리고 [후보 보기]로 켜게 한다(보기 설정은 몰래 바꾸지 않는다).
+  Future<void> _saveCandidate() async {
+    final place = _draftPlace;
+    if (place == null) return;
+    // 다시 저장해도 같은 후보다.
+    final id = newId();
+    final controller = ref.read(tripDetailProvider(trip.id).notifier);
+    final draft = await showCandidateForm(
+      context,
+      initial: CandidateDraft(name: place.placeName ?? ''),
+      isNew: true,
+      onSave: (draft) => controller.addCandidate(
+        draft.toNewCandidate(id: id, tripId: trip.id, position: place.position),
+      ),
+    );
+    if (draft == null || !mounted) return;
+    setState(() => _draftPlace = null);
+    _showCandidate(id);
+  }
+
+  /// 후보를 고치거나 지운다. 지우기는 입력 화면 안에 있다(확인을 받는다).
+  Future<void> _editCandidate(Candidate candidate) async {
+    final controller = ref.read(tripDetailProvider(trip.id).notifier);
+    final initial = CandidateDraft.of(candidate);
+    await showCandidateForm(
+      context,
+      initial: initial,
+      isNew: false,
+      onSave: (draft) async {
+        if (draft == initial) return;
+        await controller.updateCandidate(draft.applyTo(candidate));
+      },
+      onDelete: () => controller.deleteCandidate(candidate.id),
+    );
+  }
+
+  /// 저장한 후보를 보여 준다. 카메라는 움직이지 않는다.
+  /// "후보" 보기면 목록에서 그 줄을, "후보 보기"를 끈 다른 보기면 보이지 않는다고 알린다.
+  void _showCandidate(String candidateId) {
+    final choice = ref.read(routeChoiceProvider(trip.id));
+    if (choice.candidateView) {
+      _choices.focusOn([candidateId]);
+    } else if (!choice.showCandidates) {
+      _showHiddenNotice(
+        context.l10n.candidatesHiddenSaved,
+        actionLabel: context.l10n.routeShowCandidates,
+        show: () => _choices.setShowCandidates(true),
+      );
+    }
+  }
+
   /// [kind] 장소가 지금 보기에서 숨는지. 숙소를 끈 보기의 숙소다.
   bool _hidesLodging(StopKind kind) =>
       kind == StopKind.lodging &&
@@ -563,7 +620,22 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   ///
   /// 버튼이 있는 스낵바는 Flutter가 기본으로 닫지 않는데(`persist`), 이건 알림이라 몇 초 뒤 닫는다.
   /// 접근성 탐색을 켠 기기에서는 Flutter가 원래 저절로 닫지 않는다.
-  void _showLodgingHiddenNotice(String message, {VoidCallback? then}) {
+  void _showLodgingHiddenNotice(String message, {VoidCallback? then}) =>
+      _showHiddenNotice(
+        message,
+        actionLabel: context.l10n.lodgingHiddenShow,
+        show: () => _choices.setShowLodging(true),
+        then: then,
+      );
+
+  /// 보기 필터(숙소, 후보 보기)가 꺼져 있어서 할 수 없거나 보이지 않는 것을 알리고,
+  /// [actionLabel] 버튼으로 [show](필터 켜기)를 한 뒤 [then]을 한다.
+  void _showHiddenNotice(
+    String message, {
+    required String actionLabel,
+    required VoidCallback show,
+    VoidCallback? then,
+  }) {
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     final notice = messenger.showSnackBar(
@@ -571,20 +643,20 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
         content: Text(message),
         persist: false,
         action: SnackBarAction(
-          label: context.l10n.lodgingHiddenShow,
+          label: actionLabel,
           onPressed: () {
             // 닫히기 전에 화면을 나갔으면 켤 보기가 없다.
             if (!mounted) return;
-            _choices.setShowLodging(true);
+            show();
             then?.call();
           },
         ),
       ),
     );
-    _lodgingNotice = notice;
-    _lodgingNoticeMessenger = messenger;
+    _hiddenNotice = notice;
+    _hiddenNoticeMessenger = messenger;
     notice.closed.then((_) {
-      if (_lodgingNotice == notice) _lodgingNotice = null;
+      if (_hiddenNotice == notice) _hiddenNotice = null;
     });
   }
 
@@ -806,7 +878,8 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                 bottom: bottom + AppSpace.lg,
                 child: _DraftCard(
                   place: place,
-                  onAdd: () => _addStop(route, day),
+                  onAddStop: () => _addStop(route, day),
+                  onSaveCandidate: _saveCandidate,
                   onCancel: () => setState(() => _draftPlace = null),
                 ),
               ),
@@ -924,6 +997,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
           onReveal: onReveal,
           onOpenMap: (candidate) =>
               _openMap(candidate.name, candidate.position),
+          onEdit: _readOnly ? null : _editCandidate,
           padding: padding,
         ),
       );
@@ -1183,16 +1257,20 @@ class _RouteMap extends ConsumerWidget {
   }
 }
 
-/// 임시 핀을 꽂으면 아래에 뜨는 카드. 추가를 누르면 입력 화면을 연다.
+/// 임시 핀을 꽂으면 아래에 뜨는 카드. 위 줄은 고른 곳(심볼 이름)과 닫기, 아래 줄은
+/// [후보로 저장](후보 입력 화면)과 [동선에 넣기](장소 입력 화면)다.
+/// 두 줄로 두는 것은 휴대폰 폭에서 이름과 버튼 둘이 한 줄에 들어가지 않아서다.
 class _DraftCard extends StatelessWidget {
   const _DraftCard({
     required this.place,
-    required this.onAdd,
+    required this.onAddStop,
+    required this.onSaveCandidate,
     required this.onCancel,
   });
 
   final MapTap place;
-  final VoidCallback onAdd;
+  final VoidCallback onAddStop;
+  final VoidCallback onSaveCandidate;
   final VoidCallback onCancel;
 
   @override
@@ -1201,27 +1279,53 @@ class _DraftCard extends StatelessWidget {
     final name = place.placeName;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.only(left: AppSpace.lg, right: AppSpace.xs),
-        child: Row(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpace.lg,
+          0,
+          AppSpace.xs,
+          AppSpace.md,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Icon(
-              Icons.add_location_alt_outlined,
-              color: Theme.of(context).colorScheme.primary,
+            Row(
+              children: [
+                Icon(
+                  Icons.add_location_alt_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: AppSpace.sm),
+                Expanded(
+                  child: Text(
+                    name == null ? l10n.addStopHere : l10n.addNamedStop(name),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  tooltip: MaterialLocalizations.of(context).cancelButtonLabel,
+                  icon: const Icon(Icons.close),
+                  onPressed: onCancel,
+                ),
+              ],
             ),
-            const SizedBox(width: AppSpace.sm),
-            Expanded(
-              child: Text(
-                name == null ? l10n.addStopHere : l10n.addNamedStop(name),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpace.sm),
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                spacing: AppSpace.sm,
+                runSpacing: AppSpace.sm,
+                children: [
+                  OutlinedButton(
+                    onPressed: onSaveCandidate,
+                    child: Text(l10n.draftSaveCandidate),
+                  ),
+                  FilledButton.tonal(
+                    onPressed: onAddStop,
+                    child: Text(l10n.draftAddToRoute),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: AppSpace.sm),
-            FilledButton.tonal(onPressed: onAdd, child: Text(l10n.addStop)),
-            IconButton(
-              tooltip: MaterialLocalizations.of(context).cancelButtonLabel,
-              icon: const Icon(Icons.close),
-              onPressed: onCancel,
             ),
           ],
         ),
