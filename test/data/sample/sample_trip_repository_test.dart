@@ -29,6 +29,15 @@ void main() {
       final written = route.segments.where((s) => s.legs.isNotEmpty);
       expect(written, hasLength(10));
       expect(route.segments.where((s) => s.curvature != 0), hasLength(3));
+      // 동선에 없는 후보도 있다.
+      expect(route.candidates.map((c) => c.name), [
+        '비자림',
+        '애월 카페거리',
+        '한라산 영실 탐방로',
+      ]);
+      expect(route.candidates.every((c) => c.tripId == sampleTripId), isTrue);
+      final stopNames = {for (final s in route.stops) s.name};
+      expect(route.candidates.any((c) => stopNames.contains(c.name)), isFalse);
       // 선 모양 3갈래가 다 있다: 자동차(실선), 도보(점선), 배(파선).
       final modes = {for (final s in written) ...s.legs.map((l) => l.mode)};
       expect(

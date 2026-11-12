@@ -4,12 +4,12 @@
 
 ## 지금 하는 일
 
-후보 장소(PLAN "1-2 후속")를 만드는 중이다. 서버 API는 끝났다(`../mapmarker-server/HANDOFF.md`, 서버 `CLAUDE.md` "후보"). 앱은 커밋 5개로 나눴다: ① 모델·JSON·API·저장소(끝) → ② 지도 후보 점·"후보" 보기 칩·"후보 보기" 필터·후보 목록(끝) → ③ 후보로 저장·고치기·지우기(끝) → ④ 동선에 넣기·후보로 빼기(끝) → ⑤ 제주 샘플 후보와 복사. 그다음 실기기 확인, 문서, dev → main PR.
+후보 장소(PLAN "1-2 후속")를 만드는 중이다. 서버 API는 끝났다(`../mapmarker-server/HANDOFF.md`, 서버 `CLAUDE.md` "후보"). 앱은 커밋 5개로 나눴다: ① 모델·JSON·API·저장소(끝) → ② 지도 후보 점·"후보" 보기 칩·"후보 보기" 필터·후보 목록(끝) → ③ 후보로 저장·고치기·지우기(끝) → ④ 동선에 넣기·후보로 빼기(끝) → ⑤ 제주 샘플 후보와 복사(끝). 지금은 실기기 확인을 기다린다. 그다음 문서, dev → main PR.
 
 ## 다음에 할 첫 단계
 
-1. ⑤ 제주 샘플 후보와 복사
-   - `data/sample/jeju_sample.dart`에 후보 2~3곳(제주 샘플 동선에 없는 곳). `copySample`이 후보도 새 ID로 복사한다(실패 정리는 지금처럼 여행째 지움). 샘플은 보기 전용이라 화면의 후보 쓰기 버튼(카드·연필·[동선에 넣기])은 이미 `_readOnly`로 숨는다. 테스트: 샘플 후보가 "후보" 보기에 보이고 버튼이 없음, 복사한 여행에 후보가 있음.
+1. 실기기 확인(서버 dev를 띄우고 `npm run db:deploy`로 후보 마이그레이션 적용): 후보로 저장(카드·이름 채움·필터 끈 보기의 [후보 보기] 스낵바), "후보 보기" 켜고 끄기(전체·일차 보기의 회색 점, 카메라 그대로), "후보" 보기(흐린 동선, 목록, 점 누르면 그 줄), 동선에 넣기(채운 입력 화면, 그 일차로 이동), 후보로 빼기(잃을 때만 확인 창, [후보 보기] 스낵바), 후보 고치기·지우기, 샘플 후보 3곳과 [실제로 사용하기] 뒤 후보 복사, 서버를 끈 실패 안내. 글자 넘침(두 줄 카드, 긴 후보 이름)은 실기기에서만 보인다. 결과에 따라 고친 뒤 PLAN·OVERVIEW·세 저장소 HANDOFF를 고치고 서버·앱 dev → main PR(merge commit).
+   - ⑤ 구조: 샘플 후보는 `jejuSample`의 `candidatePlaces`(비자림·애월 카페거리·한라산 영실 탐방로, 동선에 없는 곳), ID는 `sample-jeju-candidate-N`. `copyTrip(candidates:)`가 장소 다음에 넣은 순서대로 새 ID로 넣는다(실패하면 지금처럼 여행째 지움). 샘플의 후보 쓰기 버튼(카드·연필·[동선에 넣기])은 `_readOnly`로 숨는다.
    - ④ 구조: 동선에 넣기는 `_promoteCandidate`가 `showStopForm(title: 동선에 넣기)`을 후보 값으로 채워 열고, 넣으면 `selectDay(그 일차, focus:)`(숙소를 끈 보기에 숙소로 넣으면 [숙소 켜기] 알림 뒤 보여 줌). 후보로 빼기는 `StopFormDialog.onDemote`(출발 장소엔 없음, 이름이 비면 못 누름). 사라지는 것(닿은 구간 중 이동 수단을 적은 것 = `segmentsDroppedByRemove`, 입력 화면에 보이는 예정 시각)이 있을 때만 확인 창. 뺀 뒤 `_showDemoted` 스낵바 [후보 보기] → "후보" 보기에서 그 줄. 버튼 있는 알림 스낵바는 `_showNotice` 하나다.
    - ③ 구조: 이름·종류·설명·메모 칸과 지우기 버튼·확인 창은 `widgets/place_fields.dart`로 옮겨 장소·후보 입력 화면이 함께 쓴다. 후보 입력 화면은 `widgets/candidate_form_dialog.dart`(+ `candidate_draft.dart`). 지도의 임시 핀(+) 자체를 누르면 지금처럼 장소 입력 화면이 열린다.
    - ② 구조: 보기 상태는 `RouteChoice.candidateView`·`showCandidates`(`hasList` = 일차 보기 또는 "후보" 보기), 시트·패널 내용은 `_listParts`, 지도는 `candidateMarkers`(`MapMarker.secondary`, `MarkerLook.small`·`ring`)와 `routeOverlays(faded:)`. 후보 목록은 `widgets/candidate_list.dart`이고 펼침·고름·지도 탭 보여 주기는 일차 목록과 같은 `ItinerarySelection`을 쓴다.
@@ -19,7 +19,7 @@
 
 ## 현재 상태
 
-- `flutter analyze` 0건, `flutter test` 672개 통과, `flutter build apk --debug` 성공(후보 전). 후보 화면은 아직 실기기에서 보지 않았다(⑤ 뒤에 한 번에 본다).
+- `flutter analyze` 0건, `flutter test` 674개 통과, `flutter build apk --debug` 성공(후보 전). 후보 화면은 아직 실기기에서 보지 않았다.
 - 태블릿(카카오톡 없음, 네이버 앱 있음)에서 확인: 카카오 계정·네이버 로그인, 다시 켜도 유지(서버가 꺼져 있어도 켤 때 묻지 않음), 로그아웃, 카카오 취소(안내 없음), 서버 끔 안내, 사용자를 지운 뒤 재가입, 여행·장소·구간 저장과 유지, 계정별 여행, 저장 중 표시와 실패 안내, 샘플과 여행 삭제, 휴지통(옮기기·남은 날·되살리기 뒤 원래 자리와 동선·영구 삭제·빈 휴지통·당겨서 새로고침·긴 제목·서버를 끈 실패 안내).
 - 코드 위치: `lib/data/api/`(`ApiClient` 토큰·재발급), `lib/data/auth/`(`AuthSession`, `Account`, `SocialSdk`), `lib/data/trips/`(`TripApi`, `trip_json.dart`, `ServerTripRepository`, `TripCache`), `lib/data/sample/`, `lib/features/login/`, `lib/features/trash/`. 값의 위치·실행 순서·`/login` 예외는 `CLAUDE.md`.
 - `tripRepositoryProvider`는 로그인·로그아웃마다(`authGenerationProvider`) `ServerTripRepository`를 새로 만들고 `SampleTripRepository`로 감싼다. 로그아웃 상태에서는 빈 메모리 저장소다.
@@ -69,7 +69,7 @@
   - `SampleTripRepository`가 샘플(`sample-jeju`)을 목록 맨 뒤에 붙인다. 고치려 하면 `StateError`다. 숨겼는지 아직 모르면 붙이지 않는다(보였다 사라지는 것보다 낫다).
   - 숨김은 `shared_preferences`(`PrefsSampleStore`)로 기기에 기억한다. 한 기기에서 계정을 바꿔도 숨긴 그대로다(사용자 확인. 계정을 바꿔 쓰는 일은 주로 테스트 때다). 읽지 못하면 보이고, 기억하지 못하면 이번에만 숨는다. 다른 플러그인이 쓰던 패키지라 새 네이티브 코드는 없다.
   - 보기 전용: `isSampleTrip`이면 제목 바꾸기·지도 핀·곡선 핸들·연필·손잡이·"오늘 밤도 여기서 묵기"를 숨기고 안내와 [실제로 사용하기]를 띄운다. 카드는 "샘플" 표시가 붙고 상태를 고를 수 없다.
-  - [실제로 사용하기]: `copySample`이 새 ID로 여행·장소를 넣고 이동 수단·곡률을 고친다(요청 20여 번, 몇 초). 중간에 실패하면 반쯤 만든 여행을 한 번 지워 보고 알린다. 새 여행으로 옮겨 간 뒤 샘플을 숨긴다(먼저 숨기면 "없는 여행"이 잠깐 보인다).
+  - [실제로 사용하기]: `copySample`이 새 ID로 여행·장소·후보를 넣고 이동 수단·곡률을 고친다(요청 30번쯤, 몇 초). 중간에 실패하면 반쯤 만든 여행을 한 번 지워 보고 알린다. 새 여행으로 옮겨 간 뒤 샘플을 숨긴다(먼저 숨기면 "없는 여행"이 잠깐 보인다).
   - 여행 삭제는 카드 ⋮ → `DeleteTripDialog` → `trashTrip`(휴지통으로). 서버가 404면 이미 옮긴 것으로 본다. 샘플 카드의 같은 메뉴는 "샘플 지우기"로 기기에서 숨긴다(샘플은 휴지통에 들어가지 않는다).
 - 테스트 이름: 커밋 1의 인증 테스트는 한국어, 그 뒤는 영어다(기존에도 섞여 있어 고치지 않았다).
 

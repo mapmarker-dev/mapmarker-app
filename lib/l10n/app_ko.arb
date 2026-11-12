@@ -90,6 +90,15 @@
   "sampleJejuOlleMarket": "매일올레시장",
   "sampleJejuSeogwipoHotel": "서귀포 숙소",
   "sampleJejuCheonjiyeon": "천지연폭포",
+  "sampleJejuBijarim": "비자림",
+  "@sampleJejuBijarim": {
+    "description": "샘플 여행의 후보 장소(아직 동선에 넣지 않은 곳). 아래 비자림·애월·영실 글도 후보다"
+  },
+  "sampleJejuBijarimDescription": "오래된 비자나무가 모여 있는 숲. 한 바퀴 걷는 데 한 시간쯤.",
+  "sampleJejuAewol": "애월 카페거리",
+  "sampleJejuAewolMemo": "비 오는 날 협재 대신",
+  "sampleJejuYeongsil": "한라산 영실 탐방로",
+  "sampleJejuYeongsilDescription": "한라산을 가장 짧게 오르는 길. 왕복 4~5시간.",
   "deleteTrip": "여행 지우기",
   "deleteTripTitle": "여행을 지울까요?",
   "deleteTripMessage": "‘{title}’ 여행은 휴지통으로 옮겨지고 30일 뒤 완전히 지워집니다. 그전에는 휴지통에서 되살릴 수 있습니다.",

@@ -1,4 +1,5 @@
 import '../api/api_exception.dart';
+import '../models/candidate.dart';
 import '../models/new_id.dart';
 import '../models/segment.dart';
 import '../models/stop.dart';
@@ -19,11 +20,12 @@ Future<Trip> copySample(
   trip: sample.trip,
   stops: sample.route.stops,
   segments: sample.route.segments,
+  candidates: sample.route.candidates,
   createId: createId,
 );
 
-/// [trip]과 그 장소를 저장소의 일반 메서드(여행 만들기, 장소 넣기, 구간 고치기)로 새 ID로 넣는다.
-/// 서버 저장소에도 그대로 들어간다.
+/// [trip]과 그 장소·후보를 저장소의 일반 메서드(여행 만들기, 장소 넣기, 구간 고치기, 후보 넣기)로
+/// 새 ID로 넣는다. 서버 저장소에도 그대로 들어간다. 후보는 넣은 순서가 보이는 순서라서 [candidates] 순서대로 넣는다.
 ///
 /// 구간은 저장소가 장소 사이에 만들고 ID도 저장소(서버)가 정한다.
 /// 그래서 [segments] 중 이동 수단이나 곡률이 있는 것만, 잇는 두 장소로 찾아 고친다.
@@ -34,6 +36,7 @@ Future<Trip> copyTrip(
   required Trip trip,
   required List<Stop> stops,
   required List<Segment> segments,
+  List<Candidate> candidates = const [],
   String Function() createId = newId,
 }) async {
   final saved = await repository.createTrip(
@@ -54,6 +57,22 @@ Future<Trip> copyTrip(
     for (final stop in [...stops]..sort(compareRouteOrder)) {
       final id = ids[stop.id] = createId();
       await repository.addStop(_copyOf(stop, id: id, tripId: saved.id));
+    }
+    for (final candidate in candidates) {
+      await repository.addCandidate(
+        Candidate(
+          id: createId(),
+          tripId: saved.id,
+          latitude: candidate.latitude,
+          longitude: candidate.longitude,
+          name: candidate.name,
+          kind: candidate.kind,
+          description: candidate.description,
+          memo: candidate.memo,
+          placeProvider: candidate.placeProvider,
+          placeId: candidate.placeId,
+        ),
+      );
     }
     final wanted = [
       for (final segment in segments)
