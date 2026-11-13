@@ -29,7 +29,32 @@ class PlaceNameField extends StatelessWidget {
     autofocus: autofocus,
     maxLength: StopDraft.nameMaxLength,
     textInputAction: TextInputAction.next,
-    decoration: InputDecoration(labelText: context.l10n.stopNameLabel),
+    decoration: InputDecoration(
+      labelText: context.l10n.stopNameLabel,
+      // 주소로 찾은 곳도 어떤 가게인지는 모르니 이름은 사용자가 쓴다.
+      hintText: context.l10n.stopNameHint,
+    ),
+  );
+}
+
+/// 주소 칸. 비워 둘 수 있다. 고쳐도 좌표(지도의 자리)는 그대로다.
+class PlaceAddressField extends StatelessWidget {
+  const PlaceAddressField({
+    super.key,
+    required this.controller,
+    required this.enabled,
+  });
+
+  final TextEditingController controller;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) => TextField(
+    controller: controller,
+    enabled: enabled,
+    maxLength: StopDraft.addressMaxLength,
+    textInputAction: TextInputAction.next,
+    decoration: InputDecoration(labelText: context.l10n.stopAddressLabel),
   );
 }
 

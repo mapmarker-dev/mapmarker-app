@@ -14,6 +14,7 @@ class StopDraft {
     this.plannedTime,
     this.description = '',
     this.memo = '',
+    this.address = '',
     this.slotOrder,
   });
 
@@ -24,6 +25,7 @@ class StopDraft {
     plannedTime: stop.plannedTime,
     description: stop.description,
     memo: stop.memo,
+    address: stop.address,
   );
 
   /// 이름 최대 글자 수. 지도 마커 이름과 시트 한 줄에 들어갈 만큼이다.
@@ -32,12 +34,18 @@ class StopDraft {
   /// 설명과 메모 최대 글자 수.
   static const textMaxLength = 1000;
 
+  /// 주소 최대 글자 수. 서버의 ADDRESS_MAX_LENGTH와 같다.
+  static const addressMaxLength = 200;
+
   final String name;
   final StopKind kind;
   final int day;
   final LocalTime? plannedTime;
   final String description;
   final String memo;
+
+  /// 주소. 비어 있어도 된다. 좌표와 따로 고친다.
+  final String address;
 
   /// "넣을 자리" 칸에서 고른 일차 안 순서([Stop.order]). null이면 고르지 않은 것이라 기본 자리다
   /// (`stop_placement.dart`의 `insertionOrder`). 기본 자리는 종류에 따라 바뀌어서 저장할 때 정한다.
@@ -49,7 +57,8 @@ class StopDraft {
     return trimmed.isNotEmpty &&
         trimmed.length <= nameMaxLength &&
         description.length <= textMaxLength &&
-        memo.length <= textMaxLength;
+        memo.length <= textMaxLength &&
+        address.length <= addressMaxLength;
   }
 
   StopDraft copyWith({
@@ -59,6 +68,7 @@ class StopDraft {
     LocalTime? Function()? plannedTime,
     String? description,
     String? memo,
+    String? address,
     int? Function()? slotOrder,
   }) => StopDraft(
     name: name ?? this.name,
@@ -67,6 +77,7 @@ class StopDraft {
     plannedTime: plannedTime == null ? this.plannedTime : plannedTime(),
     description: description ?? this.description,
     memo: memo ?? this.memo,
+    address: address ?? this.address,
     slotOrder: slotOrder == null ? this.slotOrder : slotOrder(),
   );
 
@@ -88,6 +99,7 @@ class StopDraft {
     plannedTime: plannedTime,
     description: description.trim(),
     memo: memo.trim(),
+    address: address.trim(),
   );
 
   /// [stop]에 고친 값을 넣는다. 일차는 바꾸지 않는다(옮기기는 저장소의 `moveStop`이다).
@@ -97,6 +109,7 @@ class StopDraft {
     plannedTime: () => plannedTime,
     description: description.trim(),
     memo: memo.trim(),
+    address: address.trim(),
   );
 
   @override
@@ -108,9 +121,18 @@ class StopDraft {
       other.plannedTime == plannedTime &&
       other.description == description &&
       other.memo == memo &&
+      other.address == address &&
       other.slotOrder == slotOrder;
 
   @override
-  int get hashCode =>
-      Object.hash(name, kind, day, plannedTime, description, memo, slotOrder);
+  int get hashCode => Object.hash(
+    name,
+    kind,
+    day,
+    plannedTime,
+    description,
+    memo,
+    address,
+    slotOrder,
+  );
 }

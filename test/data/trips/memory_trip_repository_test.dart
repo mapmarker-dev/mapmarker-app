@@ -489,6 +489,18 @@ void main() {
       },
     );
 
+    test('promoting uses the address sent and demoting keeps it', () async {
+      await repository.addCandidate(candidate('x').copyWith(address: '제주 우도면'));
+
+      final placed = await repository.promoteCandidate(
+        testStop('x').copyWith(address: '제주시 우도면 우도해안길 1'),
+      );
+      final demoted = await repository.demoteStop('x');
+
+      expect(placed.address, '제주시 우도면 우도해안길 1');
+      expect(demoted.address, '제주시 우도면 우도해안길 1');
+    });
+
     test('a demoted stop comes back with the same ID', () async {
       await repository.addStop(testStop('a'));
       await repository.demoteStop('a');

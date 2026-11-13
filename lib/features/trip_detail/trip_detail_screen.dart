@@ -425,6 +425,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
         day: defaultDayForNewStop(latest),
         description: candidate.description,
         memo: candidate.memo,
+        address: candidate.address,
       ),
       onSave: (draft) => ref
           .read(tripDetailProvider(trip.id).notifier)

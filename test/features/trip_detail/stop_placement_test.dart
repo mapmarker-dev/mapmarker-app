@@ -201,12 +201,12 @@ void main() {
     });
   });
 
-  test('stays another night with the name, place and notes', () {
-    final hotel = testLodging(
-      'hotel',
-      day: 1,
-      order: 3,
-    ).copyWith(description: '바다 전망', memo: '현관 비밀번호 1234');
+  test('stays another night with the name, place, address and notes', () {
+    final hotel = testLodging('hotel', day: 1, order: 3).copyWith(
+      description: '바다 전망',
+      memo: '현관 비밀번호 1234',
+      address: '제주시 탑동로 1',
+    );
 
     final again = stayAnotherNight(hotel, id: 'hotel-2', day: 2, order: 4);
 
@@ -218,6 +218,7 @@ void main() {
     expect(again.description, '바다 전망');
     // 메모는 두 밤 모두 필요해서 복사한다.
     expect(again.memo, '현관 비밀번호 1234');
+    expect(again.address, '제주시 탑동로 1');
     expect(again.plannedTime, isNull);
   });
 }

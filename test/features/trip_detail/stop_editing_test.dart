@@ -97,6 +97,8 @@ Finder _inForm(Finder finder) => find.descendant(of: _form, matching: finder);
 
 Finder get _nameField => _inForm(find.widgetWithText(TextField, '이름'));
 
+Finder get _addressField => _inForm(find.widgetWithText(TextField, '주소'));
+
 Finder get _saveButton => _inForm(find.widgetWithText(TextButton, '저장'));
 
 Future<void> _tapInForm(WidgetTester tester, Finder finder) async {
@@ -288,6 +290,8 @@ void main() {
 
       expect(find.text('장소 추가'), findsOneWidget);
       expect(tester.widget<TextField>(_nameField).controller!.text, '성산일출봉');
+      // 지도를 눌러 넣는 곳은 주소가 비어 있다.
+      expect(tester.widget<TextField>(_addressField).controller!.text, '');
 
       await _save(tester);
 
@@ -561,6 +565,24 @@ void main() {
       expect(edited.kind, StopKind.tour);
       expect(edited.memo, '주차 2시간 무료');
       expect(mapScene(tester).captions, contains('용머리해안'));
+    });
+
+    testWidgets('edits the address but keeps the place on the map', (
+      tester,
+    ) async {
+      await _pumpJeju(tester);
+      await tapChip(tester, '2일차');
+      await _openSheet(tester);
+      final before = _tile(tester, 'c').stop.position;
+      await openEditor(tester, 'c');
+
+      await tester.enterText(_addressField, '제주 서귀포시 안덕면 사계리 112-3');
+      await tester.pump();
+      await _save(tester);
+
+      final edited = _tile(tester, 'c').stop;
+      expect(edited.address, '제주 서귀포시 안덕면 사계리 112-3');
+      expect(edited.position, before);
     });
 
     testWidgets('picks the planned time on a 5-minute wheel', (tester) async {

@@ -139,6 +139,7 @@ Stop stayAnotherNight(
   latitude: lodging.latitude,
   longitude: lodging.longitude,
   name: lodging.name,
+  address: lodging.address,
   kind: lodging.kind,
   day: day,
   order: order,

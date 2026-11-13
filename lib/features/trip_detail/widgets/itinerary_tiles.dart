@@ -65,6 +65,7 @@ class ItineraryStopTile extends StatelessWidget {
     final time = stop.plannedTime;
     final description = stop.description.trim();
     final memo = stop.memo.trim();
+    final address = stop.address.trim();
     final opacity = saving ? AppOpacity.pending : 1.0;
 
     return Material(
@@ -137,6 +138,8 @@ class ItineraryStopTile extends StatelessWidget {
                               Text(l10n.itineraryMemo, style: muted),
                               Text(memo, style: textTheme.bodyMedium),
                             ],
+                            if (expanded && address.isNotEmpty)
+                              _AddressLine(address),
                           ],
                         ),
                       ),
@@ -217,6 +220,7 @@ class CandidateTile extends StatelessWidget {
     final muted = textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant);
     final description = candidate.description.trim();
     final memo = candidate.memo.trim();
+    final address = candidate.address.trim();
     final actions = this.actions;
     // 글자 줄과 첫 글자를 맞춘다.
     final textStart = AppSpace.sm + _iconWidth + AppSpace.md;
@@ -274,6 +278,8 @@ class CandidateTile extends StatelessWidget {
                             Text(l10n.itineraryMemo, style: muted),
                             Text(memo, style: textTheme.bodyMedium),
                           ],
+                          if (expanded && address.isNotEmpty)
+                            _AddressLine(address),
                         ],
                       ),
                     ),
@@ -422,6 +428,44 @@ class _EditButton extends StatelessWidget {
     ),
     onPressed: onPressed,
   );
+}
+
+/// 펼친 장소·후보 줄의 주소. 이름만으로 어디인지 모를 때 보는 것이라 작고 흐리게, 외부 지도 링크 바로 위에 둔다.
+class _AddressLine extends StatelessWidget {
+  const _AddressLine(this.address);
+
+  final String address;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpace.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            // 아이콘을 첫 줄 글자 가운데에 맞춘다.
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(
+              Icons.place_outlined,
+              size: 14,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: AppSpace.xs),
+          Expanded(
+            child: Text(
+              address,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// 외부 지도로 가는 작은 글자 링크. 바탕 없이 글자와 아이콘만 있어서 장소 줄보다 눈에 덜 띈다.

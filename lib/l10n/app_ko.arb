@@ -556,6 +556,11 @@
   "stopFormAddTitle": "장소 추가",
   "stopFormEditTitle": "장소 편집",
   "stopNameLabel": "이름",
+  "stopNameHint": "예: ○○카페 강남역점",
+  "@stopNameHint": {
+    "description": "장소·후보 이름 칸이 비어 있을 때 보이는 예시. 주소로 찾아도 가게 이름은 사용자가 쓴다"
+  },
+  "stopAddressLabel": "주소",
   "stopKindLabel": "종류",
   "stopDayLabel": "일차",
   "stopSlotLabel": "넣을 자리",

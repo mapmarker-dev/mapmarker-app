@@ -61,6 +61,7 @@ class _CandidateFormDialogState extends State<CandidateFormDialog>
     text: widget.initial.description,
   );
   late final _memo = TextEditingController(text: widget.initial.memo);
+  late final _address = TextEditingController(text: widget.initial.address);
 
   /// 지우는 중인지. 저장 중 표시를 저장 버튼이 아닌 지우기 버튼에 띄운다.
   bool _deleting = false;
@@ -81,6 +82,9 @@ class _CandidateFormDialogState extends State<CandidateFormDialog>
     _memo.addListener(
       () => setState(() => _draft = _draft.copyWith(memo: _memo.text)),
     );
+    _address.addListener(
+      () => setState(() => _draft = _draft.copyWith(address: _address.text)),
+    );
   }
 
   @override
@@ -88,6 +92,7 @@ class _CandidateFormDialogState extends State<CandidateFormDialog>
     _name.dispose();
     _description.dispose();
     _memo.dispose();
+    _address.dispose();
     super.dispose();
   }
 
@@ -173,6 +178,8 @@ class _CandidateFormDialogState extends State<CandidateFormDialog>
                   enabled: !saving,
                   autofocus: widget.isNew && widget.initial.name.isEmpty,
                 ),
+                gap,
+                PlaceAddressField(controller: _address, enabled: !saving),
                 gap,
                 PlaceKindChips(
                   kind: _draft.kind,

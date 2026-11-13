@@ -1,19 +1,23 @@
 # HANDOFF
 
-> 최종 갱신: 2026-11-12 · 브랜치: dev
+> 최종 갱신: 2026-11-13 · 브랜치: dev
 
 ## 지금 하는 일
 
-후보 장소(PLAN "1-2 후속. 후보 장소")를 마치고 실기기에서 확인했다(후보로 저장, 함께 보기의 "후보" 켜고 끄기, "후보 목록" 보기, 동선에 넣기, 후보로 빼기, 고치기·지우기, 샘플 후보 복사, 서버를 끈 실패 안내, 칩 두 줄, 예정 시각 휠). 결정은 `.github` OVERVIEW로 옮겼고, dev → main PR을 merge commit으로 합치는 중이다.
+**장소 검색과 동선 사이 +**(PLAN "1-2 후속"). 후보 장소는 실기기 확인 뒤 main에 합쳤다(PR #4). 설계와 계획은 작업 폴더(저장소 밖)의 `../DESIGN-place-search.md`, `../PLAN-place-search.md`이고, 끝나면 OVERVIEW·PLAN으로 옮기고 지운다.
+
+- 찾는 방법은 **주소 붙여넣기 + 행안부 도로명주소 API**(서버 `GET /v1/addresses`·`/v1/addresses/coordinates`, 서버는 끝남). 이름은 사용자가 쓴다(주소로는 어떤 가게인지 모른다). 동선 사이 ⊕는 늘 보인다(사용자 결정).
+- 앱 Task 4(장소·후보 주소 칸)를 마쳤다: 모델·JSON(없으면 빈칸)·초안·입력 화면(이름 아래 `PlaceAddressField`)·펼친 줄(`_AddressLine`, 위치 아이콘 + 작은 회색 글)·동선에 넣기·후보로 빼기·연박·샘플 복사.
 
 ## 다음에 할 첫 단계
 
-1. 다음 단위 **장소 검색과 동선 사이 +**(PLAN "1-2 후속"). 먼저 장소를 찾는 방법(앱 안 검색 / 주소 붙여넣기 + 지오코딩 / 지도 앱에서 공유 받기)을 정한다. 지도 앱(네이버·구글)의 [공유]가 보내는 글을 실기기에서 확인해 비교한다. 사용자는 지도 앱에서 찾은 곳을 가져오는 쪽(주소 붙여넣기)을 먼저 떠올렸다. 이 단위에서 장소·후보에 주소 칸도 더한다(영업시간 같은 외부 정보는 넣지 않는다, OVERVIEW "데이터와 시간"). 검색·지오코딩은 서버를 거친다(`../mapmarker-server/HANDOFF.md`).
+1. 계획의 Task 5·6(한 커밋): `ApiClient.get`의 쿼리, `lib/data/addresses/address_api.dart`, 붙여넣기 파싱(`pasted_place.dart`), 찾기 대화상자(`place_finder_dialog.dart`), 동선 사이 ⊕·"장소 넣기" 줄·후보 목록 +.
+2. 그다음 실기기 확인(계획 Task 7). 서버 `.env`에 행안부 키 두 개가 있어야 서버가 뜬다.
    - 나중에 더할 경로: `/trips/:tripId/export`, `/settings`. 3단계에 `/shared/:shareId`(공유 링크 `/trip/<공유ID>`를 redirect로 연결).
 
 ## 현재 상태
 
-- `flutter analyze` 0건, `flutter test` 681개 통과. 장소·후보 입력 화면 맨 아래 버튼([후보로 빼기] [장소 지우기])은 한 줄에 놓고 폭이 모자랄 때만 넘긴다(`FormActionRow`).
+- `flutter analyze` 0건, `flutter test` 686개 통과. 장소·후보 입력 화면 맨 아래 버튼([후보로 빼기] [장소 지우기])은 한 줄에 놓고 폭이 모자랄 때만 넘긴다(`FormActionRow`).
 - 태블릿(카카오톡 없음, 네이버 앱 있음)에서 확인한 것: 카카오 계정·네이버 로그인, 다시 켜도 유지(서버가 꺼져도 묻지 않음), 로그아웃, 카카오 취소(안내 없음), 서버 끔 안내, 사용자를 지운 뒤 재가입, 여행·장소·구간 저장과 유지, 계정별 여행, 저장 중 표시와 실패 안내, 샘플과 여행 삭제, 휴지통 전체(남은 날, 되살린 뒤 원래 자리와 동선, 영구 삭제, 빈 휴지통, 당겨서 새로고침, 긴 제목, 서버를 끈 실패).
 - 코드 위치: `lib/data/api/`(`ApiClient` 토큰·재발급), `lib/data/auth/`(`AuthSession`, `Account`, `SocialSdk`), `lib/data/trips/`(`TripApi`, `trip_json.dart`, `ServerTripRepository`, `TripCache`), `lib/data/sample/`, `lib/features/login/`, `lib/features/trash/`. 값의 위치·실행 순서·`/login` 예외는 `CLAUDE.md`.
 - `tripRepositoryProvider`는 로그인·로그아웃마다(`authGenerationProvider`) `ServerTripRepository`를 새로 만들어 `SampleTripRepository`로 감싼다. 로그아웃 상태는 빈 메모리 저장소다.

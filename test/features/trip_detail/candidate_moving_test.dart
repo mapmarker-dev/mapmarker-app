@@ -39,6 +39,7 @@ const _udo = Candidate(
   kind: StopKind.tour,
   description: '섬',
   memo: '배 시간 확인',
+  address: '제주특별자치도 제주시 우도면',
 );
 
 const _walk = [TransportLeg(TransportMode.walk)];
@@ -155,6 +156,7 @@ void main() {
       );
       expect(_inForm(find.text('섬')), findsOneWidget);
       expect(_inForm(find.text('배 시간 확인')), findsOneWidget);
+      expect(_inForm(find.text('제주특별자치도 제주시 우도면')), findsOneWidget);
       // 새 장소처럼 일차와 넣을 자리를 고른다. 일차는 장소가 있는 마지막 일차다.
       expect(_inForm(find.text('2일차')), findsOneWidget);
       expect(_inForm(find.text('넣을 자리')), findsOneWidget);
@@ -169,6 +171,7 @@ void main() {
       expect((placed.day, placed.order), (2, 1));
       expect(placed.kind, StopKind.tour);
       expect(placed.memo, '배 시간 확인');
+      expect(placed.address, '제주특별자치도 제주시 우도면');
       expect(placed.position, _udo.position);
       // 그 일차로 가서 넣은 장소를 보여 준다.
       expect(_choice(container).day, 2);

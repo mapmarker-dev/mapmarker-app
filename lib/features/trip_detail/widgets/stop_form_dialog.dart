@@ -121,6 +121,7 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
     text: widget.initial.description,
   );
   late final _memo = TextEditingController(text: widget.initial.memo);
+  late final _address = TextEditingController(text: widget.initial.address);
 
   /// 처음 값에서 고친 것이 있는지. 있으면 닫기 전에 버릴지 묻는다.
   bool get _dirty => _draft != widget.initial;
@@ -139,6 +140,9 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
     _memo.addListener(
       () => setState(() => _draft = _draft.copyWith(memo: _memo.text)),
     );
+    _address.addListener(
+      () => setState(() => _draft = _draft.copyWith(address: _address.text)),
+    );
   }
 
   @override
@@ -146,6 +150,7 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
     _name.dispose();
     _description.dispose();
     _memo.dispose();
+    _address.dispose();
     super.dispose();
   }
 
@@ -316,6 +321,8 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
                   enabled: !saving,
                   autofocus: widget.isNew && widget.initial.name.isEmpty,
                 ),
+                gap,
+                PlaceAddressField(controller: _address, enabled: !saving),
                 gap,
                 PlaceKindChips(
                   kind: _draft.kind,

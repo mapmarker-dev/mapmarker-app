@@ -27,6 +27,14 @@ void main() {
       expect(ok.copyWith(description: 'a' * 1001).isValid, isFalse);
       expect(ok.copyWith(memo: 'a' * 1001).isValid, isFalse);
     });
+
+    test('limits the address to 200 letters and lets it be empty', () {
+      const ok = StopDraft(name: '용두암', day: 1);
+
+      expect(ok.isValid, isTrue);
+      expect(ok.copyWith(address: 'a' * 200).isValid, isTrue);
+      expect(ok.copyWith(address: 'a' * 201).isValid, isFalse);
+    });
   });
 
   test('makes a new stop with trimmed text', () {
@@ -37,6 +45,7 @@ void main() {
       plannedTime: LocalTime(9, 30),
       description: ' 바위 ',
       memo: '\n주차\n',
+      address: ' 제주시 용두암길 15 ',
     );
 
     final stop = draft.toNewStop(
@@ -55,6 +64,7 @@ void main() {
     expect(stop.plannedTime, const LocalTime(9, 30));
     expect(stop.description, '바위');
     expect(stop.memo, '주차');
+    expect(stop.address, '제주시 용두암길 15');
   });
 
   test('edits a stop but leaves its day and place to the repository', () {
@@ -68,6 +78,7 @@ void main() {
       kind: StopKind.food,
       day: 3,
       plannedTime: () => null,
+      address: ' 제주시 연북로 1 ',
     );
 
     final edited = draft.applyTo(stop);
@@ -75,6 +86,7 @@ void main() {
     expect(edited.name, '카페');
     expect(edited.kind, StopKind.food);
     expect(edited.plannedTime, isNull);
+    expect(edited.address, '제주시 연북로 1');
     expect((edited.day, edited.order), (2, 1));
     expect(edited.position, stop.position);
   });
@@ -84,5 +96,10 @@ void main() {
 
     expect(StopDraft.of(stop), StopDraft.of(stop));
     expect(StopDraft.of(stop).copyWith(memo: '메모'), isNot(StopDraft.of(stop)));
+    expect(
+      StopDraft.of(stop).copyWith(address: '주소'),
+      isNot(StopDraft.of(stop)),
+    );
+    expect(StopDraft.of(stop.copyWith(address: '주소')).address, '주소');
   });
 }

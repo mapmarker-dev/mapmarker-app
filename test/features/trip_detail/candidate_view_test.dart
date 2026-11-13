@@ -34,6 +34,7 @@ const _udo = Candidate(
   kind: StopKind.tour,
   description: '배 타고 들어가는 섬',
   memo: '배 시간 확인',
+  address: '제주특별자치도 제주시 우도면',
 );
 const _cafe = Candidate(
   id: 'cafe',
@@ -218,6 +219,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('배 시간 확인'), findsOneWidget);
+      expect(find.text('제주특별자치도 제주시 우도면'), findsOneWidget);
     });
 
     testWidgets('opens a candidate on Naver Map', (tester) async {

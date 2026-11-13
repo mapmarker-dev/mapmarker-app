@@ -34,6 +34,7 @@ class Stop {
     required this.name,
     required this.day,
     required this.order,
+    this.address = '',
     this.kind = StopKind.other,
     this.description = '',
     this.memo = '',
@@ -54,6 +55,10 @@ class Stop {
   final double latitude;
   final double longitude;
   final String name;
+
+  /// 주소. 도로명주소 검색으로 채우거나 사용자가 쓴다. 없으면 빈 문자열이다.
+  /// 좌표와 따로 고친다(주소를 바꿔도 지도의 자리는 그대로다).
+  final String address;
 
   final StopKind kind;
 
@@ -97,6 +102,7 @@ class Stop {
     double? latitude,
     double? longitude,
     String? name,
+    String? address,
     StopKind? kind,
     int? day,
     int? order,
@@ -110,6 +116,7 @@ class Stop {
     latitude: latitude ?? this.latitude,
     longitude: longitude ?? this.longitude,
     name: name ?? this.name,
+    address: address ?? this.address,
     kind: kind ?? this.kind,
     day: day ?? this.day,
     order: order ?? this.order,

@@ -36,11 +36,11 @@ final _stops = [
   testStop('a', tripId: 'jeju', kind: StopKind.tour),
   testStop('b', tripId: 'jeju', order: 1, kind: StopKind.food),
   testLodging('hotel', tripId: 'jeju', order: 2),
-  testStop(
-    'c',
-    tripId: 'jeju',
-    day: 2,
-  ).copyWith(description: '바다 보며 산책', memo: '주차 2시간 무료'),
+  testStop('c', tripId: 'jeju', day: 2).copyWith(
+    description: '바다 보며 산책',
+    memo: '주차 2시간 무료',
+    address: '제주 서귀포시 안덕면 사계리 112-3',
+  ),
   testStop('d', tripId: 'jeju', day: 2, order: 1, kind: StopKind.tour),
   testLodging('hotel2', tripId: 'jeju', day: 2, order: 2),
 ];
@@ -460,11 +460,34 @@ void main() {
 
       expect(find.text('메모'), findsOneWidget);
       expect(find.text('주차 2시간 무료'), findsOneWidget);
+      expect(find.text('제주 서귀포시 안덕면 사계리 112-3'), findsOneWidget);
 
       await tester.tap(find.text('c'));
       await tester.pumpAndSettle();
 
       expect(find.text('주차 2시간 무료'), findsNothing);
+      expect(find.text('제주 서귀포시 안덕면 사계리 112-3'), findsNothing);
+    });
+
+    testWidgets('shows no address line for a stop without one', (tester) async {
+      _tallScreen(tester);
+      await _pumpJeju(tester);
+      await tapChip(tester, '2일차');
+      await _openSheet(tester);
+
+      await tester.tap(find.text('d'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: find.ancestor(
+            of: find.text('d'),
+            matching: find.byType(ItineraryStopTile),
+          ),
+          matching: find.byIcon(Icons.place_outlined),
+        ),
+        findsNothing,
+      );
     });
 
     testWidgets('opens a stop in Naver Map by its name and place', (
