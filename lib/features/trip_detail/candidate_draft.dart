@@ -15,6 +15,7 @@ class CandidateDraft {
     this.description = '',
     this.memo = '',
     this.address = '',
+    this.relocatedTo,
   });
 
   factory CandidateDraft.of(Candidate candidate) => CandidateDraft(
@@ -33,6 +34,9 @@ class CandidateDraft {
   /// 주소. 비어 있어도 된다. 좌표와 따로 고친다.
   final String address;
 
+  /// [주소로 위치 다시 찾기]로 고른 새 좌표. 저장하면 후보가 여기로 옮겨진다. null이면 그대로다.
+  final LatLng? relocatedTo;
+
   /// 저장할 수 있는지. 상한은 장소와 같다(동선에 넣으면 장소가 된다).
   bool get isValid {
     final trimmed = name.trim();
@@ -49,12 +53,14 @@ class CandidateDraft {
     String? description,
     String? memo,
     String? address,
+    LatLng? Function()? relocatedTo,
   }) => CandidateDraft(
     name: name ?? this.name,
     kind: kind ?? this.kind,
     description: description ?? this.description,
     memo: memo ?? this.memo,
     address: address ?? this.address,
+    relocatedTo: relocatedTo == null ? this.relocatedTo : relocatedTo(),
   );
 
   Candidate toNewCandidate({
@@ -75,6 +81,8 @@ class CandidateDraft {
 
   /// [candidate]에 고친 값을 넣는다.
   Candidate applyTo(Candidate candidate) => candidate.copyWith(
+    latitude: relocatedTo?.latitude,
+    longitude: relocatedTo?.longitude,
     name: name.trim(),
     kind: kind,
     description: description.trim(),
@@ -89,8 +97,10 @@ class CandidateDraft {
       other.kind == kind &&
       other.description == description &&
       other.memo == memo &&
-      other.address == address;
+      other.address == address &&
+      other.relocatedTo == relocatedTo;
 
   @override
-  int get hashCode => Object.hash(name, kind, description, memo, address);
+  int get hashCode =>
+      Object.hash(name, kind, description, memo, address, relocatedTo);
 }

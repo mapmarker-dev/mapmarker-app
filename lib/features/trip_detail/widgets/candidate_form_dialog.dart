@@ -87,6 +87,14 @@ class _CandidateFormDialogState extends State<CandidateFormDialog>
     );
   }
 
+  /// [주소로 위치 다시 찾기]: 고르면 주소 칸을 바꾸고, 저장할 때 위치를 옮긴다.
+  Future<void> _relocate() async {
+    final found = await findNewPosition(context);
+    if (found == null || !mounted) return;
+    _address.text = found.address;
+    setState(() => _draft = _draft.copyWith(relocatedTo: () => found.position));
+  }
+
   @override
   void dispose() {
     _name.dispose();
@@ -180,6 +188,12 @@ class _CandidateFormDialogState extends State<CandidateFormDialog>
                 ),
                 gap,
                 PlaceAddressField(controller: _address, enabled: !saving),
+                // 고칠 때만 있다. 새로 넣는 곳은 방금 찾았거나 지도에서 찍었다.
+                if (!widget.isNew)
+                  RelocateButton(
+                    relocated: _draft.relocatedTo != null,
+                    onPressed: saving ? null : _relocate,
+                  ),
                 gap,
                 PlaceKindChips(
                   kind: _draft.kind,

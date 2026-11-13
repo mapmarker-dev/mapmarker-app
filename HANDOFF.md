@@ -7,22 +7,26 @@
 **장소 검색과 동선 사이 +**(PLAN "1-2 후속"). 후보 장소는 실기기 확인 뒤 main에 합쳤다(PR #4). 설계와 계획은 작업 폴더(저장소 밖)의 `../DESIGN-place-search.md`, `../PLAN-place-search.md`이고, 끝나면 OVERVIEW·PLAN으로 옮기고 지운다.
 
 - 찾는 방법은 **주소 붙여넣기 + 행안부 도로명주소 API**(서버 `GET /v1/addresses`·`/v1/addresses/coordinates`, 서버는 끝남). 이름은 사용자가 쓴다(주소로는 어떤 가게인지 모른다). 동선 사이 ⊕는 늘 보인다(사용자 결정).
-- 앱 Task 4(장소·후보 주소 칸)를 마쳤다: 모델·JSON(없으면 빈칸)·초안·입력 화면(이름 아래 `PlaceAddressField`)·펼친 줄(`_AddressLine`, 위치 아이콘 + 작은 회색 글)·동선에 넣기·후보로 빼기·연박·샘플 복사.
+- 앱 구현은 끝났고 실기기 확인 전이다.
+  - 주소 칸(Task 4): 모델·JSON(없으면 빈칸)·초안·입력 화면(이름 아래 `PlaceAddressField`)·펼친 줄(`_AddressLine`)·동선에 넣기·후보로 빼기·연박·샘플 복사.
+  - 찾기(Task 5·6): `data/addresses/AddressApi`, 붙여넣기 파싱 `pasted_place.dart`(링크·"[네이버 지도]" 줄을 버리고 주소처럼 보이는 줄을 검색어로, 남은 첫 줄을 이름 후보로), 찾기 화면 `widgets/place_finder_dialog.dart`(엔터·찾기·붙여넣기 때만 검색, 고르면 좌표를 받아 닫음), 구간 줄 세로선의 ⊕(`ItinerarySegmentTile.onInsert`), 목록 끝 "장소 넣기"·"후보 찾아 넣기" 줄, 화면의 `_findStop`·`_findCandidate`.
+  - [주소로 위치 다시 찾기](사용자 결정): 고치는 장소·후보 입력 화면에만. 고르면 주소 칸과 `relocatedTo`(초안)를 바꾸고 저장할 때 좌표를 옮긴다. 주소 글자만 고치면 위치는 그대로다.
 
 ## 다음에 할 첫 단계
 
-1. 계획의 Task 5·6(한 커밋): `ApiClient.get`의 쿼리, `lib/data/addresses/address_api.dart`, 붙여넣기 파싱(`pasted_place.dart`), 찾기 대화상자(`place_finder_dialog.dart`), 동선 사이 ⊕·"장소 넣기" 줄·후보 목록 +.
-2. 그다음 실기기 확인(계획 Task 7). 서버 `.env`에 행안부 키 두 개가 있어야 서버가 뜬다.
+1. 실기기 확인(계획 Task 7). 서버 `.env`에 행안부 키 두 개(`JUSO_ADDRESS_KEY`, `JUSO_COORD_KEY`)가 있어야 서버가 뜬다. 네이버·카카오·구글에서 복사한 주소와 공유 글로 붙여넣기 파싱·서버 검색어 다듬기를 확인하고, ⊕·"장소 넣기"·"후보 찾아 넣기"의 크기와 자리, 찾기 결과 줄의 글자 넘침을 본다.
+2. 제주 샘플 장소·후보 주소를 실제 키로 찾은 값으로 채운다(`sampleJeju…` ARB, 못 찾는 자연 명소는 비움).
    - 나중에 더할 경로: `/trips/:tripId/export`, `/settings`. 3단계에 `/shared/:shareId`(공유 링크 `/trip/<공유ID>`를 redirect로 연결).
 
 ## 현재 상태
 
-- `flutter analyze` 0건, `flutter test` 686개 통과. 장소·후보 입력 화면 맨 아래 버튼([후보로 빼기] [장소 지우기])은 한 줄에 놓고 폭이 모자랄 때만 넘긴다(`FormActionRow`).
+- `flutter analyze` 0건, `flutter test` 729개 통과. 장소·후보 입력 화면 맨 아래 버튼([후보로 빼기] [장소 지우기])은 한 줄에 놓고 폭이 모자랄 때만 넘긴다(`FormActionRow`).
 - 태블릿(카카오톡 없음, 네이버 앱 있음)에서 확인한 것: 카카오 계정·네이버 로그인, 다시 켜도 유지(서버가 꺼져도 묻지 않음), 로그아웃, 카카오 취소(안내 없음), 서버 끔 안내, 사용자를 지운 뒤 재가입, 여행·장소·구간 저장과 유지, 계정별 여행, 저장 중 표시와 실패 안내, 샘플과 여행 삭제, 휴지통 전체(남은 날, 되살린 뒤 원래 자리와 동선, 영구 삭제, 빈 휴지통, 당겨서 새로고침, 긴 제목, 서버를 끈 실패).
 - 코드 위치: `lib/data/api/`(`ApiClient` 토큰·재발급), `lib/data/auth/`(`AuthSession`, `Account`, `SocialSdk`), `lib/data/trips/`(`TripApi`, `trip_json.dart`, `ServerTripRepository`, `TripCache`), `lib/data/sample/`, `lib/features/login/`, `lib/features/trash/`. 값의 위치·실행 순서·`/login` 예외는 `CLAUDE.md`.
 - `tripRepositoryProvider`는 로그인·로그아웃마다(`authGenerationProvider`) `ServerTripRepository`를 새로 만들어 `SampleTripRepository`로 감싼다. 로그아웃 상태는 빈 메모리 저장소다.
 - `main.dart`는 `.env` 필수 값이 비면 서버·로그인 준비 없이 `MissingEnvScreen`만 띄운다(서버 주소가 비면 dio를 못 만들어 앱이 죽었었다).
 - 끌어 옮기기는 아직 그날 밤 숙소 뒤로도 갈 수 있다("넣을 자리" 칸은 막는다).
+- 장소 찾기에서 정한 작은 것(아직 문서에 없음): ⊕는 숙소를 끈 보기·샘플·전체 보기에 없다(숨긴 숙소 때문에 자리가 분명하지 않다). "장소 넣기" 줄은 숙소를 끈 보기에도 있다. 찾기 결과의 건물명은 이름 칸에 넣지 않는다. 장소 입력 화면을 그냥 닫으면 찾기 화면으로 돌아가지 않는다. 후보 목록의 +는 머리줄 버튼으로 했다가 아래 시트 머리줄이 접힌 높이 추정(56)보다 높아져 넘쳐서 목록 끝 줄로 옮겼다.
 - 내보내기 합성(`features/export/route_composer.dart`, 0단계 프로토타입)은 아직 자기 색(#1E6FFF)과 글꼴 크기를 쓴다. 1-5단계에서 토큰으로 바꾸고, "숙소 포함" 끄기는 `RouteView.vias`로 그린다.
 
 ## 아직 문서에 없는 결정

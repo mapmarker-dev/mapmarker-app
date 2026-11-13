@@ -38,6 +38,7 @@ import 'widgets/candidate_form_dialog.dart';
 import 'widgets/candidate_list.dart';
 import 'widgets/day_itinerary_list.dart';
 import 'widgets/dropped_transport_list.dart';
+import 'widgets/place_finder_dialog.dart';
 import 'widgets/rename_trip_dialog.dart';
 import 'widgets/route_day_chips.dart';
 import 'widgets/route_day_panel.dart';
@@ -391,6 +392,85 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     _showCandidate(id);
   }
 
+  /// 동선 사이 ⊕(그 장소 [before] 앞)나 "장소 넣기" 줄(기본 자리)에서 주소로 찾아 [day]일차에 넣는다.
+  ///
+  /// 찾기 화면에서 고르면 장소 입력 화면을 주소·좌표·넣을 자리로 채워 연다. 이름은 사용자가 쓴다
+  /// (붙여 넣은 글의 이름 줄만 미리 넣는다). 입력 화면을 그냥 닫으면 찾기 화면으로 돌아가지 않는다.
+  Future<void> _findStop(
+    TripRoute route, {
+    required int day,
+    Stop? before,
+  }) async {
+    final l10n = context.l10n;
+    final latest = _latestRoute(route);
+    final index = before == null
+        ? -1
+        : latest.stops.indexWhere((stop) => stop.id == before.id);
+    final title = index > 0
+        ? l10n.placeFinderTitleBetween(
+            day,
+            latest.stops[index - 1].name,
+            before!.name,
+          )
+        : l10n.placeFinderTitleEnd(day);
+    final found = await showPlaceFinder(context, title: title);
+    if (found == null || !mounted) return;
+    // 다시 저장해도 같은 장소다.
+    final id = newId();
+    final draft = await showStopForm(
+      context,
+      trip: trip,
+      route: _latestRoute(route),
+      initial: StopDraft(
+        name: found.nameHint ?? '',
+        address: found.address,
+        day: day,
+        slotOrder: index >= 0 ? before!.order : null,
+      ),
+      onSave: (draft) => ref
+          .read(tripDetailProvider(trip.id).notifier)
+          .addStop(
+            draft.toNewStop(
+              id: id,
+              tripId: trip.id,
+              position: found.position,
+              order: placedOrder(_latestRoute(route), draft),
+            ),
+          ),
+    );
+    if (draft == null || !mounted) return;
+    _showPlaced(
+      id,
+      draft.day,
+      moved: false,
+      hiddenLodging: _hidesLodging(draft.kind),
+    );
+  }
+
+  /// 후보 목록 끝 "후보 찾아 넣기" 줄에서 주소로 찾아 후보로 저장한다. 고르면 후보 입력 화면을 주소로 채워 연다.
+  Future<void> _findCandidate() async {
+    final found = await showPlaceFinder(
+      context,
+      title: context.l10n.placeFinderTitleCandidate,
+    );
+    if (found == null || !mounted) return;
+    final id = newId();
+    final controller = ref.read(tripDetailProvider(trip.id).notifier);
+    final draft = await showCandidateForm(
+      context,
+      initial: CandidateDraft(
+        name: found.nameHint ?? '',
+        address: found.address,
+      ),
+      isNew: true,
+      onSave: (draft) => controller.addCandidate(
+        draft.toNewCandidate(id: id, tripId: trip.id, position: found.position),
+      ),
+    );
+    if (draft == null || !mounted) return;
+    _showCandidate(id);
+  }
+
   /// 후보를 고치거나 지운다. 지우기는 입력 화면 안에 있다(확인을 받는다).
   Future<void> _editCandidate(Candidate candidate) async {
     final controller = ref.read(tripDetailProvider(trip.id).notifier);
@@ -519,7 +599,9 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
               if (edited.name != stop.name ||
                   edited.kind != stop.kind ||
                   edited.description != stop.description ||
-                  edited.memo != stop.memo) {
+                  edited.memo != stop.memo ||
+                  edited.address != stop.address ||
+                  edited.position != stop.position) {
                 await controller.updateStop(edited);
               }
               await controller.demoteStop(stop.id);
@@ -1071,6 +1153,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
           onPromote: _readOnly
               ? null
               : (candidate) => _promoteCandidate(route, candidate),
+          onAdd: _readOnly ? null : _findCandidate,
           padding: padding,
         ),
       );
@@ -1124,6 +1207,9 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     onReorderLocked: () =>
         _showLodgingHiddenNotice(context.l10n.lodgingHiddenReorder),
     onViaTap: () => _showLodgingHiddenNotice(context.l10n.lodgingHiddenVia),
+    onInsertBefore: (stop) =>
+        _findStop(route, day: itinerary.day, before: stop),
+    onAddPlace: () => _findStop(route, day: itinerary.day),
   );
 
   /// 기기를 돌려 목록 자리가 바뀌었다. 펼친 줄과 고른 줄은 [_selection]에 남아 있다.

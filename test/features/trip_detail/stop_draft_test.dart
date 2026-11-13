@@ -91,6 +91,21 @@ void main() {
     expect(edited.position, stop.position);
   });
 
+  test('moves the place only when it was found again by address', () {
+    final stop = testStop('c');
+    final kept = StopDraft.of(stop).copyWith(address: '다른 주소').applyTo(stop);
+    final moved = StopDraft.of(
+      stop,
+    ).copyWith(relocatedTo: () => const LatLng(33.45, 126.56)).applyTo(stop);
+
+    expect(kept.position, stop.position);
+    expect(moved.position, const LatLng(33.45, 126.56));
+    expect(
+      StopDraft.of(stop).copyWith(relocatedTo: () => const LatLng(33, 126)),
+      isNot(StopDraft.of(stop)),
+    );
+  });
+
   test('knows when nothing changed', () {
     final stop = testStop('c');
 

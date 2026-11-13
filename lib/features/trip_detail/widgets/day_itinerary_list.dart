@@ -97,6 +97,8 @@ class DayItineraryList extends StatefulWidget {
     this.reorderLocked = false,
     this.onReorderLocked,
     this.onViaTap,
+    this.onInsertBefore,
+    this.onAddPlace,
     this.savingStopId,
     this.stayingLodgingId,
     this.readOnly = false,
@@ -144,6 +146,13 @@ class DayItineraryList extends StatefulWidget {
 
   /// "숙소를 거쳐 감" 줄을 눌렀다. 그 사이 구간은 숨긴 숙소에 닿아 있어서 고를 수 없고, 왜인지 알린다.
   final VoidCallback? onViaTap;
+
+  /// 구간 줄의 ⊕를 눌렀다. 그 구간의 도착 장소([Stop]) 앞에 넣을 곳을 찾는다.
+  /// 숙소를 끈 보기([reorderLocked])에서는 ⊕를 숨긴다(숨긴 숙소 때문에 자리가 분명하지 않다). 보기 전용이면 없다.
+  final ValueChanged<Stop>? onInsertBefore;
+
+  /// 목록 끝 "장소 넣기" 줄을 눌렀다. 그 일차의 기본 자리(맨 뒤, 그날 밤 숙소 앞)로 넣을 곳을 찾는다.
+  final VoidCallback? onAddPlace;
 
   /// 끌어 옮기고 저장을 기다리는 장소. 그 줄이 흐려지고 연필·손잡이 자리에 진행 표시가 뜬다(다시 끌 수 없다).
   /// 이동 수단이 지워진다고 묻는 동안은 아직 저장하지 않으니 null이다.
@@ -378,6 +387,12 @@ class _DayItineraryListState extends State<DayItineraryList> {
                       onEdit: selection.active == arrival.id && !widget.readOnly
                           ? () => widget.onEditSegment(arrival)
                           : null,
+                      onInsert: switch (widget.onInsertBefore) {
+                        final insert?
+                            when !widget.readOnly && !widget.reorderLocked =>
+                          () => insert(entry.stop),
+                        _ => null,
+                      },
                     ),
                   // 숙소를 끈 보기에서 낮에 들른 숙소를 건너왔다. 지도의 흐린 선과 같다.
                   if (entry.via != null && _movedOrder == null)
@@ -391,6 +406,20 @@ class _DayItineraryListState extends State<DayItineraryList> {
             },
           ),
         ),
+        if (widget.onAddPlace case final onAddPlace? when !widget.readOnly)
+          SliverPadding(
+            padding: side.add(const EdgeInsets.only(top: AppSpace.xs)),
+            sliver: SliverToBoxAdapter(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: onAddPlace,
+                  icon: const Icon(Icons.add),
+                  label: Text(l10n.itineraryAddPlace),
+                ),
+              ),
+            ),
+          ),
         // 그날 밤 숙소를 아직 넣지 않았으면, 그날 들른 숙소나 전날 숙소(연박)를 한 번에 다시 넣는다.
         if (!widget.readOnly)
           for (final lodging in itinerary.lodgingsToStayAgain)

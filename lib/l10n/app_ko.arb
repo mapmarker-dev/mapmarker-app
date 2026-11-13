@@ -24,6 +24,9 @@
   },
   "saveFailedNetwork": "인터넷에 연결되지 않아 저장하지 못했습니다.",
   "saveFailed": "저장하지 못했습니다. 다시 시도해 주세요.",
+  "searchFailedNetwork": "인터넷에 연결되지 않아 찾지 못했습니다.",
+  "searchUnavailable": "주소 검색이 잠시 되지 않습니다. 잠시 후 다시 시도해 주세요.",
+  "searchFailed": "찾지 못했습니다. 다시 시도해 주세요.",
   "saveConflict": "다른 곳에서 바뀐 내용이 있어 다시 불러왔습니다. 확인하고 다시 시도해 주세요.",
   "@saveConflict": {
     "description": "서버가 409로 거절해 여행을 다시 불러왔을 때"
@@ -561,6 +564,41 @@
     "description": "장소·후보 이름 칸이 비어 있을 때 보이는 예시. 주소로 찾아도 가게 이름은 사용자가 쓴다"
   },
   "stopAddressLabel": "주소",
+  "placeFinderHint": "주소나 건물명",
+  "placeFinderPaste": "붙여넣기",
+  "placeFinderSearch": "찾기",
+  "placeFinderGuide": "지도 앱에서 복사한 주소를 붙여 넣거나 주소·건물명을 입력하세요.",
+  "placeFinderEmpty": "찾지 못했습니다. 주소를 확인하거나 지도를 눌러 넣어 주세요.",
+  "placeFinderNoPosition": "이 주소는 위치를 찾지 못했습니다. 지도를 눌러 넣어 주세요.",
+  "placeFinderLoading": "위치를 찾는 중",
+  "placeFinderJibun": "지번 {address}",
+  "@placeFinderJibun": {
+    "placeholders": {
+      "address": {"type": "String"}
+    }
+  },
+  "placeFinderTitleBetween": "{day}일차 · {from} → {to} 사이에 넣기",
+  "@placeFinderTitleBetween": {
+    "description": "동선 사이 +로 연 찾기 화면 제목",
+    "placeholders": {
+      "day": {"type": "int"},
+      "from": {"type": "String"},
+      "to": {"type": "String"}
+    }
+  },
+  "placeFinderTitleEnd": "{day}일차에 장소 넣기",
+  "@placeFinderTitleEnd": {
+    "placeholders": {
+      "day": {"type": "int"}
+    }
+  },
+  "placeFinderTitleCandidate": "후보로 저장할 곳 찾기",
+  "placeFinderTitleRelocate": "위치 다시 찾기",
+  "relocateByAddress": "주소로 위치 다시 찾기",
+  "relocatedNotice": "저장하면 지도의 위치가 이 주소로 바뀝니다.",
+  "itineraryAddPlace": "장소 넣기",
+  "itineraryInsertHere": "여기에 장소 넣기",
+  "candidateAdd": "후보 찾아 넣기",
   "stopKindLabel": "종류",
   "stopDayLabel": "일차",
   "stopSlotLabel": "넣을 자리",

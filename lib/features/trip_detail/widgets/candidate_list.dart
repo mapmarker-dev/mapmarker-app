@@ -25,6 +25,7 @@ class CandidateList extends StatefulWidget {
     required this.onOpenMap,
     this.onEdit,
     this.onPromote,
+    this.onAdd,
     this.padding = EdgeInsets.zero,
   });
 
@@ -47,6 +48,10 @@ class CandidateList extends StatefulWidget {
   /// 펼친 후보 줄의 [동선에 넣기]를 눌렀다(후보 값으로 채운 장소 입력 화면을 연다).
   /// 지도에서 눌러 펼친 줄에도 있다. 보고 바로 넣기로 정할 수 있어서다. null이면 없다(보기만 하는 샘플).
   final ValueChanged<Candidate>? onPromote;
+
+  /// 목록 끝 "후보 찾아 넣기" 줄을 눌렀다. 주소로 찾아 후보로 저장한다. null이면 줄이 없다(보기만 하는 샘플).
+  /// 후보는 넣은 순서라 새 후보가 들어갈 끝에 둔다(일차 목록의 "장소 넣기" 줄과 같다).
+  final VoidCallback? onAdd;
 
   /// 목록 바깥 여백. 아래 시트는 시스템 여백을 더한다.
   final EdgeInsets padding;
@@ -178,6 +183,20 @@ class _CandidateListState extends State<CandidateList> {
             ],
           ),
         ),
+        if (widget.onAdd case final onAdd?)
+          SliverPadding(
+            padding: side.add(const EdgeInsets.only(top: AppSpace.xs)),
+            sliver: SliverToBoxAdapter(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: onAdd,
+                  icon: const Icon(Icons.add),
+                  label: Text(context.l10n.candidateAdd),
+                ),
+              ),
+            ),
+          ),
         SliverToBoxAdapter(
           child: SizedBox(height: widget.padding.bottom + AppSpace.lg),
         ),

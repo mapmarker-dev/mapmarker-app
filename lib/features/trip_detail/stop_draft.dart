@@ -2,9 +2,11 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/map/geo.dart';
 import '../../core/time/local_time.dart';
+import '../../data/addresses/address_api.dart';
 import '../../data/models/stop.dart';
 
-/// 장소 입력 화면에서 고치는 값. 추가와 편집이 함께 쓴다. 좌표는 고치지 않는다.
+/// 장소 입력 화면에서 고치는 값. 추가와 편집이 함께 쓴다.
+/// 좌표는 [relocatedTo]로만 바꾼다(주소 칸의 글자만 고치면 지도의 자리는 그대로다).
 @immutable
 class StopDraft {
   const StopDraft({
@@ -15,6 +17,7 @@ class StopDraft {
     this.description = '',
     this.memo = '',
     this.address = '',
+    this.relocatedTo,
     this.slotOrder,
   });
 
@@ -35,7 +38,7 @@ class StopDraft {
   static const textMaxLength = 1000;
 
   /// 주소 최대 글자 수. 서버의 ADDRESS_MAX_LENGTH와 같다.
-  static const addressMaxLength = 200;
+  static const addressMaxLength = AddressCandidate.maxLength;
 
   final String name;
   final StopKind kind;
@@ -46,6 +49,9 @@ class StopDraft {
 
   /// 주소. 비어 있어도 된다. 좌표와 따로 고친다.
   final String address;
+
+  /// [주소로 위치 다시 찾기]로 고른 새 좌표. 저장하면 장소가 여기로 옮겨진다. null이면 그대로다.
+  final LatLng? relocatedTo;
 
   /// "넣을 자리" 칸에서 고른 일차 안 순서([Stop.order]). null이면 고르지 않은 것이라 기본 자리다
   /// (`stop_placement.dart`의 `insertionOrder`). 기본 자리는 종류에 따라 바뀌어서 저장할 때 정한다.
@@ -69,6 +75,7 @@ class StopDraft {
     String? description,
     String? memo,
     String? address,
+    LatLng? Function()? relocatedTo,
     int? Function()? slotOrder,
   }) => StopDraft(
     name: name ?? this.name,
@@ -78,6 +85,7 @@ class StopDraft {
     description: description ?? this.description,
     memo: memo ?? this.memo,
     address: address ?? this.address,
+    relocatedTo: relocatedTo == null ? this.relocatedTo : relocatedTo(),
     slotOrder: slotOrder == null ? this.slotOrder : slotOrder(),
   );
 
@@ -104,6 +112,8 @@ class StopDraft {
 
   /// [stop]에 고친 값을 넣는다. 일차는 바꾸지 않는다(옮기기는 저장소의 `moveStop`이다).
   Stop applyTo(Stop stop) => stop.copyWith(
+    latitude: relocatedTo?.latitude,
+    longitude: relocatedTo?.longitude,
     name: name.trim(),
     kind: kind,
     plannedTime: () => plannedTime,
@@ -122,6 +132,7 @@ class StopDraft {
       other.description == description &&
       other.memo == memo &&
       other.address == address &&
+      other.relocatedTo == relocatedTo &&
       other.slotOrder == slotOrder;
 
   @override
@@ -133,6 +144,7 @@ class StopDraft {
     description,
     memo,
     address,
+    relocatedTo,
     slotOrder,
   );
 }

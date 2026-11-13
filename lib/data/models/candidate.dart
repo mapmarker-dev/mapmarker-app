@@ -50,6 +50,8 @@ class Candidate {
   LatLng get position => LatLng(latitude, longitude);
 
   Candidate copyWith({
+    double? latitude,
+    double? longitude,
     String? name,
     String? address,
     StopKind? kind,
@@ -58,8 +60,8 @@ class Candidate {
   }) => Candidate(
     id: id,
     tripId: tripId,
-    latitude: latitude,
-    longitude: longitude,
+    latitude: latitude ?? this.latitude,
+    longitude: longitude ?? this.longitude,
     name: name ?? this.name,
     address: address ?? this.address,
     kind: kind ?? this.kind,

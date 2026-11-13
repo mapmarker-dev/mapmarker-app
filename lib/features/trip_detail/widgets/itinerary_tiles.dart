@@ -468,6 +468,37 @@ class _AddressLine extends StatelessWidget {
   }
 }
 
+/// 구간 줄 세로선 위의 작은 ⊕. 선을 끊지 않게 바탕색 원 위에 일차 색으로 그린다.
+class _InsertButton extends StatelessWidget {
+  const _InsertButton({required this.color, required this.onPressed});
+
+  final Color color;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: context.l10n.itineraryInsertHere,
+    child: InkResponse(
+      onTap: onPressed,
+      // 그림은 작아도 누르는 영역은 줄 높이만큼 둔다.
+      radius: AppSpace.xl,
+      child: SizedBox(
+        width: _iconWidth,
+        height: AppSpace.xxl + AppSpace.sm,
+        child: Center(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.add_circle, size: 20, color: color),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 /// 외부 지도로 가는 작은 글자 링크. 바탕 없이 글자와 아이콘만 있어서 장소 줄보다 눈에 덜 띈다.
 class _OpenMapLink extends StatelessWidget {
   const _OpenMapLink({required this.onTap});
@@ -576,6 +607,7 @@ class ItinerarySegmentTile extends StatelessWidget {
     required this.highlighted,
     required this.onTap,
     this.onEdit,
+    this.onInsert,
     this.saving = false,
   });
 
@@ -593,6 +625,10 @@ class ItinerarySegmentTile extends StatelessWidget {
 
   /// 연필 아이콘을 눌렀다. 이동 수단 입력 화면을 연다. null이면 연필이 없다(목록에서 누른 줄에만 뜬다).
   final VoidCallback? onEdit;
+
+  /// 세로선 위 ⊕를 눌렀다. 이 구간의 두 장소 사이에 넣을 곳을 찾는다. null이면 ⊕가 없다.
+  /// 사이에 넣는 기능을 찾을 수 있게 고르지 않아도 늘 보인다(사용자 결정).
+  final VoidCallback? onInsert;
 
   /// 갈아타는 토막이 많아 글자가 여러 줄이 될 때 줄 사이를 띄운다. 줄마다 수단 아이콘이 있어서
   /// 글자 기본 줄 높이로는 위아래 아이콘과 글자가 붙어 보인다.
@@ -625,21 +661,26 @@ class ItinerarySegmentTile extends StatelessWidget {
                   opacity: opacity,
                   child: SizedBox(
                     width: _iconWidth,
-                    child: Center(
-                      // 줄 높이를 다 채운다.
-                      child: SizedBox(
-                        width: AppSpace.xs,
-                        height: double.infinity,
-                        child: CustomPaint(
-                          painter: _RouteBarPainter(
-                            color: color,
-                            // 지도의 선과 같은 모양이다. 시트와 지도가 이어져 보이게 하려는 것이다.
-                            style: lineStyleOf(
-                              representativeMode(segment.legs),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // 줄 높이를 다 채운다.
+                        SizedBox(
+                          width: AppSpace.xs,
+                          height: double.infinity,
+                          child: CustomPaint(
+                            painter: _RouteBarPainter(
+                              color: color,
+                              // 지도의 선과 같은 모양이다. 시트와 지도가 이어져 보이게 하려는 것이다.
+                              style: lineStyleOf(
+                                representativeMode(segment.legs),
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                        if (onInsert case final onInsert? when !saving)
+                          _InsertButton(color: color, onPressed: onInsert),
+                      ],
                     ),
                   ),
                 ),

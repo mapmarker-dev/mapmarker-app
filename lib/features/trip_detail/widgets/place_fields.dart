@@ -5,6 +5,7 @@ import '../../../core/widgets/saving.dart';
 import '../../../data/models/stop.dart';
 import '../../../l10n/l10n.dart';
 import '../stop_draft.dart';
+import 'place_finder_dialog.dart';
 
 /// 장소 입력 화면과 후보 입력 화면이 함께 쓰는 칸과 버튼.
 /// 후보는 동선에 넣으면 장소가 되니, 같은 값은 같은 칸·같은 상한으로 받는다.
@@ -57,6 +58,54 @@ class PlaceAddressField extends StatelessWidget {
     decoration: InputDecoration(labelText: context.l10n.stopAddressLabel),
   );
 }
+
+/// 고치는 장소·후보의 [주소로 위치 다시 찾기] 버튼. 주소 칸 아래에 둔다.
+///
+/// 주소 칸의 글자만 고치면 지도의 자리는 그대로다(작은 수정이 많고, 직접 쓴 글은 찾지 못할 때가 많다).
+/// 위치까지 옮기려면 이 버튼으로 찾기 화면에서 고르고, 저장하면 주소와 위치가 함께 바뀐다.
+/// [relocated]면 저장할 때 옮겨진다고 아래에 알린다.
+class RelocateButton extends StatelessWidget {
+  const RelocateButton({
+    super.key,
+    required this.relocated,
+    required this.onPressed,
+  });
+
+  final bool relocated;
+
+  /// null이면 누를 수 없다(저장하는 중).
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OutlinedButton.icon(
+          onPressed: onPressed,
+          icon: const Icon(Icons.travel_explore),
+          label: Text(l10n.relocateByAddress),
+        ),
+        if (relocated)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpace.xs),
+            child: Text(
+              l10n.relocatedNotice,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.primary),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// 찾기 화면에서 새 위치를 고른다. 고르지 않았으면 null이다.
+Future<FoundPlace?> findNewPosition(BuildContext context) =>
+    showPlaceFinder(context, title: context.l10n.placeFinderTitleRelocate);
 
 /// 종류 칩(숙소·음식·관광·기타).
 class PlaceKindChips extends StatelessWidget {

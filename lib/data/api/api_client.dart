@@ -32,7 +32,9 @@ class ApiClient {
 
   final Dio _dio;
 
-  Future<Object?> get(String path) => _send(() => _dio.get<Object?>(path));
+  /// [query]는 주소 뒤 쿼리 값이다(dio가 인코딩한다).
+  Future<Object?> get(String path, {Map<String, Object?>? query}) =>
+      _send(() => _dio.get<Object?>(path, queryParameters: query));
 
   Future<Object?> post(String path, {Object? data}) =>
       _send(() => _dio.post<Object?>(path, data: data));
