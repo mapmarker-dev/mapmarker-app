@@ -187,12 +187,16 @@ class _CandidateFormDialogState extends State<CandidateFormDialog>
                 ),
                 if (widget.onDelete case final onDelete?) ...[
                   const SizedBox(height: AppSpace.xl),
-                  FormActionButton(
-                    icon: Icons.delete_outline,
-                    label: l10n.candidateFormDelete,
-                    onPressed: saving ? null : () => _delete(onDelete),
-                    busy: _deleting,
-                    danger: true,
+                  FormActionRow(
+                    children: [
+                      FormActionButton(
+                        icon: Icons.delete_outline,
+                        label: l10n.candidateFormDelete,
+                        onPressed: saving ? null : () => _delete(onDelete),
+                        busy: _deleting,
+                        danger: true,
+                      ),
+                    ],
                   ),
                 ],
               ],

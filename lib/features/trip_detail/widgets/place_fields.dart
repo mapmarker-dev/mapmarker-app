@@ -116,8 +116,19 @@ class PlaceNotesFields extends StatelessWidget {
   }
 }
 
-/// 입력 화면 맨 아래의 테두리 버튼(예: 지우기, 후보로 빼기). [busy]면 아이콘 자리에 진행 표시가 돈다.
-/// [danger]면 지우기처럼 오류 색이다.
+/// 입력 화면 맨 아래의 버튼 줄. 버튼은 왼쪽부터 한 줄에 놓고, 폭이 모자랄 때만 다음 줄로 넘긴다.
+class FormActionRow extends StatelessWidget {
+  const FormActionRow({super.key, required this.children});
+
+  final List<FormActionButton> children;
+
+  @override
+  Widget build(BuildContext context) =>
+      Wrap(spacing: AppSpace.sm, runSpacing: AppSpace.sm, children: children);
+}
+
+/// 입력 화면 맨 아래의 테두리 버튼(예: 지우기, 후보로 빼기). [FormActionRow]에 넣는다.
+/// [busy]면 아이콘 자리에 진행 표시가 돈다. [danger]면 지우기처럼 오류 색이다.
 class FormActionButton extends StatelessWidget {
   const FormActionButton({
     super.key,
@@ -140,25 +151,22 @@ class FormActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final color = danger ? scheme.error : null;
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: busy
-            ? SavingIndicator(
-                label: context.l10n.saving,
-                padded: false,
-                color: color,
-              )
-            : Icon(icon),
-        label: Text(label),
-        style: danger
-            ? OutlinedButton.styleFrom(
-                foregroundColor: scheme.error,
-                side: BorderSide(color: scheme.error),
-              )
-            : null,
-      ),
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: busy
+          ? SavingIndicator(
+              label: context.l10n.saving,
+              padded: false,
+              color: color,
+            )
+          : Icon(icon),
+      label: Text(label),
+      style: danger
+          ? OutlinedButton.styleFrom(
+              foregroundColor: scheme.error,
+              side: BorderSide(color: scheme.error),
+            )
+          : null,
     );
   }
 }

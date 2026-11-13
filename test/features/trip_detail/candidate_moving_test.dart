@@ -258,6 +258,24 @@ void main() {
   });
 
   group('moving a stop to the candidates', () {
+    testWidgets('puts the button beside "장소 지우기" on one row', (tester) async {
+      await _pump(tester);
+      await _openEditor(tester, '1일차', 'a');
+
+      final delete = _inForm(find.widgetWithText(OutlinedButton, '장소 지우기'));
+      await tester.scrollUntilVisible(
+        delete,
+        200,
+        scrollable: _inForm(find.byType(Scrollable)).first,
+      );
+      await tester.pumpAndSettle();
+
+      final demoteRect = tester.getRect(_demote);
+      final deleteRect = tester.getRect(delete);
+      expect(deleteRect.top, demoteRect.top);
+      expect(deleteRect.left, greaterThan(demoteRect.right));
+    });
+
     testWidgets('moves it straight away when nothing is lost, '
         'then offers to show it', (tester) async {
       final (container, _) = await _pump(tester);

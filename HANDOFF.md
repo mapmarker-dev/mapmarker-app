@@ -13,7 +13,7 @@
 
 ## 현재 상태
 
-- `flutter analyze` 0건, `flutter test` 680개 통과.
+- `flutter analyze` 0건, `flutter test` 681개 통과. 장소·후보 입력 화면 맨 아래 버튼([후보로 빼기] [장소 지우기])은 한 줄에 놓고 폭이 모자랄 때만 넘긴다(`FormActionRow`).
 - 태블릿(카카오톡 없음, 네이버 앱 있음)에서 확인한 것: 카카오 계정·네이버 로그인, 다시 켜도 유지(서버가 꺼져도 묻지 않음), 로그아웃, 카카오 취소(안내 없음), 서버 끔 안내, 사용자를 지운 뒤 재가입, 여행·장소·구간 저장과 유지, 계정별 여행, 저장 중 표시와 실패 안내, 샘플과 여행 삭제, 휴지통 전체(남은 날, 되살린 뒤 원래 자리와 동선, 영구 삭제, 빈 휴지통, 당겨서 새로고침, 긴 제목, 서버를 끈 실패).
 - 코드 위치: `lib/data/api/`(`ApiClient` 토큰·재발급), `lib/data/auth/`(`AuthSession`, `Account`, `SocialSdk`), `lib/data/trips/`(`TripApi`, `trip_json.dart`, `ServerTripRepository`, `TripCache`), `lib/data/sample/`, `lib/features/login/`, `lib/features/trash/`. 값의 위치·실행 순서·`/login` 예외는 `CLAUDE.md`.
 - `tripRepositoryProvider`는 로그인·로그아웃마다(`authGenerationProvider`) `ServerTripRepository`를 새로 만들어 `SampleTripRepository`로 감싼다. 로그아웃 상태는 빈 메모리 저장소다.

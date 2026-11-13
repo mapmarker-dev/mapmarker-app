@@ -367,28 +367,29 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
                   memo: _memo,
                   enabled: !saving,
                 ),
-                if (widget.onDemote case final onDemote?) ...[
+                if (widget.onDemote != null || widget.onDelete != null) ...[
                   const SizedBox(height: AppSpace.xl),
-                  FormActionButton(
-                    icon: Icons.bookmark_border,
-                    label: l10n.stopFormDemote,
-                    // 고친 이름·종류·설명·메모로 빼므로, 저장할 수 없는 값이면 뺄 수도 없다.
-                    onPressed: saving || !_draft.isValid
-                        ? null
-                        : () => _demote(onDemote),
-                    busy: _demoting,
-                  ),
-                ],
-                if (widget.onDelete case final onDelete?) ...[
-                  SizedBox(
-                    height: widget.onDemote == null ? AppSpace.xl : AppSpace.md,
-                  ),
-                  FormActionButton(
-                    icon: Icons.delete_outline,
-                    label: l10n.stopFormDelete,
-                    onPressed: saving ? null : () => _delete(onDelete),
-                    busy: _deleting,
-                    danger: true,
+                  FormActionRow(
+                    children: [
+                      if (widget.onDemote case final onDemote?)
+                        FormActionButton(
+                          icon: Icons.bookmark_border,
+                          label: l10n.stopFormDemote,
+                          // 고친 이름·종류·설명·메모로 빼므로, 저장할 수 없는 값이면 뺄 수도 없다.
+                          onPressed: saving || !_draft.isValid
+                              ? null
+                              : () => _demote(onDemote),
+                          busy: _demoting,
+                        ),
+                      if (widget.onDelete case final onDelete?)
+                        FormActionButton(
+                          icon: Icons.delete_outline,
+                          label: l10n.stopFormDelete,
+                          onPressed: saving ? null : () => _delete(onDelete),
+                          busy: _deleting,
+                          danger: true,
+                        ),
+                    ],
                   ),
                 ],
               ],
