@@ -165,4 +165,20 @@ void main() {
       expect(dropped(3, 1), isEmpty);
     });
   });
+
+  test('removing a stop drops the segments touching it', () {
+    final segments = linkStops(
+      tripId: 'trip',
+      stops: [testStop('a'), testStop('b', order: 1), testStop('c', day: 2)],
+      existing: const [],
+      createId: createId,
+    );
+
+    List<(String, String)> dropped(String stopId) =>
+        pairs(segmentsDroppedByRemove(segments: segments, stopId: stopId));
+
+    expect(dropped('b'), [('a', 'b'), ('b', 'c')]);
+    expect(dropped('a'), [('a', 'b')]);
+    expect(dropped('x'), isEmpty);
+  });
 }

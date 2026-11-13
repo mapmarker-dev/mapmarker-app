@@ -62,6 +62,9 @@ abstract final class AppRadius {
 abstract final class AppOpacity {
   /// 놓았지만 아직 저장되지 않은 것(끌어 옮긴 장소, 끌어 놓은 곡선). 저장되면 또렷해진다.
   static const pending = 0.4;
+
+  /// 다른 것을 보려고 뒤로 물린 것. 예: "후보 목록" 보기에서 동선 전체를 흐리게 깔아 후보가 어디쯤인지 보여 준다.
+  static const backdrop = 0.35;
 }
 
 /// 1단계 기본 값: 글꼴. `pubspec.yaml`에 넣은 굵기만 쓴다.

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/models/candidate.dart';
 import '../../data/models/segment.dart';
 import '../../data/models/stop.dart';
 import '../../data/models/trip.dart';
@@ -56,6 +57,25 @@ class TripDetailController extends StreamNotifier<Trip?> {
   /// 이동 수단을 바꾼다. 비우면 미정이다.
   Future<Segment> updateSegment(Segment segment) =>
       ref.read(tripRepositoryProvider).updateSegment(segment);
+
+  /// 후보를 넣은 순서의 맨 뒤에 넣는다. 동선은 바뀌지 않는다.
+  Future<Candidate> addCandidate(Candidate candidate) =>
+      ref.read(tripRepositoryProvider).addCandidate(candidate);
+
+  Future<Candidate> updateCandidate(Candidate candidate) =>
+      ref.read(tripRepositoryProvider).updateCandidate(candidate);
+
+  /// 휴지통 없이 바로 지운다.
+  Future<void> deleteCandidate(String candidateId) =>
+      ref.read(tripRepositoryProvider).deleteCandidate(candidateId);
+
+  /// 후보를 같은 ID의 장소로 [Stop.day]일차의 [Stop.order] 자리에 넣는다. 좌표는 후보 것이다.
+  Future<Stop> promoteCandidate(Stop stop) =>
+      ref.read(tripRepositoryProvider).promoteCandidate(stop);
+
+  /// 장소를 같은 ID의 후보로 바꿔 후보 맨 뒤에 넣는다. 앞뒤 장소는 저장소가 새 구간으로 잇는다.
+  Future<Candidate> demoteStop(String stopId) =>
+      ref.read(tripRepositoryProvider).demoteStop(stopId);
 }
 
 /// 여행의 장소와 구간.
@@ -68,17 +88,29 @@ final tripRouteProvider = StreamProvider.autoDispose.family<TripRoute, String>(
 class RouteChoice {
   const RouteChoice({
     this.day,
+    this.candidateView = false,
     this.showLodging = true,
+    this.showCandidates = true,
     this.fitCount = 0,
     this.focus = const [],
     this.focusCount = 0,
     this.panelOpen = true,
-  });
+  }) : assert(day == null || !candidateView);
 
-  /// 보는 일차. null이면 여행 전체다.
+  /// 보는 일차. null이면 여행 전체이거나 "후보 목록" 보기다.
   final int? day;
 
+  /// "후보 목록" 보기(일차 칩 줄 끝의 "후보" 칩). 지도는 동선 전체를 흐리게 깔고 후보를 올리며, 시트·패널에 후보 목록이 나온다.
+  final bool candidateView;
+
   final bool showLodging;
+
+  /// 함께 보기의 "후보" 칩. 켜면 전체·일차 보기에도 후보가 보인다. "후보 목록" 보기에서는 이것과 상관없이 보인다.
+  /// 처음에는 켜져 있다. 꺼져 있을 때 후보가 생겨도 앱이 몰래 켜지 않는다(스낵바로 알린다).
+  final bool showCandidates;
+
+  /// 아래 시트나 오른쪽 패널에 목록(일차 동선이나 후보)이 있는 보기인지.
+  bool get hasList => day != null || candidateView;
 
   /// 카메라를 맞추라고 한 횟수. 바뀔 때마다 지도가 보이는 장소에 카메라를 맞춘다.
   /// 장소가 바뀌어도 이 값이 같으면 카메라는 그대로다.
@@ -98,14 +130,18 @@ class RouteChoice {
 
   RouteChoice _copyWith({
     int? Function()? day,
+    bool? candidateView,
     bool? showLodging,
+    bool? showCandidates,
     int? fitCount,
     List<String>? focus,
     int? focusCount,
     bool? panelOpen,
   }) => RouteChoice(
     day: day == null ? this.day : day(),
+    candidateView: candidateView ?? this.candidateView,
     showLodging: showLodging ?? this.showLodging,
+    showCandidates: showCandidates ?? this.showCandidates,
     fitCount: fitCount ?? this.fitCount,
     focus: focus ?? this.focus,
     focusCount: focusCount ?? this.focusCount,
@@ -132,11 +168,28 @@ class RouteChoiceController extends Notifier<RouteChoice> {
   void selectDay(int? day, {List<String> focus = const []}) =>
       state = state._copyWith(
         day: () => day,
+        candidateView: false,
         fitCount: state.fitCount + 1,
         focus: focus,
         focusCount: focus.isEmpty ? null : state.focusCount + 1,
         panelOpen: true,
       );
+
+  /// "후보 목록" 보기로 간다. 카메라는 후보에 맞춘다. [focus]를 주면 목록에서 그 후보를 펼친다(지도에서 후보를 눌렀을 때).
+  /// 오른쪽 패널이 열린다.
+  void selectCandidates({List<String> focus = const []}) =>
+      state = state._copyWith(
+        day: () => null,
+        candidateView: true,
+        fitCount: state.fitCount + 1,
+        focus: focus,
+        focusCount: focus.isEmpty ? null : state.focusCount + 1,
+        panelOpen: true,
+      );
+
+  /// 카메라는 그대로다. 카메라 맞춤은 후보를 넣지 않아서다.
+  void setShowCandidates(bool show) =>
+      state = state._copyWith(showCandidates: show, focus: const []);
 
   /// 지금 일차의 시트에서 [ids] 장소나 구간을 보여 준다. 카메라는 그대로다. 닫힌 패널은 연다.
   void focusOn(List<String> ids) => state = state._copyWith(

@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mapmarker_app/data/models/candidate.dart';
 import 'package:mapmarker_app/data/models/segment.dart';
+import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
 import 'package:mapmarker_app/data/models/trip_route.dart';
 import 'package:mapmarker_app/data/trips/memory_trip_repository.dart';
@@ -375,5 +377,145 @@ void main() {
       await repository.deleteStop('a');
       await expectation;
     });
+  });
+
+  group('candidates', () {
+    // 2박 3일 여행.
+    setUp(() async => repository.createTrip(_trip('trip')));
+
+    Future<TripRoute> route() => repository.watchRoute('trip').first;
+
+    Future<List<String>> candidateIds() async => [
+      for (final c in (await route()).candidates) c.id,
+    ];
+
+    Future<List<String>> lines() async => [
+      for (final s in (await route()).segments) '${s.fromStopId}>${s.toStopId}',
+    ];
+
+    Candidate candidate(String id, {String tripId = 'trip'}) => Candidate(
+      id: id,
+      tripId: tripId,
+      latitude: 33.5,
+      longitude: 126.9,
+      name: id,
+    );
+
+    test(
+      'keeps candidates in the order they were added, outside the route',
+      () async {
+        await repository.addStop(testStop('a'));
+        await repository.addCandidate(candidate('x'));
+        await repository.addCandidate(candidate('y'));
+
+        expect(await candidateIds(), ['x', 'y']);
+        expect((await route()).stops.map((s) => s.id), ['a']);
+      },
+    );
+
+    test('updates and deletes a candidate in place', () async {
+      await repository.addCandidate(candidate('x'));
+      await repository.addCandidate(candidate('y'));
+
+      await repository.updateCandidate(candidate('x').copyWith(name: '우도'));
+      expect((await route()).candidateById('x')?.name, '우도');
+      expect(await candidateIds(), ['x', 'y']);
+
+      await repository.deleteCandidate('x');
+      expect(await candidateIds(), ['y']);
+    });
+
+    test('refuses an ID a stop or candidate already has', () async {
+      await repository.addStop(testStop('a'));
+      await repository.addCandidate(candidate('x'));
+
+      expect(() => repository.addCandidate(candidate('a')), throwsStateError);
+      expect(() => repository.addCandidate(candidate('x')), throwsStateError);
+      expect(() => repository.addStop(testStop('x')), throwsStateError);
+      expect(
+        () => repository.addCandidate(candidate('z', tripId: 'nope')),
+        throwsStateError,
+      );
+    });
+
+    test('promotes a candidate into its place with the same ID', () async {
+      await repository.addStop(testStop('a'));
+      await repository.addStop(testStop('b', order: 1));
+      await repository.addCandidate(candidate('x'));
+      now = now.add(const Duration(hours: 1));
+
+      final placed = await repository.promoteCandidate(
+        testStop('x', order: 1).copyWith(name: '우도', kind: StopKind.tour),
+      );
+
+      expect(placed.id, 'x');
+      expect(placed.name, '우도');
+      // 좌표는 후보의 것이다.
+      expect(placed.latitude, 33.5);
+      expect((await route()).stops.map((s) => s.id), ['a', 'x', 'b']);
+      expect(await lines(), ['a>x', 'x>b']);
+      expect(await candidateIds(), isEmpty);
+      expect((await repository.watchTrip('trip').first)!.updatedAt, now);
+    });
+
+    test('refuses to promote what it cannot place', () async {
+      await repository.addCandidate(candidate('x'));
+
+      expect(
+        () => repository.promoteCandidate(testStop('x', day: 4)),
+        throwsRangeError,
+      );
+      expect(
+        () => repository.promoteCandidate(testStop('nope')),
+        throwsStateError,
+      );
+      expect(await candidateIds(), ['x']);
+    });
+
+    test(
+      'demotes a stop to the end of the candidates and relinks its neighbors',
+      () async {
+        await repository.addCandidate(candidate('x'));
+        await repository.addStop(testStop('a'));
+        await repository.addStop(testStop('b', order: 1));
+        await repository.addStop(testStop('c', order: 2));
+
+        final demoted = await repository.demoteStop('b');
+
+        expect(demoted.id, 'b');
+        expect((await route()).stops.map((s) => s.id), ['a', 'c']);
+        expect(await lines(), ['a>c']);
+        expect(await candidateIds(), ['x', 'b']);
+      },
+    );
+
+    test('a demoted stop comes back with the same ID', () async {
+      await repository.addStop(testStop('a'));
+      await repository.demoteStop('a');
+
+      await repository.promoteCandidate(testStop('a'));
+
+      expect((await route()).stops.single.id, 'a');
+      expect(await candidateIds(), isEmpty);
+    });
+
+    test(
+      'hides candidates of a trashed trip and deletes them for good with it',
+      () async {
+        await repository.addCandidate(candidate('x'));
+        await repository.trashTrip('trip');
+
+        expect((await route()).candidates, isEmpty);
+        expect(() => repository.deleteCandidate('x'), throwsStateError);
+
+        await repository.restoreTrip('trip');
+        expect(await candidateIds(), ['x']);
+
+        await repository.trashTrip('trip');
+        await repository.deleteTripForever('trip');
+        await repository.createTrip(_trip('trip'));
+        expect(await candidateIds(), isEmpty);
+      },
+    );
   });
 }

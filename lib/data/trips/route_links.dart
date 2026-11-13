@@ -69,6 +69,15 @@ List<Segment> segmentsDroppedByInsert({
   return _droppedBy([...ids]..insert(at, null), segments);
 }
 
+/// [stopId] 장소를 동선에서 빼면(지우기, 후보로 빼기) 사라지는 구간. 그 장소로 오는 구간과 나가는 구간이다.
+List<Segment> segmentsDroppedByRemove({
+  required Iterable<Segment> segments,
+  required String stopId,
+}) => [
+  for (final segment in segments)
+    if (segment.fromStopId == stopId || segment.toStopId == stopId) segment,
+];
+
 /// [day]일차의 [order] 자리가 동선 [ids]의 몇 번째인지. 장소 수보다 크면 그 일차 맨 뒤다.
 int _placeIndex(List<Stop> stops, List<String> ids, int day, int order) {
   final days = {for (final stop in stops) stop.id: stop.day};

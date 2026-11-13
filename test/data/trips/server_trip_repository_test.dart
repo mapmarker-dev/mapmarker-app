@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/data/api/api_client.dart';
 import 'package:mapmarker_app/data/api/api_exception.dart';
+import 'package:mapmarker_app/data/models/candidate.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
 import 'package:mapmarker_app/data/models/trip_route.dart';
@@ -12,7 +13,8 @@ import 'package:mapmarker_app/data/trips/trip_api.dart';
 
 import '../../helpers/fake_auth.dart';
 import '../../helpers/fake_http.dart';
-import 'trip_json_test.dart' show serverSegment, serverStop, serverTrip;
+import 'trip_json_test.dart'
+    show serverCandidate, serverSegment, serverStop, serverTrip;
 
 /// 서버 대신 답한다. 경로마다 답을 바꿀 수 있다.
 class _Server {
@@ -38,10 +40,12 @@ Map<String, Object?> _detail({
   Map<String, Object?>? trip,
   List<Map<String, Object?>>? stops,
   List<Map<String, Object?>>? segments,
+  List<Map<String, Object?>>? candidates,
 }) => {
   'trip': trip ?? serverTrip(),
   'stops': stops ?? [serverStop(), serverStop(id: 'stop-2', order: 1)],
   'segments': segments ?? [serverSegment()],
+  'candidates': candidates ?? [serverCandidate()],
 };
 
 /// [stream]의 값과 오류를 모은다.
@@ -324,8 +328,109 @@ void main() {
         expect((routes.last! as TripRoute).stopById('stop-1')?.name, '서버 이름');
         // 응답에 여행이 없어서 앱 시각으로 맞춘다. 다음에 받을 때 서버 값으로 바뀐다.
         expect((trips.last! as Trip).updatedAt, _now);
+        // 장소 하나를 바꿔도 후보는 그대로다.
+        expect((routes.last! as TripRoute).candidates.single.id, 'cand-1');
       },
     );
+
+    test(
+      'addCandidate, updateCandidate and deleteCandidate change only the candidates',
+      () async {
+        await loadTrip();
+        final trips = _collect(repository.watchTrip('trip-1'));
+        final routes = _collect(repository.watchRoute('trip-1'));
+        await pumpEventQueue();
+        TripRoute last() => routes.last! as TripRoute;
+        server.replies['POST /trips/trip-1/candidates'] = (_) =>
+            FakeReply.json(201, serverCandidate(id: 'cand-2', name: '비자림'));
+        server.replies['PATCH /candidates/cand-1'] = (_) =>
+            FakeReply.json(200, serverCandidate(name: '서버 이름'));
+        server.replies['DELETE /candidates/cand-1'] = (_) =>
+            FakeReply.json(204);
+
+        final added = await repository.addCandidate(
+          const Candidate(
+            id: 'cand-2',
+            tripId: 'trip-1',
+            latitude: 33.4,
+            longitude: 126.8,
+            name: '비자림',
+          ),
+        );
+        await pumpEventQueue();
+        expect(added.id, 'cand-2');
+        expect([for (final c in last().candidates) c.id], ['cand-1', 'cand-2']);
+
+        await repository.updateCandidate(last().candidateById('cand-1')!);
+        await pumpEventQueue();
+        expect([for (final c in last().candidates) c.name], ['서버 이름', '비자림']);
+
+        await repository.deleteCandidate('cand-1');
+        await pumpEventQueue();
+        expect([for (final c in last().candidates) c.id], ['cand-2']);
+        expect(last().stops, hasLength(2));
+        expect((trips.last! as Trip).updatedAt, _now);
+      },
+    );
+
+    test(
+      'promoteCandidate and demoteStop take the route the server returns',
+      () async {
+        await loadTrip();
+        final routes = _collect(repository.watchRoute('trip-1'));
+        TripRoute last() => routes.last! as TripRoute;
+        server.replies['POST /candidates/cand-1/stop'] = (_) => FakeReply.json(
+          200,
+          _detail(
+            stops: [
+              serverStop(),
+              serverStop(id: 'cand-1', order: 1),
+              serverStop(id: 'stop-2', order: 2),
+            ],
+            candidates: [],
+          ),
+        );
+        server.replies['POST /stops/cand-1/candidate'] = (_) =>
+            FakeReply.json(200, _detail());
+
+        final placed = await repository.promoteCandidate(
+          const Stop(
+            id: 'cand-1',
+            tripId: 'trip-1',
+            latitude: 33.5,
+            longitude: 127,
+            name: '우도',
+            day: 1,
+            order: 1,
+          ),
+        );
+        await pumpEventQueue();
+        expect(placed.id, 'cand-1');
+        expect(last().stops, hasLength(3));
+        expect(last().candidates, isEmpty);
+
+        final candidate = await repository.demoteStop('cand-1');
+        await pumpEventQueue();
+        expect(candidate.id, 'cand-1');
+        expect(last().stops, hasLength(2));
+        expect(last().candidateById('cand-1'), isNotNull);
+      },
+    );
+
+    test('a failed demoteStop reloads the trip and throws', () async {
+      await loadTrip();
+      server.replies['POST /stops/stop-1/candidate'] = (_) =>
+          FakeReply.json(409);
+
+      await expectLater(
+        repository.demoteStop('stop-1'),
+        throwsA(isA<ApiException>()),
+      );
+      await pumpEventQueue();
+
+      // 응답만 잃었을 수 있어서 다시 받는다.
+      expect(server.calls.where((c) => c == 'GET /trips/trip-1'), hasLength(2));
+    });
 
     test(
       'updateSegment replaces the segment and marks the trip changed now',

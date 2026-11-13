@@ -288,7 +288,7 @@ class _NaverMapViewState extends State<NaverMapView> {
   Future<void> _showOverlays(NaverMapController controller) async {
     final version = ++_overlayVersion;
     final scene = widget.scene;
-    final textColor = Theme.of(context).colorScheme.onSurface;
+    final scheme = Theme.of(context).colorScheme;
     final markers = <NMarker>[];
     for (final marker in scene.markers) {
       final icon = await _iconOf(marker.look);
@@ -297,7 +297,9 @@ class _NaverMapViewState extends State<NaverMapView> {
         naverMarkerOf(
           marker,
           icon: icon,
-          captionColor: textColor,
+          captionColor: marker.secondary
+              ? scheme.onSurfaceVariant
+              : scheme.onSurface,
           // 오버레이는 장면이 바뀔 때만 다시 올린다. 누른 때의 함수를 부르게 widget에서 읽는다.
           onTap: () => widget.onMarkerTap?.call(marker.id),
         ),
@@ -368,7 +370,7 @@ class _NaverMapViewState extends State<NaverMapView> {
   Future<NOverlayImage> _iconOf(MarkerLook look) async =>
       _icons[look] ??= await NOverlayImage.fromWidget(
         widget: MarkerIcon(look),
-        size: MarkerIcon.size,
+        size: MarkerIcon.sizeOf(look),
         context: context,
       );
 
@@ -661,7 +663,7 @@ NMarker naverMarkerOf(
     id: marker.id,
     position: _nLatLng(marker.position),
     icon: icon,
-    size: MarkerIcon.size,
+    size: MarkerIcon.sizeOf(marker.look),
     anchor: const NPoint(0.5, 0.5),
     caption: NOverlayCaption(
       text: marker.caption,
@@ -670,9 +672,14 @@ NMarker naverMarkerOf(
     ),
     isHideCollidedCaptions: true,
   );
+  if (marker.secondary) nMarker.setGlobalZIndex(_secondaryMarkerGlobalZIndex);
   if (onTap != null) nMarker.setOnTapListener((_) => onTap());
   return nMarker;
 }
+
+/// 보조 마커(후보)는 화살표(100000)보다 위, 선 아이콘(150000)과 장소 마커(200000)보다 아래에 그린다.
+/// 동선과 겹치면 동선이 보이고 눌린다.
+const _secondaryMarkerGlobalZIndex = 120000;
 
 /// 심볼 이름. 여러 줄로 쓰인 이름(예: 공항의 이름과 터미널)은 한 줄로 잇는다.
 @visibleForTesting

@@ -4,13 +4,17 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/time/local_time.dart';
 import '../../../core/widgets/form_saving.dart';
 import '../../../core/widgets/saving.dart';
+import '../../../data/models/segment.dart';
 import '../../../data/models/stop.dart';
 import '../../../data/models/trip.dart';
 import '../../../data/models/trip_route.dart';
+import '../../../data/trips/route_links.dart';
 import '../../../l10n/l10n.dart';
 import '../stop_draft.dart';
 import '../stop_placement.dart';
 import 'dropped_transport_list.dart';
+import 'place_fields.dart';
+import 'time_wheel_sheet.dart';
 
 /// 장소 입력 화면을 띄운다. 저장하면 고친 값을, 그냥 닫으면 null을 돌려준다.
 ///
@@ -20,7 +24,9 @@ import 'dropped_transport_list.dart';
 /// [stop]은 편집할 장소다. null이면 새 장소를 추가한다.
 /// [onSave]로 저장되면 고친 값을 돌려주며 닫히고, 그냥 닫으면 null이다.
 /// [onDelete]가 있으면 맨 아래에 "장소 지우기"가 있다. 확인을 받아 지우면 입력 화면을 닫고 null을 돌려준다.
+/// [onDemote]가 있으면 그 위에 "후보로 빼기"가 있다. 빼면 입력 화면을 닫고 null을 돌려준다.
 /// 저장하거나 지우지 못하면 입력한 그대로 열려 있고 화면 안에 알린다([FormSaving]).
+/// [title]은 새 장소 제목("장소 추가") 대신 쓸 제목이다(후보를 동선에 넣을 때).
 Future<StopDraft?> showStopForm(
   BuildContext context, {
   required Trip trip,
@@ -28,7 +34,9 @@ Future<StopDraft?> showStopForm(
   required StopDraft initial,
   required Future<void> Function(StopDraft draft) onSave,
   Stop? stop,
+  String? title,
   Future<void> Function()? onDelete,
+  Future<void> Function(StopDraft draft)? onDemote,
 }) => showDialog<StopDraft>(
   context: context,
   useSafeArea: false,
@@ -37,14 +45,16 @@ Future<StopDraft?> showStopForm(
     route: route,
     initial: initial,
     stop: stop,
+    title: title,
     onSave: onSave,
     onDelete: onDelete,
+    onDemote: onDemote,
   ),
 );
 
-/// "넣을 자리" 칸의 선택지 글자. 예: "‘숙소’ 앞", "‘동문시장’ 뒤".
+/// "넣을 자리" 칸의 선택지 글자. 예: "숙소 앞", "동문시장 뒤".
 ///
-/// 빈자리는 바로 앞 장소로 가리킨다("‘A’ 뒤"). 맨 앞과 바로 뒤가 숙소인 자리는 뒤 장소로 가리킨다("‘숙소’ 앞").
+/// 빈자리는 바로 앞 장소로 가리킨다("A 뒤"). 맨 앞과 바로 뒤가 숙소인 자리는 뒤 장소로 가리킨다("숙소 앞").
 /// 숙소 앞은 그날 밤 숙소 앞이라는 기본 자리라서, 사용자가 떠올리는 말 그대로 쓴다.
 String insertionSlotText(AppLocalizations l10n, InsertionSlot slot) {
   final before = slot.before;
@@ -64,7 +74,9 @@ class StopFormDialog extends StatefulWidget {
     required this.initial,
     required this.onSave,
     this.stop,
+    this.title,
     this.onDelete,
+    this.onDemote,
   });
 
   final Trip trip;
@@ -85,6 +97,16 @@ class StopFormDialog extends StatefulWidget {
   ///
   /// 지우기는 일차 동선 목록이 아니라 여기에 둔다. 목록은 깔끔하게 두고, 지우기는 자주 쓰지 않아서다.
   final Future<void> Function()? onDelete;
+
+  /// 장소를 후보로 뺀다. 입력 화면의 이름·종류·설명·메모를 고쳤으면 그 값으로 빼야 해서 지금 값을 넘긴다.
+  /// 빼지 못하면 `ApiException`을 던진다. null이면 없다(새 장소, 출발 장소).
+  ///
+  /// 사라지는 것(이동 수단을 적은 닿은 구간, 예정 시각)이 있을 때만 이 화면이 확인을 받는다.
+  /// 후보는 다시 넣을 수 있어서, 잃는 것이 없으면 묻지 않는다.
+  final Future<void> Function(StopDraft draft)? onDemote;
+
+  /// 제목. null이면 새 장소는 "장소 추가", 편집은 "장소 편집"이다.
+  final String? title;
 
   bool get isNew => stop == null;
 
@@ -137,32 +159,86 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
 
   /// 확인을 받아 지운다. 저장하지 않은 고친 내용이 있어도 장소를 지우면 함께 버린다. 따로 묻지 않는다.
   Future<void> _delete(Future<void> Function() delete) async {
-    if (!await _confirmDelete() || !mounted) return;
+    final l10n = context.l10n;
+    final confirmed = await confirmDelete(
+      context,
+      title: l10n.deleteStopTitle(widget.stop?.name ?? _draft.name),
+      message: l10n.deleteStopMessage,
+    );
+    if (!confirmed || !mounted) return;
     setState(() => _deleting = true);
     await saveAndClose(delete);
     if (mounted) setState(() => _deleting = false);
   }
 
-  Future<bool> _confirmDelete() async {
-    final name = widget.stop?.name ?? _draft.name;
+  /// 후보로 빼는 중인지. 저장 중 표시를 "후보로 빼기" 버튼에 띄운다.
+  bool _demoting = false;
+
+  /// 후보로 뺀다. 이동 수단을 적은 닿은 구간이나 예정 시각이 사라지면 먼저 묻는다.
+  /// 예정 시각은 입력 화면에 보이는 값이다(지운 시각은 잃을 것이 없다).
+  Future<void> _demote(Future<void> Function(StopDraft draft) demote) async {
+    final stop = widget.stop;
+    if (stop == null) return;
+    final draft = _draft;
+    final dropped = withTransport(
+      segmentsDroppedByRemove(segments: widget.route.segments, stopId: stop.id),
+    );
+    final time = draft.plannedTime;
+    if (dropped.isNotEmpty || time != null) {
+      final confirmed = await _confirmDemote(
+        name: stop.name,
+        dropped: dropped,
+        time: time,
+      );
+      if (!confirmed || !mounted) return;
+    }
+    setState(() => _demoting = true);
+    await saveAndClose(() => demote(draft));
+    if (mounted) setState(() => _demoting = false);
+  }
+
+  Future<bool> _confirmDemote({
+    required String name,
+    required List<Segment> dropped,
+    required LocalTime? time,
+  }) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
         final l10n = context.l10n;
+        final material = MaterialLocalizations.of(context);
         return AlertDialog(
-          title: Text(l10n.deleteStopTitle(name)),
-          content: Text(l10n.deleteStopMessage),
+          title: Text(l10n.demoteStopTitle(name)),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(l10n.demoteStopMessage),
+                if (time != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpace.md),
+                    child: Text(
+                      l10n.demoteStopPlannedTime(
+                        material.formatTimeOfDay(
+                          TimeOfDay(hour: time.hour, minute: time.minute),
+                        ),
+                      ),
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                DroppedTransportList(route: widget.route, segments: dropped),
+              ],
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+              child: Text(material.cancelButtonLabel),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.error,
-              ),
-              child: Text(l10n.deleteStop),
+              child: Text(l10n.demoteStopConfirm),
             ),
           ],
         );
@@ -176,45 +252,15 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
   bool get _placing => widget.stop == null || _draft.day != widget.stop!.day;
 
   Future<void> _pickTime() async {
-    final time = _draft.plannedTime;
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(hour: time?.hour ?? 12, minute: time?.minute ?? 0),
-    );
+    final picked = await showTimeWheel(context, initial: _draft.plannedTime);
     if (picked == null || !mounted) return;
-    setState(
-      () => _draft = _draft.copyWith(
-        plannedTime: () => LocalTime(picked.hour, picked.minute),
-      ),
-    );
-  }
-
-  Future<bool> _confirmDiscard() async {
-    final discard = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.discardChangesTitle),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(context.l10n.discardChanges),
-          ),
-        ],
-      ),
-    );
-    return discard ?? false;
+    setState(() => _draft = _draft.copyWith(plannedTime: () => picked));
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final material = MaterialLocalizations.of(context);
-    final textTheme = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
     final insets = MediaQuery.paddingOf(context);
     const gap = SizedBox(height: AppSpace.lg);
 
@@ -225,7 +271,7 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
       onPopInvokedWithResult: (didPop, _) async {
         // 저장하는 동안은 닫지 않는다.
         if (didPop || saving) return;
-        if (await _confirmDiscard() && context.mounted) {
+        if (await confirmDiscardChanges(context) && context.mounted) {
           Navigator.of(context).pop();
         }
       },
@@ -238,10 +284,13 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
               onPressed: saving ? null : () => Navigator.of(context).maybePop(),
             ),
             title: Text(
-              widget.isNew ? l10n.stopFormAddTitle : l10n.stopFormEditTitle,
+              widget.title ??
+                  (widget.isNew
+                      ? l10n.stopFormAddTitle
+                      : l10n.stopFormEditTitle),
             ),
             actions: [
-              if (saving && !_deleting)
+              if (saving && !_deleting && !_demoting)
                 SavingIndicator(label: l10n.saving)
               else
                 TextButton(
@@ -262,30 +311,16 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
                 insets.bottom + AppSpace.xl,
               ),
               children: [
-                TextField(
+                PlaceNameField(
                   controller: _name,
                   enabled: !saving,
                   autofocus: widget.isNew && widget.initial.name.isEmpty,
-                  maxLength: StopDraft.nameMaxLength,
-                  textInputAction: TextInputAction.next,
-                  decoration: InputDecoration(labelText: l10n.stopNameLabel),
                 ),
                 gap,
-                Text(l10n.stopKindLabel, style: textTheme.titleSmall),
-                const SizedBox(height: AppSpace.sm),
-                Wrap(
-                  spacing: AppSpace.sm,
-                  runSpacing: AppSpace.sm,
-                  children: [
-                    for (final kind in StopKind.values)
-                      ChoiceChip(
-                        label: Text(l10n.stopKindName(kind)),
-                        selected: _draft.kind == kind,
-                        onSelected: (_) => setState(
-                          () => _draft = _draft.copyWith(kind: kind),
-                        ),
-                      ),
-                  ],
+                PlaceKindChips(
+                  kind: _draft.kind,
+                  onChanged: (kind) =>
+                      setState(() => _draft = _draft.copyWith(kind: kind)),
                 ),
                 gap,
                 DropdownButtonFormField<int>(
@@ -327,52 +362,34 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
                   ),
                 ),
                 gap,
-                TextField(
-                  controller: _description,
+                PlaceNotesFields(
+                  description: _description,
+                  memo: _memo,
                   enabled: !saving,
-                  minLines: 2,
-                  maxLines: 6,
-                  maxLength: StopDraft.textMaxLength,
-                  decoration: InputDecoration(
-                    labelText: l10n.stopDescriptionLabel,
-                    helperText: l10n.stopDescriptionHelper,
-                    helperMaxLines: 2,
-                    alignLabelWithHint: true,
-                  ),
                 ),
-                gap,
-                TextField(
-                  controller: _memo,
-                  enabled: !saving,
-                  minLines: 2,
-                  maxLines: 6,
-                  maxLength: StopDraft.textMaxLength,
-                  decoration: InputDecoration(
-                    labelText: l10n.stopMemoLabel,
-                    helperText: l10n.stopMemoHelper,
-                    helperMaxLines: 2,
-                    alignLabelWithHint: true,
-                  ),
-                ),
-                if (widget.onDelete case final onDelete?) ...[
+                if (widget.onDemote != null || widget.onDelete != null) ...[
                   const SizedBox(height: AppSpace.xl),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: OutlinedButton.icon(
-                      onPressed: saving ? null : () => _delete(onDelete),
-                      icon: _deleting
-                          ? SavingIndicator(
-                              label: l10n.saving,
-                              padded: false,
-                              color: scheme.error,
-                            )
-                          : const Icon(Icons.delete_outline),
-                      label: Text(l10n.stopFormDelete),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: scheme.error,
-                        side: BorderSide(color: scheme.error),
-                      ),
-                    ),
+                  FormActionRow(
+                    children: [
+                      if (widget.onDemote case final onDemote?)
+                        FormActionButton(
+                          icon: Icons.bookmark_border,
+                          label: l10n.stopFormDemote,
+                          // 고친 이름·종류·설명·메모로 빼므로, 저장할 수 없는 값이면 뺄 수도 없다.
+                          onPressed: saving || !_draft.isValid
+                              ? null
+                              : () => _demote(onDemote),
+                          busy: _demoting,
+                        ),
+                      if (widget.onDelete case final onDelete?)
+                        FormActionButton(
+                          icon: Icons.delete_outline,
+                          label: l10n.stopFormDelete,
+                          onPressed: saving ? null : () => _delete(onDelete),
+                          busy: _deleting,
+                          danger: true,
+                        ),
+                    ],
                   ),
                 ],
               ],

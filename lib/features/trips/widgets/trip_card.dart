@@ -57,17 +57,31 @@ class TripCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  TripPhaseMenu(
-                    phase: phase,
-                    autoPhase: trip.autoPhaseOn(today),
-                    isManual: trip.phaseOverride != null,
-                    onChanged: sample ? null : onPhaseChanged,
+                  // 좁은 카드에서 "여행 중 · 직접" 칩이 ⋮ 버튼과 부딪히면 칩을 줄여 맞춘다.
+                  Expanded(
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TripPhaseMenu(
+                              phase: phase,
+                              autoPhase: trip.autoPhaseOn(today),
+                              isManual: trip.phaseOverride != null,
+                              onChanged: sample ? null : onPhaseChanged,
+                            ),
+                            if (sample) ...[
+                              const SizedBox(width: AppSpace.xs),
+                              const _SampleBadge(),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                  if (sample) ...[
-                    const SizedBox(width: AppSpace.xs),
-                    const _SampleBadge(),
-                  ],
-                  const Spacer(),
                   _CardMenu(onDelete: onDelete, sample: sample),
                 ],
               ),

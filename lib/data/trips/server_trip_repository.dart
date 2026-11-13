@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../api/api_exception.dart';
+import '../models/candidate.dart';
 import '../models/segment.dart';
 import '../models/stop.dart';
 import '../models/trashed_trip.dart';
@@ -162,11 +163,10 @@ class ServerTripRepository implements TripRepository {
     final saved = await _api.updateStop(stop);
     _replaceInRoute(
       saved.tripId,
-      (route) => TripRoute(
+      (route) => route.copyWith(
         stops: [
           for (final old in route.stops) old.id == saved.id ? saved : old,
         ],
-        segments: route.segments,
       ),
     );
     return saved;
@@ -197,8 +197,7 @@ class ServerTripRepository implements TripRepository {
       final saved = await _api.updateSegment(segment);
       _replaceInRoute(
         saved.tripId,
-        (route) => TripRoute(
-          stops: route.stops,
+        (route) => route.copyWith(
           segments: [
             for (final old in route.segments) old.id == saved.id ? saved : old,
           ],
@@ -207,6 +206,73 @@ class ServerTripRepository implements TripRepository {
       return saved;
     },
   );
+
+  @override
+  Future<Candidate> addCandidate(Candidate candidate) =>
+      _write(candidate.tripId, () async {
+        final saved = await _api.addCandidate(candidate);
+        _replaceInRoute(
+          saved.tripId,
+          (route) => route.copyWith(
+            candidates: [
+              for (final old in route.candidates)
+                if (old.id != saved.id) old,
+              saved,
+            ],
+          ),
+        );
+        return saved;
+      });
+
+  @override
+  Future<Candidate> updateCandidate(Candidate candidate) =>
+      _write(candidate.tripId, () async {
+        final saved = await _api.updateCandidate(candidate);
+        _replaceInRoute(
+          saved.tripId,
+          (route) => route.copyWith(
+            candidates: [
+              for (final old in route.candidates)
+                old.id == saved.id ? saved : old,
+            ],
+          ),
+        );
+        return saved;
+      });
+
+  @override
+  Future<void> deleteCandidate(String candidateId) {
+    final tripId = _cache.tripOfCandidate(candidateId);
+    return _write(tripId ?? candidateId, () async {
+      await _api.deleteCandidate(candidateId);
+      if (tripId == null) return;
+      _replaceInRoute(
+        tripId,
+        (route) => route.copyWith(
+          candidates: [
+            for (final old in route.candidates)
+              if (old.id != candidateId) old,
+          ],
+        ),
+      );
+    });
+  }
+
+  @override
+  Future<Stop> promoteCandidate(Stop stop) => _write(stop.tripId, () async {
+    final detail = await _api.promoteCandidate(stop);
+    return _putDetail(detail, stop.id);
+  });
+
+  @override
+  Future<Candidate> demoteStop(String stopId) =>
+      _write(_cache.tripOfStop(stopId) ?? stopId, () async {
+        final detail = await _api.demoteStop(stopId);
+        _cache.putTrip(detail.trip, route: detail.route);
+        _changed();
+        return detail.route.candidateById(stopId) ??
+            (throw const ApiException(ApiFailure.server));
+      });
 
   void dispose() => _changes.close();
 

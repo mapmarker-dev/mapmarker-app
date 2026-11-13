@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/data/api/api_exception.dart';
+import 'package:mapmarker_app/data/models/candidate.dart';
 import 'package:mapmarker_app/data/models/segment.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trip_route.dart';
@@ -20,6 +21,15 @@ class _FailingStops extends FlakyTripRepository {
     if (okStops-- <= 0) throw const ApiException(ApiFailure.network);
     return super.addStop(stop);
   }
+}
+
+/// 후보 넣기에 실패한다(장소는 모두 들어간 뒤).
+class _FailingCandidates extends FlakyTripRepository {
+  _FailingCandidates(super.inner);
+
+  @override
+  Future<Candidate> addCandidate(Candidate candidate) async =>
+      throw const ApiException(ApiFailure.network);
 }
 
 void main() {
@@ -62,6 +72,31 @@ void main() {
         pair(sample.route, s.fromStopId, s.toStopId): look(s),
     };
     expect(copied, original);
+    // 후보도 같은 순서로 새 ID로 들어간다.
+    expect(
+      route.candidates.map((c) => (c.name, c.kind, c.description, c.memo)),
+      sample.route.candidates.map(
+        (c) => (c.name, c.kind, c.description, c.memo),
+      ),
+    );
+    expect(
+      route.candidates.map((c) => c.position),
+      sample.route.candidates.map((c) => c.position),
+    );
+    expect(route.candidates.every((c) => c.tripId == trip.id), isTrue);
+    expect(route.candidates.every((c) => !c.id.startsWith('sample')), isTrue);
+  });
+
+  test('deletes the half-made trip when copying a candidate fails', () async {
+    final repository = _FailingCandidates(testRepository());
+
+    await expectLater(
+      copySample(repository, sample),
+      throwsA(isA<ApiException>()),
+    );
+
+    expect(await repository.watchTrips().first, isEmpty);
+    expect(await repository.fetchTrash(), isEmpty);
   });
 
   test('deletes the half-made trip and throws when copying fails', () async {

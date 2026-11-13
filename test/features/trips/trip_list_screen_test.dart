@@ -184,6 +184,28 @@ void main() {
       expect(cards[0].width, moreOrLessEquals(cards[0].height));
     });
 
+    testWidgets('fits a hand-set phase into a card on a narrow phone', (
+      tester,
+    ) async {
+      // 좁은 휴대폰(360 논리 px). "여행 중 · 직접" 칩과 ⋮ 버튼이 카드 폭을 넘지 않는다.
+      tester.view.physicalSize =
+          const Size(360, 780) * tester.view.devicePixelRatio;
+      addTearDown(tester.view.reset);
+      await pumpTestApp(
+        tester,
+        repository: testRepository([
+          testTrip(id: 'a', phaseOverride: TripPhase.during),
+          testTrip(id: 'b', region: '제주'),
+        ]),
+      );
+
+      expect(tester.takeException(), isNull);
+      final card = tester.getRect(find.byType(TripCard).first);
+      final chip = tester.getRect(find.byType(TripPhaseMenu).first);
+      expect(chip.right, lessThanOrEqualTo(card.right));
+      expect(find.text('여행 중 · 직접'), findsOneWidget);
+    });
+
     testWidgets('keeps the last cards above the + button and navigation bar', (
       tester,
     ) async {

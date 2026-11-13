@@ -49,6 +49,24 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('draws a small marker in its smaller size', (tester) async {
+    await _pump(
+      tester,
+      const MarkerLook(
+        fill: Colors.white,
+        foreground: Colors.grey,
+        halo: Colors.white,
+        ring: Colors.grey,
+        icon: Icons.place,
+        small: true,
+      ),
+    );
+
+    expect(tester.getSize(find.byType(MarkerIcon)), MarkerIcon.smallSize);
+    expect(find.byIcon(Icons.place), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('draws an icon instead of a number', (tester) async {
     await _pump(
       tester,

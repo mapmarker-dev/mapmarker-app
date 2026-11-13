@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../models/candidate.dart';
 import '../models/segment.dart';
 import '../models/stop.dart';
 import '../models/trashed_trip.dart';
@@ -17,14 +18,19 @@ class MemoryTripRepository implements TripRepository {
 
   /// [seedStops]는 일차와 순서대로 넣고, 구간은 저장소가 잇는다.
   /// [seedSegments]는 이동 수단 등을 미리 넣을 구간이다. 이웃한 장소 쌍의 구간만 남는다.
+  /// [seedCandidates]는 준 순서가 넣은 순서다.
   MemoryTripRepository({
     this.clock = DateTime.now,
     Iterable<Trip> seed = const [],
     Iterable<Stop> seedStops = const [],
     Iterable<Segment> seedSegments = const [],
+    Iterable<Candidate> seedCandidates = const [],
   }) {
     for (final trip in seed) {
       _trips[trip.id] = trip;
+    }
+    for (final candidate in seedCandidates) {
+      _candidates[candidate.id] = candidate;
     }
     for (final segment in seedSegments) {
       _segments[segment.id] = segment;
@@ -43,6 +49,9 @@ class MemoryTripRepository implements TripRepository {
   final _trips = <String, Trip>{};
   final _stops = <String, Stop>{};
   final _segments = <String, Segment>{};
+
+  /// 넣은 순서다(맵이 넣은 순서를 지킨다). 후보로 뺀 장소는 지웠다가 다시 넣어 맨 뒤로 간다.
+  final _candidates = <String, Candidate>{};
   final _trashedAt = <String, DateTime>{};
   final _changes = StreamController<void>.broadcast();
 
@@ -83,9 +92,7 @@ class MemoryTripRepository implements TripRepository {
   @override
   Future<Stop> addStop(Stop stop) async {
     final trip = _tripOf(stop.tripId);
-    if (_stops.containsKey(stop.id)) {
-      throw StateError('이미 있는 장소입니다: ${stop.id}');
-    }
+    _checkNewId(stop.id);
     _checkDay(trip, stop.day);
     final days = _daysOf(trip.id);
     _insert(days, stop, stop.day, stop.order);
@@ -155,6 +162,7 @@ class MemoryTripRepository implements TripRepository {
     _trips.remove(tripId);
     _stops.removeWhere((_, stop) => stop.tripId == tripId);
     _segments.removeWhere((_, segment) => segment.tripId == tripId);
+    _candidates.removeWhere((_, candidate) => candidate.tripId == tripId);
     _changes.add(null);
   }
 
@@ -189,6 +197,77 @@ class MemoryTripRepository implements TripRepository {
     return updated;
   }
 
+  @override
+  Future<Candidate> addCandidate(Candidate candidate) async {
+    final trip = _tripOf(candidate.tripId);
+    _checkNewId(candidate.id);
+    _candidates[candidate.id] = candidate;
+    _touch(trip.id);
+    _changes.add(null);
+    return candidate;
+  }
+
+  @override
+  Future<Candidate> updateCandidate(Candidate candidate) async {
+    final saved = _candidateOf(candidate.id);
+    if (candidate.tripId != saved.tripId) {
+      throw ArgumentError.value(candidate.tripId, 'tripId', '다른 여행의 후보입니다');
+    }
+    _candidates[candidate.id] = candidate;
+    _touch(saved.tripId);
+    _changes.add(null);
+    return candidate;
+  }
+
+  @override
+  Future<void> deleteCandidate(String candidateId) async {
+    final saved = _candidateOf(candidateId);
+    _candidates.remove(candidateId);
+    _touch(saved.tripId);
+    _changes.add(null);
+  }
+
+  @override
+  Future<Stop> promoteCandidate(Stop stop) async {
+    final candidate = _candidateOf(stop.id);
+    final trip = _tripOf(candidate.tripId);
+    _checkDay(trip, stop.day);
+    _candidates.remove(candidate.id);
+    final days = _daysOf(trip.id);
+    final placed = Stop(
+      id: candidate.id,
+      tripId: trip.id,
+      latitude: candidate.latitude,
+      longitude: candidate.longitude,
+      name: stop.name,
+      kind: stop.kind,
+      day: stop.day,
+      order: 0,
+      description: stop.description,
+      memo: stop.memo,
+      plannedTime: stop.plannedTime,
+      timeZone: stop.timeZone,
+      placeProvider: candidate.placeProvider,
+      placeId: candidate.placeId,
+    );
+    _insert(days, placed, stop.day, stop.order);
+    _changeRoute(trip, days);
+    return _stops[stop.id]!;
+  }
+
+  @override
+  Future<Candidate> demoteStop(String stopId) async {
+    final saved = _stopOf(stopId);
+    final trip = _tripOf(saved.tripId);
+    final days = _daysOf(trip.id);
+    days[saved.day]!.removeWhere((stop) => stop.id == stopId);
+    _stops.remove(stopId);
+    final candidate = Candidate.fromStop(saved);
+    _candidates[stopId] = candidate;
+    _changeRoute(trip, days);
+    return candidate;
+  }
+
   /// 메모리에 있는 것이 전부라서 다시 받을 것이 없다.
   @override
   Future<void> refreshTrips() async {}
@@ -219,12 +298,28 @@ class MemoryTripRepository implements TripRepository {
     _ => throw StateError('없는 장소입니다: $stopId'),
   };
 
+  /// 휴지통 여행의 후보는 없는 후보다.
+  Candidate _candidateOf(String candidateId) =>
+      switch (_candidates[candidateId]) {
+        final candidate? when !_trashedAt.containsKey(candidate.tripId) =>
+          candidate,
+        _ => throw StateError('없는 후보입니다: $candidateId'),
+      };
+
+  /// 장소와 후보는 같은 ID를 주고받아서, 새 장소·후보의 ID는 어느 쪽에도 없어야 한다(서버도 409).
+  void _checkNewId(String id) {
+    if (_stops.containsKey(id) || _candidates.containsKey(id)) {
+      throw StateError('이미 있는 장소·후보입니다: $id');
+    }
+  }
+
   void _checkDay(Trip trip, int day) =>
       RangeError.checkValueInInterval(day, 1, trip.nights + 1, 'day');
 
   TripRoute _routeOf(String tripId) => TripRoute(
     stops: _stops.values.where((stop) => stop.tripId == tripId),
     segments: _segments.values.where((s) => s.tripId == tripId),
+    candidates: _candidates.values.where((c) => c.tripId == tripId),
   );
 
   /// 여행의 장소를 일차별 목록으로. 목록 안은 순서대로다.

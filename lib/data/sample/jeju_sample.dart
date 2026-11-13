@@ -1,5 +1,6 @@
 import '../../core/time/local_time.dart';
 import '../../l10n/l10n.dart';
+import '../models/candidate.dart';
 import '../models/segment.dart';
 import '../models/stop.dart';
 import '../models/trip.dart';
@@ -19,7 +20,7 @@ typedef SampleTrip = ({Trip trip, TripRoute route});
 ///
 /// 날짜는 미정이다. 언제 봐도 "여행 전"으로 어색하지 않다.
 /// 앱이 하는 일이 한눈에 보이게 숙소 연박과 숙소를 옮기는 날, 장소 종류, 예정 시각·설명·메모,
-/// 이동 수단의 선 모양 3갈래(실선·점선·파선)와 갈아타기, 미정 구간, 곡선을 모두 넣었다.
+/// 이동 수단의 선 모양 3갈래(실선·점선·파선)와 갈아타기, 미정 구간, 곡선, 후보 장소를 모두 넣었다.
 SampleTrip jejuSample(AppLocalizations l10n) {
   const nights = 3;
   const season = Season.autumn;
@@ -190,7 +191,38 @@ SampleTrip jejuSample(AppLocalizations l10n) {
           curvature: curves[pair] ?? 0,
         ),
   ];
-  return (trip: trip, route: TripRoute(stops: stops, segments: segments));
+  // 갈지 말지 정하지 않은 곳. "후보 목록" 보기와 지도의 후보 점이 어떻게 보이는지 알 수 있게 넣었다.
+  final candidatePlaces = [
+    _Place(
+      l10n.sampleJejuBijarim,
+      33.4907,
+      126.8094,
+      kind: StopKind.tour,
+      description: l10n.sampleJejuBijarimDescription,
+    ),
+    _Place(
+      l10n.sampleJejuAewol,
+      33.4627,
+      126.3106,
+      kind: StopKind.food,
+      memo: l10n.sampleJejuAewolMemo,
+    ),
+    _Place(
+      l10n.sampleJejuYeongsil,
+      33.3476,
+      126.4963,
+      kind: StopKind.tour,
+      description: l10n.sampleJejuYeongsilDescription,
+    ),
+  ];
+  final candidates = [
+    for (final (index, place) in candidatePlaces.indexed)
+      place.toCandidate(id: '$sampleTripId-candidate-${index + 1}'),
+  ];
+  return (
+    trip: trip,
+    route: TripRoute(stops: stops, segments: segments, candidates: candidates),
+  );
 }
 
 class _Place {
@@ -236,4 +268,15 @@ class _Place {
         day: day,
         order: order,
       );
+
+  Candidate toCandidate({required String id}) => Candidate(
+    id: id,
+    tripId: sampleTripId,
+    latitude: latitude,
+    longitude: longitude,
+    name: name,
+    kind: kind,
+    description: description,
+    memo: memo,
+  );
 }

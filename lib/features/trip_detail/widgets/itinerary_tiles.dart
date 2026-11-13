@@ -4,6 +4,7 @@ import '../../../core/map/map_provider.dart';
 import '../../../core/map/marker_icon.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/saving.dart';
+import '../../../data/models/candidate.dart';
 import '../../../data/models/segment.dart';
 import '../../../data/models/stop.dart';
 import '../../../l10n/l10n.dart';
@@ -166,6 +167,143 @@ class ItineraryStopTile extends StatelessWidget {
                   opacity: opacity,
                   child: _OpenMapLink(onTap: onOpenMap),
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 후보 목록의 후보 줄. 장소 줄과 모양이 같지만 일차·예정 시각·구간이 없다.
+///
+/// 누르면 고르고 펼쳐져서 설명 전체와 메모, 그리고 [actions](예: [동선에 넣기])가 나온다.
+/// 오른쪽 연필 아이콘은 목록에서 누른 줄에만 뜬다. 아래 칸을 누르면 외부 지도(네이버)에서 연다.
+class CandidateTile extends StatelessWidget {
+  const CandidateTile({
+    super.key,
+    required this.candidate,
+    required this.look,
+    required this.expanded,
+    required this.highlighted,
+    required this.onToggle,
+    required this.onOpenMap,
+    this.onEdit,
+    this.actions,
+  });
+
+  final Candidate candidate;
+
+  /// 지도의 후보 마커와 같은 그림.
+  final MarkerLook look;
+
+  final bool expanded;
+  final bool highlighted;
+  final VoidCallback onToggle;
+  final VoidCallback onOpenMap;
+
+  /// 연필 아이콘을 눌렀다. 후보 입력 화면을 연다. null이면 연필이 없다.
+  final VoidCallback? onEdit;
+
+  /// 펼쳤을 때 설명·메모 아래에 두는 버튼들. null이면 없다(보기만 하는 샘플).
+  final Widget? actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final muted = textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant);
+    final description = candidate.description.trim();
+    final memo = candidate.memo.trim();
+    final actions = this.actions;
+    // 글자 줄과 첫 글자를 맞춘다.
+    final textStart = AppSpace.sm + _iconWidth + AppSpace.md;
+
+    return Material(
+      color: highlighted ? scheme.secondaryContainer : Colors.transparent,
+      borderRadius: AppRadius.md,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InkWell(
+              onTap: onToggle,
+              borderRadius: AppRadius.md,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpace.sm,
+                  vertical: AppSpace.xs,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 장소 줄의 큰 마커와 글자 자리를 맞춘다.
+                    SizedBox.fromSize(
+                      size: MarkerIcon.size,
+                      child: Center(child: MarkerIcon(look)),
+                    ),
+                    const SizedBox(width: AppSpace.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            candidate.name,
+                            style: textTheme.titleSmall,
+                            maxLines: expanded ? null : 1,
+                            overflow: expanded ? null : TextOverflow.ellipsis,
+                          ),
+                          Text(l10n.stopKindName(candidate.kind), style: muted),
+                          if (description.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: AppSpace.xs),
+                              child: Text(
+                                description,
+                                style: textTheme.bodyMedium,
+                                maxLines: expanded ? null : 2,
+                                overflow: expanded
+                                    ? null
+                                    : TextOverflow.ellipsis,
+                              ),
+                            ),
+                          if (expanded && memo.isNotEmpty) ...[
+                            const SizedBox(height: AppSpace.sm),
+                            Text(l10n.itineraryMemo, style: muted),
+                            Text(memo, style: textTheme.bodyMedium),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (onEdit case final onEdit?)
+                      _EditButton(
+                        tooltip: l10n.candidateEditTooltip,
+                        onPressed: onEdit,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            if (expanded && actions != null)
+              Padding(
+                padding: EdgeInsets.only(
+                  left: textStart,
+                  right: AppSpace.sm,
+                  top: AppSpace.xs,
+                ),
+                child: Align(alignment: Alignment.centerLeft, child: actions),
+              ),
+            Padding(
+              // 링크 자체의 안쪽 여백만큼 덜 들인다.
+              padding: EdgeInsets.only(
+                left: textStart - AppSpace.xs,
+                right: AppSpace.sm,
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _OpenMapLink(onTap: onOpenMap),
               ),
             ),
           ],

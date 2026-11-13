@@ -45,18 +45,6 @@ Future<void> _pumpJeju(WidgetTester tester) async {
   );
 }
 
-Future<void> _tapChip(WidgetTester tester, String label) async {
-  await tester.tap(
-    find.ancestor(
-      of: find.text(label),
-      matching: find.byWidgetPredicate(
-        (w) => w is ChoiceChip || w is FilterChip,
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
-
 Future<void> _closePanel(WidgetTester tester) async {
   await tester.tap(
     find.descendant(
@@ -95,7 +83,7 @@ void main() {
     expect(find.byType(RouteDayPanel), findsNothing);
     expect(mapScene(tester).padding.right, 0);
 
-    await _tapChip(tester, '2일차');
+    await tapChip(tester, '2일차');
 
     expect(find.byType(RouteDaySheet), findsNothing);
     expect(_panelOpen(tester), isTrue);
@@ -121,7 +109,7 @@ void main() {
 
   testWidgets('closes and opens again by picking a day', (tester) async {
     await _pumpJeju(tester);
-    await _tapChip(tester, '2일차');
+    await tapChip(tester, '2일차');
 
     await _closePanel(tester);
 
@@ -134,7 +122,7 @@ void main() {
     );
 
     // 지금 일차를 다시 골라도 열린다.
-    await _tapChip(tester, '2일차');
+    await tapChip(tester, '2일차');
 
     expect(_panelOpen(tester), isTrue);
     expect(mapScene(tester).padding.right, _panelWidth);
@@ -142,7 +130,7 @@ void main() {
 
   testWidgets('opens on a marker tap and shows its row', (tester) async {
     await _pumpJeju(tester);
-    await _tapChip(tester, '2일차');
+    await tapChip(tester, '2일차');
     await _closePanel(tester);
     final camera = mapScene(tester).camera.key;
 
@@ -158,7 +146,7 @@ void main() {
 
   testWidgets('drops a pin on the first map tap', (tester) async {
     await _pumpJeju(tester);
-    await _tapChip(tester, '2일차');
+    await tapChip(tester, '2일차');
 
     await tapMap(tester, const LatLng(33.4, 126.6));
 
@@ -166,14 +154,14 @@ void main() {
     expect(_draft(tester), isNotNull);
     expect(_panelOpen(tester), isTrue);
     expect(
-      tester.getBottomRight(find.text('여기에 장소 추가')).dx,
+      tester.getBottomRight(find.text('지도에서 고른 곳')).dx,
       lessThan(_tablet.width - _panelWidth),
     );
   });
 
   testWidgets('keeps the picked row when the screen turns', (tester) async {
     await _pumpJeju(tester);
-    await _tapChip(tester, '2일차');
+    await tapChip(tester, '2일차');
     await tester.tap(find.text('c'));
     await tester.pumpAndSettle();
 
@@ -203,7 +191,7 @@ void main() {
     tester,
   ) async {
     await _pumpJeju(tester);
-    await _tapChip(tester, '2일차');
+    await tapChip(tester, '2일차');
     await _closePanel(tester);
 
     _useScreen(tester, const Size(800, 1280));

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/data/api/api_client.dart';
 import 'package:mapmarker_app/data/api/api_exception.dart';
+import 'package:mapmarker_app/data/models/candidate.dart';
 import 'package:mapmarker_app/data/models/segment.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
@@ -8,7 +9,8 @@ import 'package:mapmarker_app/data/trips/trip_api.dart';
 
 import '../../helpers/fake_auth.dart';
 import '../../helpers/fake_http.dart';
-import 'trip_json_test.dart' show serverSegment, serverStop, serverTrip;
+import 'trip_json_test.dart'
+    show serverCandidate, serverSegment, serverStop, serverTrip;
 
 Map<String, Object?> _detail() => {
   'trip': serverTrip(),
@@ -188,6 +190,61 @@ void main() {
     expect(call(), 'PATCH /v1/segments/seg-1');
     expect(http.requests.single.data, containsPair('legs', <Object?>[]));
     expect(saved.legs, hasLength(2));
+  });
+
+  group('candidates', () {
+    const candidate = Candidate(
+      id: 'cand-1',
+      tripId: 'trip-1',
+      latitude: 33.5,
+      longitude: 126.9,
+      name: '우도',
+    );
+
+    test('adds a candidate under its trip and gets it back', () async {
+      http.handler = (_) => FakeReply.json(201, serverCandidate());
+
+      final saved = await api.addCandidate(candidate);
+
+      expect(call(), 'POST /v1/trips/trip-1/candidates');
+      expect(http.requests.single.data, containsPair('id', 'cand-1'));
+      expect(saved.name, '우도');
+    });
+
+    test('updates and deletes a candidate', () async {
+      http.handler = (_) => FakeReply.json(200, serverCandidate());
+      await api.updateCandidate(candidate);
+      expect(call(), 'PATCH /v1/candidates/cand-1');
+
+      http.requests.clear();
+      http.handler = (_) => FakeReply.json(204);
+      await api.deleteCandidate('cand-1');
+      expect(call(), 'DELETE /v1/candidates/cand-1');
+    });
+
+    test('puts a candidate into the route and gets the new route', () async {
+      final detail = await api.promoteCandidate(
+        stop.copyWith(day: 2, order: 1),
+      );
+
+      expect(call(), 'POST /v1/candidates/stop-1/stop');
+      expect(http.requests.single.data, containsPair('day', 2));
+      expect(http.requests.single.data, containsPair('order', 1));
+      expect(http.requests.single.data, isNot(contains('latitude')));
+      expect(detail.route.stops, hasLength(2));
+    });
+
+    test('turns a stop into a candidate and gets the new route', () async {
+      http.handler = (_) => FakeReply.json(200, {
+        ..._detail(),
+        'candidates': [serverCandidate(id: 'stop-1')],
+      });
+
+      final detail = await api.demoteStop('stop-1');
+
+      expect(call(), 'POST /v1/stops/stop-1/candidate');
+      expect(detail.route.candidateById('stop-1'), isNotNull);
+    });
   });
 
   test('passes server failures on as ApiException', () async {

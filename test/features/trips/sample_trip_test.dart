@@ -112,7 +112,31 @@ void main() {
       expect(mapScene(tester).curveHandle, isNull);
       // 지도를 눌러도 장소를 넣을 핀이 꽂히지 않는다.
       await tapMap(tester, const LatLng(33.4, 126.5));
-      expect(find.widgetWithText(FilledButton, '추가'), findsNothing);
+      expect(find.widgetWithText(FilledButton, '동선에 넣기'), findsNothing);
+    });
+
+    testWidgets('shows its candidates but no way to change them', (
+      tester,
+    ) async {
+      await pumpApp(tester, location: Routes.trip(sampleTripId));
+
+      // 함께 보기의 "후보"는 켜져 있어서 전체 보기에도 후보 점이 보인다.
+      expect(
+        mapScene(
+          tester,
+        ).markers.where((m) => m.secondary).map((m) => m.caption),
+        ['비자림', '애월 카페거리', '한라산 영실 탐방로'],
+      );
+
+      await tapChip(tester, '후보 목록');
+      expect(find.text('3곳'), findsOneWidget);
+      await tester.tap(find.text('비자림'));
+      await tester.pumpAndSettle();
+
+      // 펼치면 설명은 보이지만 [동선에 넣기]와 연필은 없다.
+      expect(find.text(testL10n.sampleJejuBijarimDescription), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, '동선에 넣기'), findsNothing);
+      expect(find.byTooltip('후보 고치기'), findsNothing);
     });
 
     testWidgets('becomes a trip of the user with "use it"', (tester) async {
@@ -142,6 +166,7 @@ void main() {
       ))!;
       expect(mine.map((t) => t.title), contains(_sampleTitle));
       expect(route.stops, hasLength(13));
+      expect(route.candidates, hasLength(3));
     });
 
     testWidgets('stays a sample and says so when copying fails', (

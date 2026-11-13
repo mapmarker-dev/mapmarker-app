@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:mapmarker_app/data/api/api_exception.dart';
+import 'package:mapmarker_app/data/models/candidate.dart';
 import 'package:mapmarker_app/data/models/segment.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trashed_trip.dart';
@@ -99,6 +100,26 @@ class FlakyTripRepository implements TripRepository {
   @override
   Future<Segment> updateSegment(Segment segment) =>
       _write(() => inner.updateSegment(segment));
+
+  @override
+  Future<Candidate> addCandidate(Candidate candidate) =>
+      _write(() => inner.addCandidate(candidate));
+
+  @override
+  Future<Candidate> updateCandidate(Candidate candidate) =>
+      _write(() => inner.updateCandidate(candidate));
+
+  @override
+  Future<void> deleteCandidate(String candidateId) =>
+      _write(() => inner.deleteCandidate(candidateId));
+
+  @override
+  Future<Stop> promoteCandidate(Stop stop) =>
+      _write(() => inner.promoteCandidate(stop));
+
+  @override
+  Future<Candidate> demoteStop(String stopId) =>
+      _write(() => inner.demoteStop(stopId));
 
   @override
   Future<void> refreshTrips() async {

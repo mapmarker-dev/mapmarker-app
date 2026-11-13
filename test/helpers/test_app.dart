@@ -11,6 +11,7 @@ import 'package:mapmarker_app/data/api/api_client.dart';
 import 'package:mapmarker_app/data/auth/auth_api.dart';
 import 'package:mapmarker_app/data/auth/auth_session.dart';
 import 'package:mapmarker_app/data/auth/social_sdk.dart';
+import 'package:mapmarker_app/data/models/candidate.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
 import 'package:mapmarker_app/data/trips/memory_trip_repository.dart';
@@ -90,14 +91,29 @@ void showNavigationBar(WidgetTester tester, {double height = 48}) {
 MemoryTripRepository testRepository([
   List<Trip> trips = const [],
   List<Stop> stops = const [],
+  List<Candidate> candidates = const [],
 ]) {
   final repository = MemoryTripRepository(
     clock: () => testNow,
     seed: trips,
     seedStops: stops,
+    seedCandidates: candidates,
   );
   addTearDown(repository.dispose);
   return repository;
+}
+
+/// 동선 페이지의 일차 칩이나 숙소·후보 칩을 누른다. 칩은 글자가 아니라 칩 전체가 눌린다.
+/// 칩 줄은 가로로 넘어가서, 화면 밖 칩은 먼저 보이게 넘긴다.
+Future<void> tapChip(WidgetTester tester, String label) async {
+  final chip = find.ancestor(
+    of: find.text(label),
+    matching: find.byWidgetPredicate((w) => w is ChoiceChip || w is FilterChip),
+  );
+  await tester.ensureVisible(chip);
+  await tester.pumpAndSettle();
+  await tester.tap(chip);
+  await tester.pumpAndSettle();
 }
 
 /// 링크를 열지 못하는 기기. 테스트에서 실제 앱이나 브라우저를 열지 않게 기본으로 쓴다.

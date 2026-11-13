@@ -53,19 +53,6 @@ Future<void> _pumpJeju(WidgetTester tester) => pumpTestApp(
   location: Routes.trip('jeju'),
 );
 
-/// 일차 칩이나 숙소 칩을 누른다. 칩은 글자가 아니라 칩 전체가 눌린다.
-Future<void> _tapChip(WidgetTester tester, String label) async {
-  await tester.tap(
-    find.ancestor(
-      of: find.text(label),
-      matching: find.byWidgetPredicate(
-        (w) => w is ChoiceChip || w is FilterChip,
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
-
 /// 선이 잇는 마커 이름. 예: `a>b`. 연박한 숙소는 같은 자리라 처음 이름(hotel)으로 읽는다.
 List<String> _lines(MapScene scene) {
   final names = <LatLng, String>{};
@@ -181,7 +168,7 @@ void main() {
       await _pumpJeju(tester);
       final before = mapScene(tester).camera.key;
 
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
 
       final scene = mapScene(tester);
       expect(scene.captions, ['hotel', 'c', 'd']);
@@ -189,7 +176,7 @@ void main() {
       expect(scene.camera.key, isNot(before));
       expect(scene.camera.bounds, _boundsOf(['hotel', 'c', 'd']));
 
-      await _tapChip(tester, '1일차');
+      await tapChip(tester, '1일차');
 
       expect(mapScene(tester).captions, ['a', 'b', 'hotel']);
     });
@@ -197,7 +184,7 @@ void main() {
     testWidgets('hides lodging and the lines to it', (tester) async {
       await _pumpJeju(tester);
 
-      await _tapChip(tester, '숙소');
+      await tapChip(tester, '숙소');
 
       expect(mapScene(tester).captions, ['a', 'b', 'c', 'd']);
       expect(_lines(mapScene(tester)), ['a>b', 'c>d']);
@@ -205,7 +192,7 @@ void main() {
       expect(mapScene(tester).camera.bounds, _boundsOf(['a', 'b', 'c', 'd']));
 
       // 일차를 바꿔도 숙소는 꺼진 채로 있다.
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
 
       expect(mapScene(tester).captions, ['c', 'd']);
     });
@@ -213,13 +200,13 @@ void main() {
     testWidgets('says when a day has nothing to show', (tester) async {
       await _pumpJeju(tester);
 
-      await _tapChip(tester, '3일차');
+      await tapChip(tester, '3일차');
 
       // 3일차는 장소가 없지만 전날 숙소에서 출발한다.
       expect(mapScene(tester).captions, ['hotel2']);
       expect(find.text('3일차에는 장소가 없습니다.'), findsNothing);
 
-      await _tapChip(tester, '숙소');
+      await tapChip(tester, '숙소');
 
       expect(mapScene(tester).markers, isEmpty);
       expect(mapScene(tester).camera.bounds, isNull);
@@ -291,13 +278,13 @@ void main() {
 
       expect(find.byType(RouteDaySheet), findsNothing);
 
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
 
       expect(find.byType(RouteDaySheet), findsOneWidget);
       // 날짜 미정 여행이라 날짜 없이 일차만 보인다. 출발 숙소는 세지 않는다.
       expect(find.text('장소 3곳'), findsOneWidget);
 
-      await _tapChip(tester, '전체');
+      await tapChip(tester, '전체');
 
       expect(find.byType(RouteDaySheet), findsNothing);
     });
@@ -307,7 +294,7 @@ void main() {
     ) async {
       _tallScreen(tester);
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
 
       expect(find.text('전날 묵은 숙소에서 출발'), findsOneWidget);
@@ -333,7 +320,7 @@ void main() {
         location: Routes.trip('jeju'),
       );
 
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
 
       expect(find.text('2일차 · 10월 21일 (수)'), findsOneWidget);
     });
@@ -342,7 +329,7 @@ void main() {
       tester,
     ) async {
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
       final title = tester.getRect(find.text('장소 3곳'));
       final start = tester.getTopLeft(find.text('전날 묵은 숙소에서 출발')).dy;
@@ -362,7 +349,7 @@ void main() {
     testWidgets('scrolls the list without resizing the sheet', (tester) async {
       usePortraitPhone(tester);
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       // 지도에서 장소를 누르면 시트가 가운데 높이(40%)로 올라온다.
       await tapMarker(tester, 'c');
       final title = tester.getRect(find.text('장소 3곳'));
@@ -399,7 +386,7 @@ void main() {
     testWidgets('highlights one row picked in the sheet', (tester) async {
       _tallScreen(tester);
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
 
       expect(_highlighted(tester), isEmpty);
@@ -446,14 +433,14 @@ void main() {
     testWidgets('folds every stop when the day changes', (tester) async {
       _tallScreen(tester);
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
       await tester.tap(find.text('c'));
       await tester.pumpAndSettle();
       expect(_tile(tester, 'c').expanded, isTrue);
 
-      await _tapChip(tester, '3일차');
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '3일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
 
       expect(_tile(tester, 'c').expanded, isFalse);
@@ -465,7 +452,7 @@ void main() {
     testWidgets('expands a stop to show its memo', (tester) async {
       _tallScreen(tester);
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
 
       await tester.tap(find.text('c'));
@@ -496,7 +483,7 @@ void main() {
           return true;
         },
       );
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
 
       await tester.tap(_inTile('d', find.text('네이버 지도에서 영업시간·리뷰 보기')));
@@ -510,7 +497,7 @@ void main() {
     testWidgets('says so when Naver Map cannot be opened', (tester) async {
       _tallScreen(tester);
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
 
       await tester.tap(_inTile('d', find.text('네이버 지도에서 영업시간·리뷰 보기')));
@@ -522,7 +509,7 @@ void main() {
     testWidgets('deletes a stop after asking', (tester) async {
       _tallScreen(tester);
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
       await tester.tap(find.text('d'));
       await tester.pumpAndSettle();
@@ -537,7 +524,7 @@ void main() {
       await tester.tap(deleteButton);
       await tester.pumpAndSettle();
 
-      expect(find.text('‘d’ 지우기'), findsOneWidget);
+      expect(find.text('d 지우기'), findsOneWidget);
 
       await tester.tap(find.text('취소'));
       await tester.pumpAndSettle();
@@ -569,7 +556,7 @@ void main() {
     ) async {
       _tallScreen(tester);
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
 
       await tester.tap(find.text('hotel'));
@@ -588,7 +575,7 @@ void main() {
         'list', (tester) async {
       _tallScreen(tester);
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
 
       expect(find.byTooltip('장소 편집'), findsNothing);
@@ -613,7 +600,7 @@ void main() {
     testWidgets('moves a stop by dragging its handle', (tester) async {
       _tallScreen(tester);
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
       // 손잡이는 목록에서 누른 줄에만 뜬다.
       await tester.tap(find.text('c'));
@@ -693,7 +680,7 @@ void main() {
     ) async {
       _tallScreen(tester);
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
 
       await tester.tap(find.text('c'));
@@ -717,7 +704,7 @@ void main() {
     ) async {
       _tallScreen(tester);
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       final camera = mapScene(tester).camera.key;
 
       await tapMarker(tester, 'hotel');
@@ -794,7 +781,7 @@ void main() {
     testWidgets('folds when the map is tapped', (tester) async {
       _tallScreen(tester);
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
 
       await _openSheet(tester);
 
@@ -812,7 +799,7 @@ void main() {
       showNavigationBar(tester);
       await _pumpJeju(tester);
 
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
 
       final screen = tester.getRect(find.byType(Scaffold).last);
       final header = tester.getRect(find.text('장소 3곳'));

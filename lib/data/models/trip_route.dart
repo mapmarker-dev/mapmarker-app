@@ -1,28 +1,52 @@
 import 'package:flutter/foundation.dart';
 
+import 'candidate.dart';
 import 'segment.dart';
 import 'stop.dart';
 
-/// 여행의 동선: 장소와 그 사이 구간.
+/// 여행의 동선: 장소와 그 사이 구간, 그리고 동선 밖의 후보 장소.
 ///
 /// 장소는 (일차, 일차 안 순서)로 늘어선 하나의 줄이고, 일차를 넘어서도 이어진다.
 /// 구간은 이 줄에서 바로 이웃한 두 장소 사이마다 하나씩 있다(저장소가 맞춘다).
+/// 후보는 동선에 넣기·후보로 빼기가 장소와 함께 바꿔서 같은 값에 담는다(둘이 어긋난 중간 상태가 보이지 않게).
 @immutable
 class TripRoute {
   TripRoute({
     Iterable<Stop> stops = const [],
     Iterable<Segment> segments = const [],
+    Iterable<Candidate> candidates = const [],
   }) : stops = List.unmodifiable(stops.toList()..sort(compareRouteOrder)),
-       segments = List.unmodifiable(segments);
+       segments = List.unmodifiable(segments),
+       candidates = List.unmodifiable(candidates);
 
   /// 동선 순서다.
   final List<Stop> stops;
 
   final List<Segment> segments;
 
+  /// 넣은 순서다(저장소가 준 그대로).
+  final List<Candidate> candidates;
+
   late final Map<String, Stop> _stopsById = {
     for (final stop in stops) stop.id: stop,
   };
+
+  late final Map<String, Candidate> _candidatesById = {
+    for (final candidate in candidates) candidate.id: candidate,
+  };
+
+  Candidate? candidateById(String id) => _candidatesById[id];
+
+  /// 일부만 바꾼 동선. 장소·구간 하나를 고친 응답을 넣을 때 쓴다.
+  TripRoute copyWith({
+    Iterable<Stop>? stops,
+    Iterable<Segment>? segments,
+    Iterable<Candidate>? candidates,
+  }) => TripRoute(
+    stops: stops ?? this.stops,
+    segments: segments ?? this.segments,
+    candidates: candidates ?? this.candidates,
+  );
 
   /// 숙소가 아닌 장소에 일차마다 1부터 붙인 번호.
   late final Map<String, int> _numbers = () {

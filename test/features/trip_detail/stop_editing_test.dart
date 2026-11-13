@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -79,18 +80,6 @@ Segment _segmentOf(Iterable<Segment> segments, String from, String to) =>
 Iterable<Segment> _savedSegments(ProviderContainer container) =>
     container.read(tripRouteProvider('jeju')).value!.segments;
 
-Future<void> _tapChip(WidgetTester tester, String label) async {
-  await tester.tap(
-    find.ancestor(
-      of: find.text(label),
-      matching: find.byWidgetPredicate(
-        (w) => w is ChoiceChip || w is FilterChip,
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
-
 Future<void> _openSheet(WidgetTester tester) async {
   await tester.drag(
     find.textContaining(RegExp('장소 ')).last,
@@ -158,7 +147,7 @@ Finder _slotOption(String slot) =>
 /// 임시 핀을 꽂고 입력 화면을 연다.
 Future<void> _openAddForm(WidgetTester tester) async {
   await tapMap(tester, _somewhere);
-  await tester.tap(find.widgetWithText(FilledButton, '추가'));
+  await tester.tap(find.widgetWithText(FilledButton, '동선에 넣기'));
   await tester.pumpAndSettle();
 }
 
@@ -192,7 +181,7 @@ void main() {
       await tapMap(tester, _somewhere);
 
       expect(_draft(tester)?.position, _somewhere);
-      expect(find.text('여기에 장소 추가'), findsOneWidget);
+      expect(find.text('지도에서 고른 곳'), findsOneWidget);
       // 카메라는 장소에만 맞춘다.
       expect(
         mapScene(tester).camera.bounds,
@@ -207,7 +196,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(_draft(tester), isNull);
-      expect(find.text('여기에 장소 추가'), findsNothing);
+      expect(find.text('지도에서 고른 곳'), findsNothing);
     });
 
     testWidgets('names itself after a place written on the map', (
@@ -218,14 +207,14 @@ void main() {
       await tapMap(tester, _somewhere, placeName: '성산일출봉');
 
       expect(_draft(tester)?.caption, '성산일출봉');
-      expect(find.text('‘성산일출봉’ 추가'), findsOneWidget);
+      expect(find.text('성산일출봉'), findsOneWidget);
     });
 
     testWidgets('waits for the sheet to fold first in a day view', (
       tester,
     ) async {
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
 
       await tapMap(tester, _somewhere);
@@ -243,7 +232,7 @@ void main() {
       tester,
     ) async {
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
 
       Future<void> expectPinAfterFolding() async {
         // 시트가 올라와 있으면 첫 탭은 접기만 한다.
@@ -281,7 +270,7 @@ void main() {
       await _pumpJeju(tester);
       await tapMap(tester, _somewhere);
 
-      await _tapChip(tester, '1일차');
+      await tapChip(tester, '1일차');
 
       expect(_draft(tester), isNull);
     });
@@ -294,7 +283,7 @@ void main() {
       await _pumpJeju(tester);
       await tapMap(tester, _somewhere, placeName: '성산일출봉');
 
-      await tester.tap(find.widgetWithText(FilledButton, '추가'));
+      await tester.tap(find.widgetWithText(FilledButton, '동선에 넣기'));
       await tester.pumpAndSettle();
 
       expect(find.text('장소 추가'), findsOneWidget);
@@ -316,9 +305,9 @@ void main() {
       tester,
     ) async {
       await _pumpJeju(tester);
-      await _tapChip(tester, '1일차');
+      await tapChip(tester, '1일차');
       await tapMap(tester, _somewhere);
-      await tester.tap(find.widgetWithText(FilledButton, '추가'));
+      await tester.tap(find.widgetWithText(FilledButton, '동선에 넣기'));
       await tester.pumpAndSettle();
 
       await tester.enterText(_nameField, '  돌하르방 카페 ');
@@ -333,9 +322,9 @@ void main() {
 
     testWidgets('says where it went when added to another day', (tester) async {
       await _pumpJeju(tester);
-      await _tapChip(tester, '1일차');
+      await tapChip(tester, '1일차');
       await tapMap(tester, _somewhere);
-      await tester.tap(find.widgetWithText(FilledButton, '추가'));
+      await tester.tap(find.widgetWithText(FilledButton, '동선에 넣기'));
       await tester.pumpAndSettle();
 
       await tester.enterText(_nameField, '오름');
@@ -349,7 +338,7 @@ void main() {
     testWidgets('cannot be saved without a name', (tester) async {
       await _pumpJeju(tester);
       await tapMap(tester, _somewhere);
-      await tester.tap(find.widgetWithText(FilledButton, '추가'));
+      await tester.tap(find.widgetWithText(FilledButton, '동선에 넣기'));
       await tester.pumpAndSettle();
 
       expect(tester.widget<TextButton>(_saveButton).onPressed, isNull);
@@ -363,7 +352,7 @@ void main() {
     testWidgets('asks before throwing away what was written', (tester) async {
       await _pumpJeju(tester);
       await tapMap(tester, _somewhere);
-      await tester.tap(find.widgetWithText(FilledButton, '추가'));
+      await tester.tap(find.widgetWithText(FilledButton, '동선에 넣기'));
       await tester.pumpAndSettle();
       await tester.enterText(_nameField, '오름');
       // 고친 것을 화면이 알게 한 프레임 그린다.
@@ -393,7 +382,7 @@ void main() {
     testWidgets('closes right away when nothing was written', (tester) async {
       await _pumpJeju(tester);
       await tapMap(tester, _somewhere, placeName: '성산일출봉');
-      await tester.tap(find.widgetWithText(FilledButton, '추가'));
+      await tester.tap(find.widgetWithText(FilledButton, '동선에 넣기'));
       await tester.pumpAndSettle();
 
       await tester.tap(_inForm(find.byTooltip('닫기')));
@@ -409,11 +398,11 @@ void main() {
 
     testWidgets('starts before the lodging of the night', (tester) async {
       await _pumpJeju(tester);
-      await _tapChip(tester, '1일차');
+      await tapChip(tester, '1일차');
       await _openAddForm(tester);
 
       expect(_slotOrder(tester), 2);
-      expect(_slotOption('‘hotel’ 앞 (기본)'), findsOneWidget);
+      expect(_slotOption('hotel 앞 (기본)'), findsOneWidget);
       expect(_inForm(find.text(preview)), findsNothing);
 
       await _tapInForm(tester, _slotField);
@@ -429,16 +418,16 @@ void main() {
         ))
           (item.child as Text).data,
       ];
-      expect(options, ['‘a’ 앞', '‘a’ 뒤', '‘hotel’ 앞 (기본)']);
+      expect(options, ['a 앞', 'a 뒤', 'hotel 앞 (기본)']);
     });
 
     testWidgets('puts the stop where it is chosen', (tester) async {
       await _pumpJeju(tester);
-      await _tapChip(tester, '1일차');
+      await tapChip(tester, '1일차');
       await _openAddForm(tester);
 
       await tester.enterText(_nameField, '오름');
-      await _chooseSlot(tester, '‘a’ 앞');
+      await _chooseSlot(tester, 'a 앞');
       await _save(tester);
 
       expect(_tileNames(tester), ['오름', 'a', 'b', 'hotel']);
@@ -446,14 +435,14 @@ void main() {
 
     testWidgets('shows the transport the slot would drop', (tester) async {
       await _pumpJeju(tester, legs: {('b', 'hotel'): _walk});
-      await _tapChip(tester, '1일차');
+      await tapChip(tester, '1일차');
       await _openAddForm(tester);
 
       expect(_inForm(find.text(preview)), findsOneWidget);
       expect(_inForm(find.text('1일차 b → hotel')), findsOneWidget);
       expect(_inForm(find.text('도보')), findsOneWidget);
 
-      await _chooseSlot(tester, '‘a’ 뒤');
+      await _chooseSlot(tester, 'a 뒤');
 
       expect(_inForm(find.text(preview)), findsNothing);
     });
@@ -465,7 +454,7 @@ void main() {
         tester,
         legs: {('a', 'b'): _subway, ('b', 'hotel'): _walk},
       );
-      await _tapChip(tester, '1일차');
+      await tapChip(tester, '1일차');
       await _openAddForm(tester);
       await tester.enterText(_nameField, '오름');
       await tester.pump();
@@ -481,16 +470,16 @@ void main() {
 
     testWidgets('follows the kind until a slot is chosen', (tester) async {
       await _pumpJeju(tester);
-      await _tapChip(tester, '1일차');
+      await tapChip(tester, '1일차');
       await _openAddForm(tester);
 
       await _chooseKind(tester, '숙소');
 
       // 숙소는 맨 뒤가 기본이다.
       expect(_slotOrder(tester), 3);
-      expect(_slotOption('‘hotel’ 뒤 (기본)'), findsOneWidget);
+      expect(_slotOption('hotel 뒤 (기본)'), findsOneWidget);
 
-      await _chooseSlot(tester, '‘a’ 뒤');
+      await _chooseSlot(tester, 'a 뒤');
       await _chooseKind(tester, '음식');
 
       expect(_slotOrder(tester), 1);
@@ -500,11 +489,11 @@ void main() {
       tester,
     ) async {
       await _pumpJeju(tester);
-      await _tapChip(tester, '1일차');
+      await tapChip(tester, '1일차');
       await _openAddForm(tester);
       await tester.enterText(_nameField, '새 숙소');
       await _chooseKind(tester, '숙소');
-      await _chooseSlot(tester, '‘hotel’ 뒤 (기본)');
+      await _chooseSlot(tester, 'hotel 뒤 (기본)');
 
       // 숙소 뒤는 숙소만 고를 수 있다. 종류를 바꾸면 기본 자리로 돌아간다.
       await _chooseKind(tester, '음식');
@@ -518,14 +507,14 @@ void main() {
 
     testWidgets('goes back to the default slot on another day', (tester) async {
       await _pumpJeju(tester);
-      await _tapChip(tester, '1일차');
+      await tapChip(tester, '1일차');
       await _openAddForm(tester);
-      await _chooseSlot(tester, '‘a’ 앞');
+      await _chooseSlot(tester, 'a 앞');
 
       await _chooseDay(tester, '2일차');
 
       expect(_slotOrder(tester), 2);
-      expect(_slotOption('‘hotel2’ 앞 (기본)'), findsOneWidget);
+      expect(_slotOption('hotel2 앞 (기본)'), findsOneWidget);
 
       await _chooseDay(tester, '3일차');
 
@@ -556,7 +545,7 @@ void main() {
 
     testWidgets('changes the name and kind but keeps notes', (tester) async {
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
       await openEditor(tester, 'c');
 
@@ -574,9 +563,45 @@ void main() {
       expect(mapScene(tester).captions, contains('용머리해안'));
     });
 
+    testWidgets('picks the planned time on a 5-minute wheel', (tester) async {
+      await _pumpJeju(tester);
+      await tapChip(tester, '2일차');
+      await _openSheet(tester);
+      await openEditor(tester, 'd');
+
+      await _tapInForm(tester, _inForm(find.text('오후 2:30')));
+
+      // 원형 시계가 아니라 휠이고, 분은 5분 단위다. 지금 시각에서 시작한다.
+      expect(find.byType(TimePickerDialog), findsNothing);
+      final wheel = tester.widget<CupertinoDatePicker>(
+        find.byType(CupertinoDatePicker),
+      );
+      expect(wheel.mode, CupertinoDatePickerMode.time);
+      expect(wheel.minuteInterval, 5);
+      expect(wheel.initialDateTime.hour, 14);
+      expect(wheel.initialDateTime.minute, 30);
+
+      // 취소하면 그대로다.
+      await tester.tap(find.widgetWithText(TextButton, '취소'));
+      await tester.pumpAndSettle();
+      expect(_inForm(find.text('오후 2:30')), findsOneWidget);
+
+      await _tapInForm(tester, _inForm(find.text('오후 2:30')));
+      tester
+          .widget<CupertinoDatePicker>(find.byType(CupertinoDatePicker))
+          .onDateTimeChanged(DateTime(2000, 1, 1, 9, 45));
+      await tester.pump();
+      await tester.tap(find.widgetWithText(TextButton, '확인'));
+      await tester.pumpAndSettle();
+
+      expect(_inForm(find.text('오전 9:45')), findsOneWidget);
+      await _save(tester);
+      expect(_tile(tester, 'd').stop.plannedTime, const LocalTime(9, 45));
+    });
+
     testWidgets('clears the planned time', (tester) async {
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
       expect(find.text('관광 · 오후 2:30'), findsOneWidget);
       await openEditor(tester, 'd');
@@ -597,7 +622,7 @@ void main() {
       tester,
     ) async {
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
       await openEditor(tester, 'c');
 
@@ -607,7 +632,7 @@ void main() {
       expect(find.text('1일차로 옮겼습니다.'), findsOneWidget);
       expect(_tileNames(tester), ['hotel', 'd', 'hotel2']);
 
-      await _tapChip(tester, '1일차');
+      await tapChip(tester, '1일차');
       await _openSheet(tester);
 
       expect(_tileNames(tester), ['a', 'b', 'c', 'hotel']);
@@ -617,7 +642,7 @@ void main() {
       tester,
     ) async {
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
       await openEditor(tester, 'c');
 
@@ -626,12 +651,12 @@ void main() {
       await _chooseDay(tester, '1일차');
 
       expect(_slotOrder(tester), 2);
-      expect(_slotOption('‘hotel’ 앞 (기본)'), findsOneWidget);
+      expect(_slotOption('hotel 앞 (기본)'), findsOneWidget);
 
-      await _chooseSlot(tester, '‘a’ 뒤');
+      await _chooseSlot(tester, 'a 뒤');
       await _save(tester);
 
-      await _tapChip(tester, '1일차');
+      await tapChip(tester, '1일차');
       await _openSheet(tester);
 
       expect(_tileNames(tester), ['a', 'c', 'b', 'hotel']);
@@ -639,7 +664,7 @@ void main() {
 
     testWidgets('does nothing when saved without changes', (tester) async {
       await _pumpJeju(tester);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
       await openEditor(tester, 'c');
 
@@ -662,7 +687,7 @@ void main() {
 
     testWidgets('starts from a last place that is not lodging', (tester) async {
       await _pumpJeju(tester, stops: stops, legs: {('airport', 'q'): flight});
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
 
       expect(_tileNames(tester), ['airport', 'q', 'r']);
@@ -719,14 +744,14 @@ void main() {
       tester,
     ) async {
       await _pumpJeju(tester, stops: stops);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
 
       expect(faintLines(tester), isEmpty);
       expect(find.byType(ItineraryViaTile), findsNothing);
 
       // 숙소를 끈다.
-      await _tapChip(tester, '숙소');
+      await tapChip(tester, '숙소');
 
       expect(_tileNames(tester), ['q', 'r']);
       expect(faintLines(tester).map((l) => l.id), ['via:q>r']);
@@ -735,7 +760,7 @@ void main() {
       expect(find.byType(ItinerarySegmentTile), findsNothing);
 
       // 숙소를 다시 켜면 사라진다.
-      await _tapChip(tester, '숙소');
+      await tapChip(tester, '숙소');
 
       expect(faintLines(tester), isEmpty);
       expect(find.byType(ItineraryViaTile), findsNothing);
@@ -743,8 +768,8 @@ void main() {
 
     testWidgets('does nothing when the line is tapped', (tester) async {
       await _pumpJeju(tester, stops: stops);
-      await _tapChip(tester, '2일차');
-      await _tapChip(tester, '숙소');
+      await tapChip(tester, '2일차');
+      await tapChip(tester, '숙소');
 
       await tapLine(tester, 'via:q>r');
 
@@ -761,9 +786,9 @@ void main() {
     /// 2일차를 펴고 숙소를 끈다.
     Future<void> hideLodgingOnDay2(WidgetTester tester) async {
       await _pumpJeju(tester, stops: stops);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openSheet(tester);
-      await _tapChip(tester, '숙소');
+      await tapChip(tester, '숙소');
     }
 
     Future<void> tapShowLodging(WidgetTester tester) async {
@@ -838,7 +863,7 @@ void main() {
       await _chooseKind(tester, '숙소');
       await _save(tester);
 
-      expect(find.text('숙소가 꺼져 있어 지도에 보이지 않습니다.'), findsOneWidget);
+      expect(find.text('숙소로 저장했습니다.'), findsOneWidget);
       expect(_tileNames(tester), ['q', 'r']);
 
       await tapShowLodging(tester);
@@ -859,7 +884,7 @@ void main() {
       await _chooseKind(tester, '숙소');
       await _save(tester);
 
-      expect(find.text('숙소가 꺼져 있어 지도에 보이지 않습니다.'), findsOneWidget);
+      expect(find.text('숙소로 저장했습니다.'), findsOneWidget);
       expect(_tileNames(tester), ['q']);
     });
 
@@ -893,7 +918,7 @@ void main() {
 
     testWidgets('says nothing while lodging is shown', (tester) async {
       await _pumpJeju(tester, stops: stops);
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       await _openAddForm(tester);
       await tester.enterText(_nameField, '새 숙소');
       await _chooseKind(tester, '숙소');
@@ -908,12 +933,12 @@ void main() {
       tester,
     ) async {
       await _pumpJeju(tester);
-      await _tapChip(tester, '3일차');
+      await tapChip(tester, '3일차');
       await _openSheet(tester);
 
       expect(_tileNames(tester), ['hotel2']);
 
-      await tester.tap(find.text('오늘 밤도 ‘hotel2’에서 묵기'));
+      await tester.tap(find.text('오늘 밤도 hotel2에서 묵기'));
       await tester.pumpAndSettle();
 
       // 그날 첫 장소가 전날과 같은 숙소면 출발 숙소 줄은 따로 보이지 않는다(같은 숙소가 두 번 보이지 않게).
@@ -947,9 +972,9 @@ void main() {
           stops: stops,
           legs: {('c', 'e'): _subway},
         );
-        await _tapChip(tester, '2일차');
+        await tapChip(tester, '2일차');
         await _openSheet(tester);
-        await tester.tap(find.text('오늘 밤도 ‘hotel’에서 묵기'));
+        await tester.tap(find.text('오늘 밤도 hotel에서 묵기'));
         await tester.pumpAndSettle();
         return container;
       }
@@ -959,7 +984,7 @@ void main() {
 
         expect(find.text('이동 수단이 사라집니다'), findsOneWidget);
         expect(
-          find.text('‘hotel’에서 묵으면 아래 구간의 이동 수단이 지워집니다. 넣을까요?'),
+          find.text('hotel에서 묵으면 아래 구간의 이동 수단이 지워집니다. 넣을까요?'),
           findsOneWidget,
         );
         expect(find.text('2일차 c → 3일차 e'), findsOneWidget);
@@ -1003,14 +1028,14 @@ void main() {
         testStop('r', tripId: 'jeju', day: 2, order: 2),
         testStop('e', tripId: 'jeju', day: 3),
       ];
-      const tonightAtB = '오늘 밤은 ‘B’에서 묵기';
-      const againAtHotel = '오늘 밤도 ‘hotel’에서 묵기';
+      const tonightAtB = '오늘 밤은 B에서 묵기';
+      const againAtHotel = '오늘 밤도 hotel에서 묵기';
 
       testWidgets('offers it before the lodging of the night before', (
         tester,
       ) async {
         await _pumpJeju(tester, stops: stops);
-        await _tapChip(tester, '2일차');
+        await tapChip(tester, '2일차');
         await _openSheet(tester);
 
         expect(find.text(tonightAtB), findsOneWidget);
@@ -1025,7 +1050,7 @@ void main() {
         tester,
       ) async {
         await _pumpJeju(tester, stops: stops);
-        await _tapChip(tester, '2일차');
+        await tapChip(tester, '2일차');
         await _openSheet(tester);
 
         await tester.tap(find.text(tonightAtB));
@@ -1034,7 +1059,7 @@ void main() {
         expect(_tileNames(tester), ['hotel', 'q', 'B', 'r', 'B']);
         expect(find.textContaining('에서 묵기'), findsNothing);
 
-        await _tapChip(tester, '3일차');
+        await tapChip(tester, '3일차');
         await _openSheet(tester);
 
         expect(_tileNames(tester), ['B', 'e']);
@@ -1047,11 +1072,11 @@ void main() {
       await _pumpJeju(tester);
 
       // 1일차: 전날 숙소가 없다.
-      await _tapChip(tester, '1일차');
+      await tapChip(tester, '1일차');
       expect(find.textContaining('오늘 밤도'), findsNothing);
 
       // 2일차: 그날 밤 숙소(hotel2)가 이미 있다.
-      await _tapChip(tester, '2일차');
+      await tapChip(tester, '2일차');
       expect(find.textContaining('오늘 밤도'), findsNothing);
     });
   });
