@@ -2,36 +2,33 @@
 
 # mapmarker-app
 
-MapMarker의 Flutter 앱 (Dart SDK ^3.12.0). 소스는 `lib/`, 테스트는 `test/`. 원격 저장소는 `mapmarker-dev/mapmarker-app`.
+MapMarker의 Flutter 앱(Dart SDK ^3.12.0). 소스는 `lib/`, 테스트는 `test/`. 원격은 `mapmarker-dev/mapmarker-app`.
 
 ## 명령어
 
-- 의존성 설치: `flutter pub get` (다국어 코드도 이때 만든다)
-- 정적 분석: `flutter analyze`
-- 테스트: `flutter test`
-- 실행: `flutter run --dart-define-from-file=.env` (VS Code는 `.vscode/launch.json`에 설정돼 있음)
-- 실기기로 서버까지 볼 때의 순서
-  1. 서버: `../mapmarker-server`에서 `npm run db:up` → `npm run start:dev`. 서버 `.env`의 `KAKAO_NATIVE_APP_KEY`가 실제 키여야 카카오 로그인이 된다.
-  2. 휴대폰과 PC가 같은 Wi-Fi면 앱 `.env`의 `API_BASE_URL=http://<PC의 Wi-Fi IP>:3000`(`/v1`은 코드가 붙인다). 휴대폰이 닿지 않으면 Windows 방화벽에서 3000번 인바운드를 허용한다.
-  3. 공용 Wi-Fi에서는 위 방식을 쓰지 않는다. USB로 연결하고 `adb reverse tcp:3000 tcp:3000` 뒤 `API_BASE_URL=http://127.0.0.1:3000`.
-  4. 앱: `flutter run --dart-define-from-file=.env`. debug 빌드만 `http://`를 허용한다(`src/debug/AndroidManifest.xml`).
-  - 가입부터 다시 보려면 서버 폴더의 `npx prisma studio`에서 `users` 행을 지운다(소셜 계정·세션·여행이 함께 지워진다). 카카오·네이버 동의 화면까지 보려면 각 계정 설정의 "연결된 서비스 관리"에서도 끊는다. 지운 제주 샘플을 다시 보려면 휴대폰 설정에서 앱 데이터를 지운다(샘플 숨김은 기기에 기억한다).
-- `gradlew`를 직접 돌릴 때는 JAVA_HOME을 Android Studio의 `jbr` 폴더로 지정한다(`flutter run`·`flutter build`는 그대로 된다).
+- `flutter pub get`(다국어 코드도 만든다), `flutter analyze`, `flutter test`
+- 실행: `flutter run --dart-define-from-file=.env`(VS Code는 `.vscode/launch.json`)
+- 실기기로 서버까지 볼 때
+  1. 서버: `../mapmarker-server`에서 `npm run db:up` → `npm run start:dev`(서버 `.env`의 `KAKAO_NATIVE_APP_KEY`가 실제 키여야 카카오 로그인이 된다).
+  2. 같은 Wi-Fi면 앱 `.env`의 `API_BASE_URL=http://<PC의 Wi-Fi IP>:3000`(`/v1`은 코드가 붙인다). 닿지 않으면 Windows 방화벽에서 3000번 인바운드를 허용한다.
+  3. 공용 Wi-Fi에서는 USB로 연결해 `adb reverse tcp:3000 tcp:3000` 뒤 `API_BASE_URL=http://127.0.0.1:3000`.
+  4. `flutter run --dart-define-from-file=.env`. debug 빌드만 `http://`를 허용한다(`src/debug/AndroidManifest.xml`).
+  - 가입부터 다시 보려면 서버 폴더 `npx prisma studio`에서 `users` 행을 지운다(소셜 계정, 세션, 여행이 함께 지워진다). 동의 화면까지 보려면 카카오·네이버 계정 설정의 "연결된 서비스 관리"에서도 끊는다. 지운 제주 샘플은 휴대폰에서 앱 데이터를 지우면 다시 보인다.
+- `gradlew`를 직접 돌릴 때는 JAVA_HOME을 Android Studio의 `jbr`로 지정한다.
 
 ## 환경 변수
 
-- 키는 `.env`(커밋하지 않음), 항목 목록은 `.env.example`. 새 키를 더하면 `.env.example`도 고친다.
-- 앱 코드는 `lib/config/env.dart`의 `Env`로만 값을 읽는다. 필수 값이 비면 앱 대신 `MissingEnvScreen`이 빈 이름을 보여 준다.
-- Client Secret 같은 비밀값은 앱 코드에서 읽지 않는다(앱 빌드에 들어가면 누구나 꺼낼 수 있다).
-- 값의 위치
-  - `.env`(dart-define으로 Dart까지 간다): `NAVER_MAP_CLIENT_ID`, `API_BASE_URL`, `KAKAO_NATIVE_APP_KEY`(Gradle도 읽어 카카오 스킴 `kakao<키>`를 만든다).
-  - `android/local.properties`(커밋하지 않음, Gradle만 읽는다): `naver.client_id`, `naver.client_secret`, `naver.client_name`. `android/app/build.gradle.kts`가 매니페스트 meta-data로 넣는다. 없으면 빈 값으로 빌드되고 그 로그인만 실패한다.
-- **예외: 네이버 로그인 Client Secret은 APK에 들어간다.** 네이버 로그인 SDK가 초기화에 요구해서 피할 수 없다(이유는 OVERVIEW "로그인과 계정"). 그래서 Dart와 `.env`에는 두지 않고 `local.properties` → 매니페스트로만 넣는다. 매니페스트의 `com.naver.sdk.logEnabled`는 `false`로 둔다(켜면 설정값이 logcat에 남는다). `naver_login_flutter`는 4.1.0에 고정했고, 올릴 때 로그 출력을 다시 본다. 플러그인의 `configure` CLI는 쓰지 않는다(Secret이 셸 기록에 남는다).
-- 카카오 콘솔에는 개발 PC의 debug 키 해시만 있다. 다른 PC에서 빌드하면 그 PC의 키 해시를 콘솔에 더한다.
+- 키는 `.env`(커밋하지 않음), 목록은 `.env.example`. 새 키를 더하면 `.env.example`도 고친다.
+- 앱 코드는 `lib/config/env.dart`의 `Env`로만 읽는다. 필수 값이 비면 `MissingEnvScreen`이 빈 이름을 보여 준다.
+- 비밀값(Client Secret 등)은 앱 코드에서 읽지 않는다(빌드에서 누구나 꺼낼 수 있다).
+- `.env`(dart-define으로 Dart까지 간다): `NAVER_MAP_CLIENT_ID`, `API_BASE_URL`, `KAKAO_NATIVE_APP_KEY`(Gradle도 읽어 스킴 `kakao<키>`를 만든다).
+- `android/local.properties`(커밋하지 않음, Gradle만): `naver.client_id`, `naver.client_secret`, `naver.client_name`. `build.gradle.kts`가 매니페스트 meta-data로 넣고, 없으면 그 로그인만 실패한다.
+- **예외: 네이버 로그인 Client Secret은 APK에 들어간다**(SDK가 요구, 이유는 OVERVIEW "로그인과 계정"). 그래서 Dart와 `.env`에는 두지 않고 매니페스트로만 넣는다. `com.naver.sdk.logEnabled`는 `false`(켜면 logcat에 남는다). `naver_login_flutter`는 4.1.0에 고정했고 올릴 때 로그 출력을 다시 본다. 플러그인의 `configure` CLI는 쓰지 않는다(Secret이 셸 기록에 남는다).
+- 카카오 콘솔에는 개발 PC의 debug 키 해시만 있다. 다른 PC에서 빌드하면 그 키 해시를 더한다.
 
 ## 브랜치
 
-`main`(기본), `dev`(개발), `test`(기술 검증) 3개만 쓴다. 다른 브랜치는 만들지 않는다.
+`main`(기본), `dev`(개발), `test`(기술 검증) 3개만 쓴다.
 
 ## 폴더 구조
 
@@ -41,59 +38,59 @@ lib/
 ├─ app/             MaterialApp, 경로 표(router.dart), 경로 상수(routes.dart)
 ├─ config/          환경 변수(Env)
 ├─ data/            모델, 저장소, 서버 API. 여러 기능이 함께 쓴다
-├─ core/            기능에 속하지 않는 공용 코드 (디자인 토큰·테마, 곡선 계산, 지도 인터페이스 등)
+├─ core/            기능에 속하지 않는 공용 코드(디자인 토큰·테마, 곡선 계산, 지도 인터페이스 등)
 ├─ features/<기능>/  화면과 상태(Riverpod). 예: login, trips, trip_detail, trash, export
 ├─ l10n/            다국어 글자(app_ko.arb)와 모델 글자 변환
-└─ dev/             개발용 화면. 경로는 디버그 빌드에서만 등록한다
+└─ dev/             개발용 화면(경로는 디버그 빌드에서만 등록)
 ```
 
-- 폴더는 파일이 생길 때 만든다. `test/`는 `lib/`와 같은 구조로 둔다.
-- 기능 폴더는 `xxx_screen.dart`, `xxx_controller.dart`(Notifier), `widgets/`로 시작하고, 파일이 많아지면 나눈다.
+- 폴더는 파일이 생길 때 만들고, `test/`는 `lib/`와 같은 구조다. 기능 폴더는 `xxx_screen.dart`, `xxx_controller.dart`(Notifier), `widgets/`로 시작한다.
 - 기능끼리는 서로 import하지 않는다. 같이 쓸 코드는 `data/`나 `core/`로 옮긴다.
-- 화면은 경로로 이동한다(`context.go(Routes.xxx)`). 새 화면은 `app/router.dart`의 여행 목록(`/`) 아래에 등록한다(딥링크로 바로 열어도 뒤로가기가 여행 목록으로 가게).
-  - 예외: 로그인(`/login`)은 최상위다. 여행 목록 아래에 두면 토큰 없이 목록이 만들어지고, 로그인 화면의 뒤로가기가 앱을 닫지 못한다. 로그인 여부에 따른 이동은 `authRedirect` 한 곳에서 한다(가려던 곳은 `?from=`, 앱 안 경로만 받는다).
-- 서버 API는 `data/api/ApiClient`(토큰 붙이기·재발급)로만 부른다. 여행 저장소는 로그인한 사용자마다 `ServerTripRepository`를 새로 만들고, 제주 샘플을 더하는 `SampleTripRepository`로 감싼다(`tripRepositoryProvider`). 쓰기 실패는 `ApiException`이고, 화면은 `saveFailureText`로 알린다.
+- 화면은 경로로 이동한다(`context.go(Routes.xxx)`). 새 화면은 `app/router.dart`의 여행 목록(`/`) 아래에 둔다(딥링크로 열어도 뒤로가기가 목록으로 가게).
+  - 예외: 로그인(`/login`)은 최상위다(목록 아래면 토큰 없이 목록이 만들어지고 뒤로가기가 앱을 닫지 못한다). 로그인 여부에 따른 이동은 `authRedirect` 한 곳(가려던 곳은 `?from=`, 앱 안 경로만).
+- 서버 API는 `data/api/ApiClient`(토큰 붙이기·재발급)로만 부른다. 여행 저장소는 로그인한 사용자마다 `ServerTripRepository`를 만들어 `SampleTripRepository`로 감싼다(`tripRepositoryProvider`). 쓰기 실패는 `ApiException`이고 화면은 `saveFailureText`로 알린다. 주소 검색·좌표는 `data/addresses/AddressApi`, 실패 안내는 `searchFailureText`.
 - 상태 관리는 Riverpod을 코드 생성 없이 쓴다.
 
 ## 다국어
 
 - 화면 글자는 `lib/l10n/app_ko.arb`에 두고 `context.l10n`(컨트롤러는 `l10nProvider`)으로 읽는다. 모델(`data/`)에는 글자를 두지 않는다.
 - 문장은 조각을 이어 붙이지 않고 자리 표시자가 있는 문장 하나로 둔다(언어마다 어순이 다르다).
-- 개발자만 보는 글자(오류·로그, 디버그 전용 화면)는 옮기지 않는다.
+- 화면 글자에 가운뎃점(·)을 쓰지 않는다. `test/l10n/arb_style_test.dart`가 검사한다.
+- 개발자만 보는 글자(오류·로그, 디버그 화면)는 옮기지 않는다.
 
 ## 디자인
 
-- 색·여백·모서리는 값을 직접 쓰지 않고 `lib/core/theme/`의 토큰으로 읽는다. 색은 `colorScheme`이나 `context.appColors`, 여백은 `AppSpace`, 모서리는 `AppRadius`다.
-- `colorScheme`에 없는 색은 `AppColors`에 이름을 붙여 더한다(다크 모드 때 값만 바꾸려고).
-- 스크롤 여백을 직접 정하면 `MediaQuery.paddingOf(context)`를 더하고, 화면 전체를 `SafeArea`로 감싸지 않는다(내용이 시스템 막대 뒤로 지나가되 끝까지 보이게. Android 15 이상은 화면 끝까지 그린다).
-- 글꼴 파일(`assets/fonts/`)은 원본 그대로 둔다. 고치면 OFL 예약 이름 때문에 글꼴 이름을 바꿔야 한다.
+- 색·여백·모서리는 `lib/core/theme/` 토큰으로 읽는다: 색은 `colorScheme`이나 `context.appColors`, 여백 `AppSpace`, 모서리 `AppRadius`. `colorScheme`에 없는 색은 `AppColors`에 이름을 붙여 더한다(다크 모드 때 값만 바꾸려고).
+- 컴포넌트 테마에 글자 모양을 넣을 때는 `app_theme.dart`의 크기를 붙인 글자(`typography.dense`를 합친 것)를 쓴다. `ThemeData.textTheme`에는 크기가 없어 그대로 넣으면 기본 14로 그려진다. 입력 칸 모양(밑줄형)도 테마가 정하니 화면에서 테두리를 주지 않는다.
+- 스크롤 여백을 직접 정하면 `MediaQuery.paddingOf(context)`를 더하고, 화면 전체를 `SafeArea`로 감싸지 않는다(Android 15 이상은 화면 끝까지 그린다).
+- 글꼴 파일(`assets/fonts/`)은 원본 그대로 둔다(고치면 OFL 예약 이름 때문에 이름을 바꿔야 한다).
 
 ## 지도 (네이버 SDK)
 
-- `flutter_naver_map`은 `core/map/naver/`, `main.dart`(SDK 초기화), `dev/snapshot_lab/`에서만 쓴다. 나머지 코드는 `MapProvider`만 본다.
-- SDK는 오버레이를 메시지로 바꿔 네이티브 지도에 보낸다. 바꿀 수 없는 값이 하나라도 있으면 같이 보낸 오버레이가 모두 빠지고, 오류는 `adb logcat`의 `E flutter`에만 남는다. 좌표·무늬는 `List`로 넘긴다(`map()`의 `Iterable`은 안 된다). 새 오버레이를 쓰면 `test/core/map/naver/naver_map_provider_test.dart`에 메시지 변환 테스트를 더한다.
-- 리스너를 단 오버레이는 탭을 먹어 지도 탭이 불리지 않는다. 카메라 맞춤은 `fitBounds`가 지도 여백을 빼고 맞추는 것에 기대므로, 지도 위에 띄운 요소를 바꾸면 `MapScene.padding`도 맞춘다.
+- `flutter_naver_map`은 `core/map/naver/`, `main.dart`, `dev/snapshot_lab/`에서만 쓰고, 나머지는 `MapProvider`만 본다.
+- SDK는 오버레이를 메시지로 바꿔 보낸다. 바꿀 수 없는 값이 하나라도 있으면 같이 보낸 오버레이가 모두 빠지고 오류는 `adb logcat`의 `E flutter`에만 남는다. 좌표·무늬는 `List`로 넘긴다(`map()`의 `Iterable`은 안 된다). 새 오버레이를 쓰면 `test/core/map/naver/naver_map_provider_test.dart`에 변환 테스트를 더한다.
+- 리스너를 단 오버레이는 탭을 먹어 지도 탭이 불리지 않는다. 카메라 맞춤은 `fitBounds`가 지도 여백을 빼는 것에 기대므로, 지도 위 요소를 바꾸면 `MapScene.padding`도 맞춘다.
 - 네이버 로고는 끄거나 가리지 않는다(내보내기 이미지 포함).
 
 ## 테스트
 
-- 테스트는 실제 서버·카카오·네이버에 붙지 않는다. HTTP는 `FakeHttp`(`fake_http.dart`)를 끼운 dio, 로그인 상태·SDK는 `authOverrides`·`testSession`·`FakeSocialSdk`(`fake_auth.dart`), 저장 실패와 저장을 기다리는 동안은 `FlakyTripRepository`(`failWrites`·`holdWrites`), 샘플은 `withSample`·`MemorySampleStore`로 본다.
-- 공용 도우미는 `test/helpers/`다. 화면은 `pumpTestApp`(지도를 가짜 지도로 바꿔 끼움, 기본으로 로그인 상태)이나 `testMaterialApp`으로 띄운다. 지도에 넘긴 장면은 `mapScene(tester)`, 지도 탭은 `tapMarker`·`tapLine`·`tapMap`으로 본다.
-- 기본 화면(800×600)은 가로라 동선 목록이 오른쪽 패널로 뜬다. 아래 시트는 `usePortraitPhone`으로 띄운다. 연필·손잡이는 줄을 먼저 눌러야 뜬다.
-- 앱 로캘이 한국어라 `tester.pageBack()` 대신 `find.byType(BackButton)`을 누른다. 칩은 글자 대신 `ChoiceChip`·`FilterChip` 위젯을 누른다.
-- 저장소 스트림을 `await ...first`로 기다리지 않는다(가짜 시간 안에서 끝나지 않아 테스트가 멈춘다). 저장된 값은 화면이나 `container.read`로 보고, 꼭 기다려야 하면 `tester.runAsync` 안에서 한다. 진행 표시가 도는 동안은 `pumpAndSettle` 대신 `pump`를 여러 번 한다.
-- `enterText` 뒤에는 `pump`를 한 번 한다. 위젯 없이 날짜 표기를 볼 때는 `initializeDateFormatting('ko')`를 먼저 부른다.
-- 테스트는 글꼴을 불러오지 않아 글자 폭이 실기기와 다르다. 글자 넘침은 실기기에서 본다.
+- 실제 서버·카카오·네이버에 붙지 않는다. HTTP는 `FakeHttp`를 끼운 dio, 로그인은 `authOverrides`·`testSession`·`FakeSocialSdk`, 저장 실패와 기다림은 `FlakyTripRepository`(`failWrites`·`holdWrites`), 샘플은 `withSample`·`MemorySampleStore`, 주소 검색은 `FakeAddressApi`(`pumpTestApp(addressApi:)`).
+- 공용 도우미는 `test/helpers/`. 화면은 `pumpTestApp`(가짜 지도, 기본 로그인)이나 `testMaterialApp`, 지도에 넘긴 장면은 `mapScene(tester)`, 지도 탭은 `tapMarker`·`tapLine`·`tapMap`.
+- 기본 화면(800×600)은 가로라 동선 목록이 오른쪽 패널이다. 아래 시트는 `usePortraitPhone`. 연필·손잡이는 줄을 먼저 눌러야 뜬다.
+- 로캘이 한국어라 `tester.pageBack()` 대신 `find.byType(BackButton)`을 누른다. 칩은 `ChoiceChip`·`FilterChip` 위젯을 누른다.
+- 저장소 스트림을 `await ...first`로 기다리지 않는다(가짜 시간 안에서 멈춘다). 꼭 기다리면 `tester.runAsync` 안에서. 진행 표시가 도는 동안은 `pumpAndSettle` 대신 `pump`를 여러 번.
+- `enterText` 뒤에는 `pump` 한 번. 위젯 없이 날짜 표기를 볼 때는 `initializeDateFormatting('ko')`를 먼저.
+- 테스트는 글꼴을 불러오지 않아 글자 폭이 다르다. 글자 넘침은 실기기에서 본다.
 
 ## 의존성과 프로젝트 파일
 
-- **go_router는 17.x에 묶는다.** 18은 Material을 `material_ui` 패키지로 옮겨서, `flutter/material`의 `MaterialApp`을 쓰는 이 앱은 모든 화면이 전환 애니메이션 없이 뜬다. Flutter 템플릿과 `flutter_naver_map`이 `material_ui`로 옮긴 뒤 앱 import와 함께 올린다(그때 `test/app/router_test.dart`의 Material 페이지 테스트가 실패한다).
-- `android/gradle.properties`의 `android.newDsl=false`, `android.builtInKotlin=false`는 예전 Gradle 설정을 쓰는 플러그인(`flutter_naver_map` 등)과 호환하려는 것이다. 플러그인들이 바뀌기 전에는 지우지 않는다.
-- Flutter를 올리면 마이그레이터가 프로젝트 파일을 고친다. 새 프로젝트 템플릿과 같은 내용인지 보고, 줄바꿈이 바뀌었으면 되돌린다.
-- 플랫폼 폴더는 Android·iOS만 둔다(네이버 지도 SDK가 두 플랫폼만 지원). 다른 플랫폼 폴더가 로컬에 남아 있으면 `flutter pub get` 때 플러그인 등록 파일이 다시 생기니 지운다.
-- 줄바꿈이 파일마다 다르다. `flutter create`가 만든 파일(`pubspec.yaml`, `analysis_options.yaml`, `README.md`, Android·iOS 설정 대부분)은 CRLF, `lib/`·`test/`와 문서는 LF다. `.gitattributes`가 없어서 줄바꿈이 바뀌면 diff 전체가 바뀌니, 커밋 전에 `git diff --stat`을 본다.
+- **go_router는 17.x에 묶는다.** 18은 Material을 `material_ui`로 옮겨 이 앱의 모든 화면이 전환 애니메이션 없이 뜬다. Flutter 템플릿과 `flutter_naver_map`이 옮긴 뒤 함께 올린다(그때 `test/app/router_test.dart`가 실패한다).
+- `android/gradle.properties`의 `android.newDsl=false`, `android.builtInKotlin=false`는 예전 Gradle 설정을 쓰는 플러그인 호환용이다. 플러그인이 바뀌기 전에는 지우지 않는다.
+- Flutter를 올리면 마이그레이터가 고친 프로젝트 파일이 템플릿과 같은지 보고, 줄바꿈이 바뀌었으면 되돌린다.
+- 플랫폼 폴더는 Android·iOS만 둔다(지도 SDK가 두 플랫폼만 지원). 다른 플랫폼 폴더가 남아 있으면 지운다.
+- 줄바꿈이 파일마다 다르다. `flutter create`가 만든 파일(`pubspec.yaml`, `analysis_options.yaml`, `README.md`, Android·iOS 설정 대부분)은 CRLF, `lib/`·`test/`와 문서는 LF다. `.gitattributes`가 없어 커밋 전에 `git diff --stat`을 본다.
 
 ## 코딩 규칙
 
-- `flutter_lints` 규칙(`analysis_options.yaml`)을 따르고, 커밋 전에 `flutter analyze`와 `flutter test`가 통과하는지 확인한다.
-- iOS를 지원하지 않는 패키지는 쓰지 않는다(iOS는 MVP 이후 출시).
+- `flutter_lints`를 따르고 커밋 전에 `flutter analyze`와 `flutter test`가 통과하는지 본다.
+- iOS를 지원하지 않는 패키지는 쓰지 않는다.

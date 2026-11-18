@@ -42,6 +42,7 @@ Map<String, Object?> serverStop({
   'latitude': 35.1587,
   'longitude': 129,
   'name': '해운대',
+  'address': '부산광역시 해운대구 해운대해변로 264',
   'kind': 'tour',
   'description': '바다',
   'memo': '',
@@ -78,6 +79,7 @@ Map<String, Object?> serverCandidate({String id = 'cand-1', String? name}) => {
   'latitude': 33.5065,
   'longitude': 127,
   'name': name ?? '우도',
+  'address': '제주특별자치도 제주시 우도면',
   'kind': 'tour',
   'description': '섬',
   'memo': '배 시간',
@@ -103,6 +105,7 @@ Stop _stop({LocalTime? plannedTime}) => Stop(
   latitude: 35.1587,
   longitude: 129.1604,
   name: '해운대',
+  address: '부산 해운대구 우동',
   day: 2,
   order: 1,
   kind: StopKind.lodging,
@@ -183,6 +186,7 @@ void main() {
       // JSON의 정수 좌표도 실수로 읽는다.
       expect(stop.longitude, 129.0);
       expect(stop.name, '해운대');
+      expect(stop.address, '부산광역시 해운대구 해운대해변로 264');
       expect(stop.kind, StopKind.tour);
       expect(stop.description, '바다');
       expect(stop.memo, '');
@@ -192,6 +196,15 @@ void main() {
       expect(stop.timeZone, 'Asia/Seoul');
       expect(stop.placeProvider, MapProviderType.naver);
       expect(stop.placeId, '12345');
+    });
+
+    test('reads a stop and a candidate without an address as empty', () {
+      // 주소 칸이 생기기 전 서버나 기기에 저장한 여행(2-2).
+      expect(stopFromJson({...serverStop()}..remove('address')).address, '');
+      expect(
+        candidateFromJson({...serverCandidate()}..remove('address')).address,
+        '',
+      );
     });
 
     test('reads a visit time as UTC', () {
@@ -214,6 +227,7 @@ void main() {
         'latitude': 35.1587,
         'longitude': 129.1604,
         'name': '해운대',
+        'address': '부산 해운대구 우동',
         'kind': 'lodging',
         'description': '설명',
         'memo': '메모',
@@ -235,6 +249,7 @@ void main() {
         expect(json['plannedTime'], isNull);
         expect(json.containsKey('plannedTime'), isTrue);
         expect(json['name'], '해운대');
+        expect(json['address'], '부산 해운대구 우동');
       },
     );
   });
@@ -345,6 +360,7 @@ void main() {
           latitude: 33.5065,
           longitude: 127,
           name: '우도',
+          address: '제주특별자치도 제주시 우도면',
           kind: StopKind.tour,
           description: '섬',
           memo: '배 시간',
@@ -368,6 +384,7 @@ void main() {
         'latitude': 33.5,
         'longitude': 126.9,
         'name': '우도',
+        'address': '',
         'kind': 'other',
         'description': '',
         'memo': '',
@@ -382,6 +399,7 @@ void main() {
         'day': 2,
         'order': 1,
         'name': '해운대',
+        'address': '부산 해운대구 우동',
         'kind': 'lodging',
         'description': '설명',
         'memo': '메모',
@@ -398,6 +416,7 @@ void main() {
       expect(candidate.id, 'stop-1');
       expect(candidate.kind, StopKind.lodging);
       expect(candidate.memo, '메모');
+      expect(candidate.address, '부산 해운대구 우동');
     });
   });
 

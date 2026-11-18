@@ -103,7 +103,8 @@ class RouteDayChips extends StatelessWidget {
 
     // 필터 칩은 보기 칩보다 작게, 글과 함께 바탕 하나에 묶는다(지도 위에서 글이 묻히지 않게).
     // 지도를 덜 가리려고 누르는 영역도 보이는 크기로 줄인다.
-    Widget filter(String label, bool selected, ValueChanged<bool> onChanged) =>
+    // [onChanged]가 null이면 고정된 칩이다(바꿔도 지도가 같아서 누를 수 없다).
+    Widget filter(String label, bool selected, ValueChanged<bool>? onChanged) =>
         FilterChip(
           label: Text(label),
           selected: selected,
@@ -139,10 +140,12 @@ class RouteDayChips extends StatelessWidget {
                 ),
               ),
               filter(l10n.routeShowLodging, showLodging, onShowLodgingChanged),
+              // "후보 목록" 보기는 후보가 늘 보여서 "후보" 칩은 켜진 채로 고정한다.
+              // 다른 보기로 가면 사용자가 켜고 끈 대로다.
               filter(
                 l10n.routeShowCandidates,
-                showCandidates,
-                onShowCandidatesChanged,
+                showCandidates || candidateView,
+                candidateView ? null : onShowCandidatesChanged,
               ),
             ],
           ),

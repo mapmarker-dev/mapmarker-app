@@ -137,9 +137,9 @@ void main() {
             dates: TripDates(LocalDate(2026, 10, 14), LocalDate(2026, 10, 17)),
           ),
         ),
-        '2026.10.14 – 10.17 · 3박 4일',
+        '2026.10.14 – 10.17, 3박 4일',
       );
-      expect(l10n.tripSummaryOf(_trip()), '날짜 미정 · 1박 2일');
+      expect(l10n.tripSummaryOf(_trip()), '날짜 미정, 1박 2일');
     });
   });
 

@@ -574,11 +574,15 @@ void main() {
         of: find.byKey(const ValueKey('b')),
         matching: find.byIcon(Icons.drag_handle),
       );
-      final rowHeight = tester.getSize(find.byKey(const ValueKey('a'))).height;
+      // 끄는 줄의 가운데가 a의 가운데를 넘어야 자리가 바뀐다.
+      // 누른 b는 펼쳐져서(외부 지도 칸, 아래 구간 줄) 접힌 a보다 훨씬 길다.
+      final distance =
+          tester.getCenter(find.byKey(const ValueKey('b'))).dy -
+          tester.getCenter(find.byKey(const ValueKey('a'))).dy;
       final drag = await tester.startGesture(tester.getCenter(handle));
-      await drag.moveBy(Offset(0, -rowHeight / 2));
+      await drag.moveBy(Offset(0, -distance / 2));
       await tester.pump();
-      await drag.moveBy(Offset(0, -rowHeight / 2 - 4));
+      await drag.moveBy(Offset(0, -distance / 2 - 4));
       await tester.pump();
       await drag.up();
       await tester.pumpAndSettle();
@@ -657,7 +661,7 @@ void main() {
   group('moving a stop to another day in its form', () {
     const legs = [TransportLeg(TransportMode.subway, stopCount: 2)];
 
-    const preview = '이 자리로 옮기면 아래 이동 수단이 지워집니다.';
+    const preview = '이 일차로 옮기면 아래 이동 수단이 지워집니다.';
 
     /// 입력 화면의 일차를 고른다.
     Future<void> chooseDay(WidgetTester tester, String day) async {
@@ -687,28 +691,25 @@ void main() {
         (stop.id, stop.day),
     ];
 
-    testWidgets('shows the transport it would drop under the slot', (
+    testWidgets('shows the transport it would drop under the day', (
       tester,
     ) async {
       await _pumpJeju(tester, firstLegs: legs);
 
       await moveBToDay2(tester);
 
-      expect(_inForm(find.text('넣을 자리')), findsOneWidget);
-      // 2일차는 비어 있어서 자리가 하나뿐이다.
-      expect(_inForm(find.text('첫 장소')), findsOneWidget);
+      expect(_inForm(find.text('넣을 자리')), findsNothing);
       expect(_inForm(find.text(preview)), findsOneWidget);
       expect(_inForm(find.text('1일차 a → b')), findsOneWidget);
       expect(_inForm(find.text('지하철 2정류장')), findsOneWidget);
     });
 
-    testWidgets('hides the slot when the day goes back', (tester) async {
+    testWidgets('hides the notice when the day goes back', (tester) async {
       await _pumpJeju(tester, firstLegs: legs);
       await moveBToDay2(tester);
 
       await chooseDay(tester, '1일차');
 
-      expect(_inForm(find.text('넣을 자리')), findsNothing);
       expect(_inForm(find.text(preview)), findsNothing);
     });
 
@@ -736,7 +737,6 @@ void main() {
 
       await moveBToDay2(tester);
 
-      expect(_inForm(find.text('넣을 자리')), findsOneWidget);
       expect(_inForm(find.text(preview)), findsNothing);
 
       await tester.tap(_saveButton.first);

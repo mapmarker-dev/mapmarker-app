@@ -55,8 +55,8 @@ void main() {
     );
     expect(route.stops.every((s) => !isSampleTrip(s.tripId)), isTrue);
     expect(
-      route.stops.map((s) => s.plannedTime),
-      sample.route.stops.map((s) => s.plannedTime),
+      route.stops.map((s) => (s.plannedTime, s.address)),
+      sample.route.stops.map((s) => (s.plannedTime, s.address)),
     );
     String pair(TripRoute r, String from, String to) =>
         '${r.stopById(from)!.name}>${r.stopById(to)!.name}';
@@ -74,9 +74,11 @@ void main() {
     expect(copied, original);
     // 후보도 같은 순서로 새 ID로 들어간다.
     expect(
-      route.candidates.map((c) => (c.name, c.kind, c.description, c.memo)),
+      route.candidates.map(
+        (c) => (c.name, c.kind, c.description, c.memo, c.address),
+      ),
       sample.route.candidates.map(
-        (c) => (c.name, c.kind, c.description, c.memo),
+        (c) => (c.name, c.kind, c.description, c.memo, c.address),
       ),
     );
     expect(

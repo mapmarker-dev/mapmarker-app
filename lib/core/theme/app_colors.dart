@@ -35,6 +35,7 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.routeViaOpacity,
     required this.routeCandidate,
     required this.routeCandidateRing,
+    required this.routeCandidateFocus,
     required this.kakaoLogin,
     required this.naverLogin,
   });
@@ -60,6 +61,10 @@ class AppColors extends ThemeExtension<AppColors> {
       scheme.onSurfaceVariant,
     ),
     routeCandidateRing: scheme.outline,
+    routeCandidateFocus: ChipColors(
+      AppPalette.ink700,
+      scheme.surfaceContainerLowest,
+    ),
     kakaoLogin: const ChipColors(AppPalette.kakaoYellow, AppPalette.kakaoLabel),
     naverLogin: const ChipColors(AppPalette.naverGreen, AppPalette.naverLabel),
   );
@@ -93,6 +98,9 @@ class AppColors extends ThemeExtension<AppColors> {
   /// 후보 장소 마커의 테두리. 흰 바탕이 지도에 묻히지 않게 한다.
   final Color routeCandidateRing;
 
+  /// "후보 목록" 보기의 후보 마커. 
+  final ChipColors routeCandidateFocus;
+
   /// 로그인 버튼. 다크 모드에서도 브랜드 색 그대로다.
   final ChipColors kakaoLogin;
   final ChipColors naverLogin;
@@ -117,6 +125,7 @@ class AppColors extends ThemeExtension<AppColors> {
     double? routeViaOpacity,
     ChipColors? routeCandidate,
     Color? routeCandidateRing,
+    ChipColors? routeCandidateFocus,
     ChipColors? kakaoLogin,
     ChipColors? naverLogin,
   }) => AppColors(
@@ -131,6 +140,7 @@ class AppColors extends ThemeExtension<AppColors> {
     routeViaOpacity: routeViaOpacity ?? this.routeViaOpacity,
     routeCandidate: routeCandidate ?? this.routeCandidate,
     routeCandidateRing: routeCandidateRing ?? this.routeCandidateRing,
+    routeCandidateFocus: routeCandidateFocus ?? this.routeCandidateFocus,
     kakaoLogin: kakaoLogin ?? this.kakaoLogin,
     naverLogin: naverLogin ?? this.naverLogin,
   );
@@ -157,6 +167,11 @@ class AppColors extends ThemeExtension<AppColors> {
         other.routeCandidateRing,
         t,
       )!,
+      routeCandidateFocus: ChipColors.lerp(
+        routeCandidateFocus,
+        other.routeCandidateFocus,
+        t,
+      ),
       kakaoLogin: ChipColors.lerp(kakaoLogin, other.kakaoLogin, t),
       naverLogin: ChipColors.lerp(naverLogin, other.naverLogin, t),
     );

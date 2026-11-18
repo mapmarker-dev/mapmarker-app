@@ -5,6 +5,7 @@ import '../../../core/widgets/saving.dart';
 import '../../../data/models/stop.dart';
 import '../../../l10n/l10n.dart';
 import '../stop_draft.dart';
+import 'address_search.dart';
 
 /// 장소 입력 화면과 후보 입력 화면이 함께 쓰는 칸과 버튼.
 /// 후보는 동선에 넣으면 장소가 되니, 같은 값은 같은 칸·같은 상한으로 받는다.
@@ -29,8 +30,60 @@ class PlaceNameField extends StatelessWidget {
     autofocus: autofocus,
     maxLength: StopDraft.nameMaxLength,
     textInputAction: TextInputAction.next,
-    decoration: InputDecoration(labelText: context.l10n.stopNameLabel),
+    decoration: InputDecoration(
+      labelText: context.l10n.stopNameLabel,
+      // 주소로 찾은 곳도 어떤 가게인지는 모르니 이름은 사용자가 쓴다.
+      hintText: context.l10n.stopNameHint,
+    ),
   );
+}
+
+/// 입력 화면의 주소 칸. 🔍·엔터로 찾아 목록에서 고르면 주소와 위치가 함께 바뀌고, 글자만 고치면 위치는 그대로다.
+class PlaceAddressSearch extends StatelessWidget {
+  const PlaceAddressSearch({
+    super.key,
+    required this.controller,
+    required this.enabled,
+    required this.onPicked,
+    this.searchable = true,
+  });
+
+  final TextEditingController controller;
+  final bool enabled;
+  final ValueChanged<FoundPlace> onPicked;
+
+  /// false면 고칠 수 없는 칸이다. [동선에 넣기]는 후보의 위치 그대로 넣어서(서버가 후보 좌표를 쓴다)
+  /// 주소를 찾거나 고쳐도 소용이 없다. 칸 아래에 그 이유와 바꾸는 곳을 알린다.
+  final bool searchable;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    if (!searchable) {
+      return TextField(
+        controller: controller,
+        enabled: false,
+        minLines: 1,
+        maxLines: 3,
+        decoration: InputDecoration(
+          labelText: l10n.stopAddressLabel,
+          helperText: l10n.addressFixedHelper,
+          helperMaxLines: 2,
+          // 칸은 흐리게(고칠 수 없음) 두되, 안내는 읽혀야 해서 다른 칸의 안내와 같은 색이다.
+          helperStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      );
+    }
+    return AddressSearch(
+      controller: controller,
+      label: l10n.stopAddressLabel,
+      enabled: enabled,
+      maxLength: StopDraft.addressMaxLength,
+      onPicked: onPicked,
+    );
+  }
 }
 
 /// 종류 칩(숙소·음식·관광·기타).
@@ -54,7 +107,7 @@ class PlaceKindChips extends StatelessWidget {
         const SizedBox(height: AppSpace.sm),
         Wrap(
           spacing: AppSpace.sm,
-          runSpacing: AppSpace.sm,
+          runSpacing: 0,
           children: [
             for (final value in StopKind.values)
               ChoiceChip(
@@ -88,18 +141,11 @@ class PlaceNotesFields extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     Widget field(TextEditingController controller, String label, String help) =>
-        TextField(
+        _NoteField(
           controller: controller,
           enabled: enabled,
-          minLines: 2,
-          maxLines: 6,
-          maxLength: StopDraft.textMaxLength,
-          decoration: InputDecoration(
-            labelText: label,
-            helperText: help,
-            helperMaxLines: 2,
-            alignLabelWithHint: true,
-          ),
+          label: label,
+          helper: help,
         );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -114,6 +160,90 @@ class PlaceNotesFields extends StatelessWidget {
       ],
     );
   }
+}
+
+/// 설명·메모처럼 2줄 이상인 칸.
+///
+/// 비었을 때의 큰 이름표는 한 줄 칸(이름·주소)의 큰 이름표와 같은 높이, 곧 칸의 첫째 줄에 둔다.
+class _NoteField extends StatefulWidget {
+  const _NoteField({
+    required this.controller,
+    required this.enabled,
+    required this.label,
+    required this.helper,
+  });
+
+  final TextEditingController controller;
+  final bool enabled;
+  final String label;
+  final String helper;
+
+  @override
+  State<_NoteField> createState() => _NoteFieldState();
+}
+
+class _NoteFieldState extends State<_NoteField> {
+  /// 칠한 칸(M3)에서 첫 글자 줄 가운데와 한 줄 칸의 큰 이름표 가운데의 차이.
+  static const _restingLift = AppSpace.sm;
+
+  /// 이름표가 작게 올라가는 시간·곡선(InputDecorator와 같다).
+  static const _duration = Duration(milliseconds: 167);
+
+  final _focus = FocusNode();
+  late bool _resting = _isResting;
+
+  bool get _isResting => !_focus.hasFocus && widget.controller.text.isEmpty;
+
+  void _update() {
+    if (_isResting != _resting) setState(() => _resting = _isResting);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(_update);
+    widget.controller.addListener(_update);
+  }
+
+  @override
+  void didUpdateWidget(_NoteField old) {
+    super.didUpdateWidget(old);
+    if (old.controller != widget.controller) {
+      old.controller.removeListener(_update);
+      widget.controller.addListener(_update);
+      _resting = _isResting;
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_update);
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => TextField(
+    controller: widget.controller,
+    focusNode: _focus,
+    enabled: widget.enabled,
+    minLines: 2,
+    maxLines: 6,
+    maxLength: StopDraft.textMaxLength,
+    decoration: InputDecoration(
+      label: TweenAnimationBuilder<double>(
+        tween: Tween(end: _resting ? -_restingLift : 0),
+        duration: _duration,
+        curve: Curves.fastOutSlowIn,
+        builder: (context, dy, child) =>
+            Transform.translate(offset: Offset(0, dy), child: child),
+        child: Text(widget.label),
+      ),
+      helperText: widget.helper,
+      helperMaxLines: 2,
+      alignLabelWithHint: true,
+    ),
+  );
 }
 
 /// 입력 화면 맨 아래의 버튼 줄. 버튼은 왼쪽부터 한 줄에 놓고, 폭이 모자랄 때만 다음 줄로 넘긴다.

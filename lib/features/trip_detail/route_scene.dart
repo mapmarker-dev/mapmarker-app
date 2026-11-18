@@ -191,32 +191,48 @@ MarkerLook markerLookOf(TripRoute route, Stop stop, AppColors colors) {
   );
 }
 
-/// 후보 장소 마커들. 흰 바탕·회색 테두리의 작은 원에 종류 아이콘, 흐린 이름이다([MapMarker.secondary]).
-/// 일차 색을 쓰지 않아 동선과 구분되고, 지도에서 동선의 마커·선 아이콘보다 아래에 그린다.
-/// 마커 ID는 후보 ID다(장소 ID와 겹치지 않는다).
-List<MapMarker> candidateMarkers(TripRoute route, AppColors colors) => [
+/// 후보 장소 마커들. 마커 ID는 후보 ID다(장소 ID와 겹치지 않는다).
+///
+/// - 전체·일차 보기("후보"를 켰을 때): 흰 바탕·회색 테두리의 작은 원에 종류 아이콘, 흐린 이름이다
+///   ([MapMarker.secondary]). 동선의 마커·선 아이콘보다 아래에 그려 동선을 가리지 않는다.
+/// - [focused]("후보 목록" 보기): 후보가 주인공이라 진한 보통 크기 마커에 또렷한 이름이다.
+///   부른 쪽이 흐린 동선보다 뒤에 넣어 위에 그린다.
+List<MapMarker> candidateMarkers(
+  TripRoute route,
+  AppColors colors, {
+  bool focused = false,
+}) => [
   for (final candidate in route.candidates)
     MapMarker(
       id: candidate.id,
       position: candidate.position,
       caption: candidate.name,
-      look: candidateLookOf(candidate.kind, colors),
-      secondary: true,
+      look: candidateLookOf(candidate.kind, colors, focused: focused),
+      secondary: !focused,
     ),
 ];
 
 /// 후보의 마커 그림. 후보 목록의 줄도 같은 그림을 쓴다.
-MarkerLook candidateLookOf(StopKind kind, AppColors colors) => MarkerLook(
-  fill: colors.routeCandidate.background,
-  foreground: colors.routeCandidate.foreground,
+/// [focused]면 "후보 목록" 보기의 진한 마커다([candidateMarkers]).
+MarkerLook candidateLookOf(
+  StopKind kind,
+  AppColors colors, {
+  bool focused = false,
+}) => MarkerLook(
+  fill: focused
+      ? colors.routeCandidateFocus.background
+      : colors.routeCandidate.background,
+  foreground: focused
+      ? colors.routeCandidateFocus.foreground
+      : colors.routeCandidate.foreground,
   halo: colors.routeHalo,
-  ring: colors.routeCandidateRing,
+  ring: focused ? null : colors.routeCandidateRing,
   icon: switch (kind) {
     StopKind.lodging => lodgingIcon,
     StopKind.food || StopKind.tour => kindBadge(kind),
     StopKind.other => Icons.place,
   },
-  small: true,
+  small: !focused,
 );
 
 /// [markerId] 마커가 나타내는 장소들. 같은 자리의 보이는 장소를 동선 순서로 모은다.

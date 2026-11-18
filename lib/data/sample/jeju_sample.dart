@@ -19,7 +19,7 @@ typedef SampleTrip = ({Trip trip, TripRoute route});
 /// 처음 쓰는 사람을 위한 길잡이: 제주 3박 4일 가을 여행. 서버에 넣지 않고 앱에 담아 둔다(OVERVIEW).
 ///
 /// 날짜는 미정이다. 언제 봐도 "여행 전"으로 어색하지 않다.
-/// 앱이 하는 일이 한눈에 보이게 숙소 연박과 숙소를 옮기는 날, 장소 종류, 예정 시각·설명·메모,
+/// 앱이 하는 일이 한눈에 보이게 숙소 연박과 숙소를 옮기는 날, 장소 종류, 예정 시각·설명·메모·주소,
 /// 이동 수단의 선 모양 3갈래(실선·점선·파선)와 갈아타기, 미정 구간, 곡선, 후보 장소를 모두 넣었다.
 SampleTrip jejuSample(AppLocalizations l10n) {
   const nights = 3;
@@ -41,7 +41,12 @@ SampleTrip jejuSample(AppLocalizations l10n) {
     updatedAt: at,
   );
 
-  final airport = _Place(l10n.sampleJejuAirport, 33.5070, 126.4929);
+  final airport = _Place(
+    l10n.sampleJejuAirport,
+    33.5070,
+    126.4929,
+    address: l10n.sampleJejuAirportAddress,
+  );
   final cityHotel = _Place(
     l10n.sampleJejuCityHotel,
     33.5170,
@@ -57,6 +62,7 @@ SampleTrip jejuSample(AppLocalizations l10n) {
         126.5119,
         kind: StopKind.tour,
         description: l10n.sampleJejuYongduamDescription,
+        address: l10n.sampleJejuYongduamAddress,
       ),
       _Place(
         l10n.sampleJejuDongmun,
@@ -64,6 +70,7 @@ SampleTrip jejuSample(AppLocalizations l10n) {
         126.5274,
         kind: StopKind.food,
         memo: l10n.sampleJejuDongmunMemo,
+        address: l10n.sampleJejuDongmunAddress,
       ),
       cityHotel,
     ],
@@ -75,7 +82,13 @@ SampleTrip jejuSample(AppLocalizations l10n) {
         kind: StopKind.tour,
         description: l10n.sampleJejuHyeopjaeDescription,
       ),
-      _Place(l10n.sampleJejuOsulloc, 33.3060, 126.2894, kind: StopKind.food),
+      _Place(
+        l10n.sampleJejuOsulloc,
+        33.3060,
+        126.2894,
+        kind: StopKind.food,
+        address: l10n.sampleJejuOsullocAddress,
+      ),
       cityHotel,
     ],
     [
@@ -85,10 +98,17 @@ SampleTrip jejuSample(AppLocalizations l10n) {
         126.9425,
         kind: StopKind.tour,
         description: l10n.sampleJejuSeongsanDescription,
+        address: l10n.sampleJejuSeongsanAddress,
         plannedTime: const LocalTime(6, 30),
       ),
       _Place(l10n.sampleJejuUdo, 33.5006, 126.9530, kind: StopKind.tour),
-      _Place(l10n.sampleJejuOlleMarket, 33.2497, 126.5636, kind: StopKind.food),
+      _Place(
+        l10n.sampleJejuOlleMarket,
+        33.2497,
+        126.5636,
+        kind: StopKind.food,
+        address: l10n.sampleJejuOlleMarketAddress,
+      ),
       _Place(
         l10n.sampleJejuSeogwipoHotel,
         33.2440,
@@ -102,6 +122,7 @@ SampleTrip jejuSample(AppLocalizations l10n) {
         33.2470,
         126.5545,
         kind: StopKind.tour,
+        address: l10n.sampleJejuCheonjiyeonAddress,
       ),
       airport,
     ],
@@ -199,6 +220,7 @@ SampleTrip jejuSample(AppLocalizations l10n) {
       126.8094,
       kind: StopKind.tour,
       description: l10n.sampleJejuBijarimDescription,
+      address: l10n.sampleJejuBijarimAddress,
     ),
     _Place(
       l10n.sampleJejuAewol,
@@ -213,6 +235,7 @@ SampleTrip jejuSample(AppLocalizations l10n) {
       126.4963,
       kind: StopKind.tour,
       description: l10n.sampleJejuYeongsilDescription,
+      address: l10n.sampleJejuYeongsilAddress,
     ),
   ];
   final candidates = [
@@ -233,6 +256,7 @@ class _Place {
     this.kind = StopKind.other,
     this.description = '',
     this.memo = '',
+    this.address = '',
     this.plannedTime,
   });
 
@@ -242,6 +266,9 @@ class _Place {
   final StopKind kind;
   final String description;
   final String memo;
+
+  /// 도로명주소 검색으로 찾은 주소. 찾지 못하는 곳(해변, 섬, 거리)과 이름뿐인 숙소는 빈칸이다.
+  final String address;
   final LocalTime? plannedTime;
 
   _Place copyWith({LocalTime? plannedTime}) => _Place(
@@ -251,6 +278,7 @@ class _Place {
     kind: kind,
     description: description,
     memo: memo,
+    address: address,
     plannedTime: plannedTime ?? this.plannedTime,
   );
 
@@ -264,6 +292,7 @@ class _Place {
         kind: kind,
         description: description,
         memo: memo,
+        address: address,
         plannedTime: plannedTime,
         day: day,
         order: order,
@@ -278,5 +307,6 @@ class _Place {
     kind: kind,
     description: description,
     memo: memo,
+    address: address,
   );
 }

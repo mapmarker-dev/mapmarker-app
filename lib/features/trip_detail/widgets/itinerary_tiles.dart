@@ -12,9 +12,10 @@ import '../transport_look.dart';
 
 /// 일차 동선 시트의 장소 줄.
 ///
-/// 이름 쪽을 누르면 고르고 펼쳐져서 설명 전체와 메모가 나온다.
+/// 이름 쪽을 누르면 고르고 펼쳐져서 설명 전체와 메모, 주소, 외부 지도 칸이 나온다.
 /// 오른쪽 연필 아이콘을 누르면 장소 입력 화면이 열린다. 지우기도 그 화면 안에 있다
-/// 아래 칸을 누르면 외부 지도(네이버)에서 장소를 연다. 영업시간, 리뷰는 거기서 본다.
+/// 외부 지도 칸을 누르면 네이버 지도에서 장소를 연다. 영업시간, 리뷰는 거기서 본다.
+/// 그 칸은 펼친 줄에만 둔다
 class ItineraryStopTile extends StatelessWidget {
   const ItineraryStopTile({
     super.key,
@@ -65,10 +66,11 @@ class ItineraryStopTile extends StatelessWidget {
     final time = stop.plannedTime;
     final description = stop.description.trim();
     final memo = stop.memo.trim();
+    final address = stop.address.trim();
     final opacity = saving ? AppOpacity.pending : 1.0;
 
     return Material(
-      color: highlighted ? scheme.secondaryContainer : Colors.transparent,
+      color: highlighted ? scheme.surfaceContainerHigh : Colors.transparent,
       borderRadius: AppRadius.md,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
@@ -137,6 +139,8 @@ class ItineraryStopTile extends StatelessWidget {
                               Text(l10n.itineraryMemo, style: muted),
                               Text(memo, style: textTheme.bodyMedium),
                             ],
+                            if (expanded && address.isNotEmpty)
+                              _AddressLine(address),
                           ],
                         ),
                       ),
@@ -155,20 +159,20 @@ class ItineraryStopTile extends StatelessWidget {
                 ),
               ),
             ),
-            Padding(
-              // 글자 줄과 첫 글자를 맞춘다. 링크 자체의 안쪽 여백만큼 덜 들인다.
-              padding: EdgeInsets.only(
-                left: AppSpace.sm + _iconWidth + AppSpace.md - AppSpace.xs,
-                right: AppSpace.sm,
-              ),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Opacity(
-                  opacity: opacity,
-                  child: _OpenMapLink(onTap: onOpenMap),
+            if (expanded)
+              Padding(
+                padding: EdgeInsets.only(
+                  left: AppSpace.sm + _iconWidth + AppSpace.md - AppSpace.xs,
+                  right: AppSpace.sm,
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Opacity(
+                    opacity: opacity,
+                    child: _OpenMapLink(onTap: onOpenMap),
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
@@ -178,8 +182,8 @@ class ItineraryStopTile extends StatelessWidget {
 
 /// 후보 목록의 후보 줄. 장소 줄과 모양이 같지만 일차·예정 시각·구간이 없다.
 ///
-/// 누르면 고르고 펼쳐져서 설명 전체와 메모, 그리고 [actions](예: [동선에 넣기])가 나온다.
-/// 오른쪽 연필 아이콘은 목록에서 누른 줄에만 뜬다. 아래 칸을 누르면 외부 지도(네이버)에서 연다.
+/// 누르면 고르고 펼쳐져서 설명 전체와 메모, [actions](예: [동선에 넣기]), 외부 지도 칸이 나온다.
+/// 오른쪽 연필 아이콘은 목록에서 누른 줄에만 뜬다. 외부 지도 칸을 누르면 네이버 지도에서 연다.
 class CandidateTile extends StatelessWidget {
   const CandidateTile({
     super.key,
@@ -217,12 +221,13 @@ class CandidateTile extends StatelessWidget {
     final muted = textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant);
     final description = candidate.description.trim();
     final memo = candidate.memo.trim();
+    final address = candidate.address.trim();
     final actions = this.actions;
     // 글자 줄과 첫 글자를 맞춘다.
     final textStart = AppSpace.sm + _iconWidth + AppSpace.md;
 
     return Material(
-      color: highlighted ? scheme.secondaryContainer : Colors.transparent,
+      color: highlighted ? scheme.surfaceContainerHigh : Colors.transparent,
       borderRadius: AppRadius.md,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
@@ -274,6 +279,8 @@ class CandidateTile extends StatelessWidget {
                             Text(l10n.itineraryMemo, style: muted),
                             Text(memo, style: textTheme.bodyMedium),
                           ],
+                          if (expanded && address.isNotEmpty)
+                            _AddressLine(address),
                         ],
                       ),
                     ),
@@ -295,17 +302,18 @@ class CandidateTile extends StatelessWidget {
                 ),
                 child: Align(alignment: Alignment.centerLeft, child: actions),
               ),
-            Padding(
-              // 링크 자체의 안쪽 여백만큼 덜 들인다.
-              padding: EdgeInsets.only(
-                left: textStart - AppSpace.xs,
-                right: AppSpace.sm,
+            if (expanded)
+              Padding(
+                // 링크 자체의 안쪽 여백만큼 덜 들인다.
+                padding: EdgeInsets.only(
+                  left: textStart - AppSpace.xs,
+                  right: AppSpace.sm,
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: _OpenMapLink(onTap: onOpenMap),
+                ),
               ),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: _OpenMapLink(onTap: onOpenMap),
-              ),
-            ),
           ],
         ),
       ),
@@ -424,6 +432,80 @@ class _EditButton extends StatelessWidget {
   );
 }
 
+/// 펼친 장소·후보 줄의 주소. 이름만으로 어디인지 모를 때 보는 것이라 작고 흐리게, 외부 지도 링크 바로 위에 둔다.
+class _AddressLine extends StatelessWidget {
+  const _AddressLine(this.address);
+
+  final String address;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpace.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            // 아이콘을 첫 줄 글자 가운데에 맞춘다.
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(
+              Icons.place_outlined,
+              size: 14,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: AppSpace.xs),
+          Expanded(
+            child: Text(
+              address,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 구간 줄 맨 위 ⊕ 띠의 높이. 이동 수단 글자는 이 아래 줄에 놓는다.
+const _insertBand = AppSpace.xl;
+
+/// 이동 수단 미정 구간 줄의 높이(연필이 없을 때). 글자 한 줄(bodySmall × 줄 높이 2)이 들어간다.
+const _undecidedHeight = AppSpace.xl;
+
+/// 구간 줄 맨 위 세로선의 작은 ⊕.
+class _InsertButton extends StatelessWidget {
+  const _InsertButton({required this.color, required this.onPressed});
+
+  final Color color;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: context.l10n.itineraryInsertHere,
+    child: InkResponse(
+      onTap: onPressed,
+      radius: AppSpace.lg,
+      child: SizedBox(
+        width: _iconWidth,
+        height: _insertBand,
+        child: Center(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.add_circle, size: 18, color: color),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 /// 외부 지도로 가는 작은 글자 링크. 바탕 없이 글자와 아이콘만 있어서 장소 줄보다 눈에 덜 띈다.
 class _OpenMapLink extends StatelessWidget {
   const _OpenMapLink({required this.onTap});
@@ -532,6 +614,7 @@ class ItinerarySegmentTile extends StatelessWidget {
     required this.highlighted,
     required this.onTap,
     this.onEdit,
+    this.onInsert,
     this.saving = false,
   });
 
@@ -550,6 +633,10 @@ class ItinerarySegmentTile extends StatelessWidget {
   /// 연필 아이콘을 눌렀다. 이동 수단 입력 화면을 연다. null이면 연필이 없다(목록에서 누른 줄에만 뜬다).
   final VoidCallback? onEdit;
 
+  /// 세로선 위 ⊕를 눌렀다. 이 구간의 두 장소 사이에 넣을 곳을 찾는다. null이면 ⊕가 없다.
+  /// 사이에 넣는 기능을 찾을 수 있게 고르지 않아도 늘 보인다(사용자 결정).
+  final VoidCallback? onInsert;
+
   /// 갈아타는 토막이 많아 글자가 여러 줄이 될 때 줄 사이를 띄운다. 줄마다 수단 아이콘이 있어서
   /// 글자 기본 줄 높이로는 위아래 아이콘과 글자가 붙어 보인다.
   static const _lineHeight = 2.0;
@@ -564,94 +651,114 @@ class ItinerarySegmentTile extends StatelessWidget {
     ).textTheme.bodySmall?.copyWith(color: muted, height: _lineHeight);
     final legs = segment.legs;
     final opacity = saving ? AppOpacity.pending : 1.0;
-    return Material(
-      color: highlighted ? scheme.secondaryContainer : Colors.transparent,
-      borderRadius: AppRadius.md,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: AppRadius.md,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
-          // 갈아타는 토막이 많아 글자가 두 줄이 되어도 세로선이 줄 높이를 채운다.
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Opacity(
-                  opacity: opacity,
-                  child: SizedBox(
-                    width: _iconWidth,
-                    child: Center(
-                      // 줄 높이를 다 채운다.
-                      child: SizedBox(
-                        width: AppSpace.xs,
-                        height: double.infinity,
-                        child: CustomPaint(
-                          painter: _RouteBarPainter(
-                            color: color,
-                            // 지도의 선과 같은 모양이다. 시트와 지도가 이어져 보이게 하려는 것이다.
-                            style: lineStyleOf(
-                              representativeMode(segment.legs),
-                            ),
+    // 줄 높이를 다 채우는 세로선.
+    Widget bar() => Center(
+      child: SizedBox(
+        width: AppSpace.xs,
+        height: double.infinity,
+        child: CustomPaint(
+          painter: _RouteBarPainter(
+            color: color,
+            style: lineStyleOf(representativeMode(segment.legs)),
+          ),
+        ),
+      ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // ⊕는 구간 줄 위(앞 장소 줄과의 경계)에 따로 둔다.
+        if (onInsert case final onInsert? when !saving)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: SizedBox(
+                key: const ValueKey('insertBand'),
+                width: _iconWidth,
+                height: _insertBand,
+                child: Stack(
+                  children: [
+                    bar(),
+                    _InsertButton(color: color, onPressed: onInsert),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        Material(
+          color: highlighted ? scheme.surfaceContainerHigh : Colors.transparent,
+          borderRadius: AppRadius.md,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: AppRadius.md,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Opacity(
+                      opacity: opacity,
+                      child: SizedBox(width: _iconWidth, child: bar()),
+                    ),
+                    const SizedBox(width: AppSpace.md),
+                    Expanded(
+                      child: Opacity(
+                        opacity: opacity,
+                        child: ConstrainedBox(
+                          // 이동 수단 미정은 보일 것이 없어 낮게 두고, 눌러 연필이 뜰 때만 늘어난다
+                          constraints: BoxConstraints(
+                            minHeight: legs.isEmpty && onEdit == null && !saving
+                                ? _undecidedHeight
+                                : AppSpace.xxl + AppSpace.sm,
+                          ),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: legs.isEmpty
+                                ? Text(
+                                    l10n.itineraryTransportUndecided,
+                                    style: style,
+                                  )
+                                // 토막(아이콘 + "지하철 3정류장 10분")과 "+"를 각각 한 덩어리로 두고, 덩어리 사이에서만 줄을 바꾼다.
+                                : Wrap(
+                                    spacing: _chunkGap,
+                                    children: [
+                                      for (final (i, leg) in legs.indexed) ...[
+                                        if (i > 0)
+                                          Text(
+                                            l10n.transportLegSeparator.trim(),
+                                            style: style,
+                                          ),
+                                        _LegChunk(
+                                          icon: transportIcon(leg.mode),
+                                          text: l10n.transportLegText(leg),
+                                          color: muted,
+                                          style: style,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: AppSpace.md),
-                Expanded(
-                  child: Opacity(
-                    opacity: opacity,
-                    child: ConstrainedBox(
-                      // 연필 아이콘(작게 줄인 버튼, 40px)이 떠도 줄 높이가 바뀌지 않게 그만큼 둔다.
-                      constraints: const BoxConstraints(
-                        minHeight: AppSpace.xxl + AppSpace.sm,
+                    if (saving)
+                      Center(child: SavingIndicator(label: l10n.saving))
+                    else if (onEdit case final onEdit?)
+                      Center(
+                        child: _EditButton(
+                          tooltip: l10n.itineraryEditTransport,
+                          onPressed: onEdit,
+                        ),
                       ),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: legs.isEmpty
-                            ? Text(
-                                l10n.itineraryTransportUndecided,
-                                style: style,
-                              )
-                            // 토막(아이콘 + "지하철 3정류장 10분")과 "+"를 각각 한 덩어리로 두고, 덩어리 사이에서만 줄을 바꾼다.
-                            : Wrap(
-                                spacing: _chunkGap,
-                                children: [
-                                  for (final (i, leg) in legs.indexed) ...[
-                                    if (i > 0)
-                                      Text(
-                                        l10n.transportLegSeparator.trim(),
-                                        style: style,
-                                      ),
-                                    _LegChunk(
-                                      icon: transportIcon(leg.mode),
-                                      text: l10n.transportLegText(leg),
-                                      color: muted,
-                                      style: style,
-                                    ),
-                                  ],
-                                ],
-                              ),
-                      ),
-                    ),
-                  ),
+                  ],
                 ),
-                if (saving)
-                  Center(child: SavingIndicator(label: l10n.saving))
-                else if (onEdit case final onEdit?)
-                  Center(
-                    child: _EditButton(
-                      tooltip: l10n.itineraryEditTransport,
-                      onPressed: onEdit,
-                    ),
-                  ),
-              ],
+              ),
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }

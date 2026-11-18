@@ -53,6 +53,8 @@ Finder get _save => _inForm(find.text('저장'));
 
 Finder get _name => _inForm(find.widgetWithText(TextField, '이름'));
 
+Finder get _address => _inForm(find.widgetWithText(TextField, '주소'));
+
 Finder _inTile(String name, Finder finder) => find.descendant(
   of: find.ancestor(of: find.text(name), matching: find.byType(CandidateTile)),
   matching: finder,
@@ -97,6 +99,10 @@ void main() {
 
       await tester.tap(_inForm(find.text('음식')));
       await tester.pump();
+      // 지도를 눌러 넣는 곳은 주소가 비어 있고, 사용자가 적을 수 있다.
+      expect(tester.widget<TextField>(_address).controller!.text, '');
+      await tester.enterText(_address, '제주 한림읍 협재리');
+      await tester.pump();
       await tester.tap(_save);
       await tester.pumpAndSettle();
 
@@ -104,6 +110,7 @@ void main() {
       final saved = _route(container).candidates.last;
       expect(saved.name, '협재해수욕장');
       expect(saved.kind, StopKind.food);
+      expect(saved.address, '제주 한림읍 협재리');
       expect(saved.position, tapped);
       // 임시 핀이 사라지고 후보 마커가 생긴다.
       final markers = mapScene(tester).markers;
@@ -255,12 +262,20 @@ void main() {
       expect(find.text('후보 고치기'), findsWidgets);
       await tester.enterText(_name, '우도 한 바퀴');
       await tester.pump();
+      await tester.enterText(_address, ' 제주특별자치도 제주시 우도면 ');
+      await tester.pump();
       await tester.tap(_save);
       await tester.pumpAndSettle();
 
       expect(find.byType(CandidateFormDialog), findsNothing);
       expect(_route(container).candidateById('udo')!.name, '우도 한 바퀴');
       expect(_route(container).candidateById('udo')!.description, '섬');
+      expect(
+        _route(container).candidateById('udo')!.address,
+        '제주특별자치도 제주시 우도면',
+      );
+      // 좌표는 주소와 따로라 그대로다.
+      expect(_route(container).candidateById('udo')!.position, _udo.position);
       expect(find.text('우도 한 바퀴'), findsOneWidget);
     });
 
@@ -269,7 +284,12 @@ void main() {
       await _openEdit(tester, '우도');
 
       final delete = _inForm(find.widgetWithText(OutlinedButton, '후보 지우기'));
-      await tester.ensureVisible(delete);
+      // 입력 화면은 길어서 아래 버튼은 넘겨야 만들어진다.
+      await tester.scrollUntilVisible(
+        delete,
+        200,
+        scrollable: _inForm(find.byType(Scrollable)).first,
+      );
       await tester.pumpAndSettle();
       await tester.tap(delete);
       await tester.pumpAndSettle();
@@ -294,7 +314,12 @@ void main() {
       final container = await _pump(tester, _repository());
       await _openEdit(tester, '우도');
       final delete = _inForm(find.widgetWithText(OutlinedButton, '후보 지우기'));
-      await tester.ensureVisible(delete);
+      // 입력 화면은 길어서 아래 버튼은 넘겨야 만들어진다.
+      await tester.scrollUntilVisible(
+        delete,
+        200,
+        scrollable: _inForm(find.byType(Scrollable)).first,
+      );
       await tester.pumpAndSettle();
       await tester.tap(delete);
       await tester.pumpAndSettle();

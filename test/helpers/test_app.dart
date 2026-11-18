@@ -7,6 +7,7 @@ import 'package:mapmarker_app/core/links/open_link.dart';
 import 'package:mapmarker_app/core/map/map_registry.dart';
 import 'package:mapmarker_app/core/theme/app_theme.dart';
 import 'package:mapmarker_app/core/time/today.dart';
+import 'package:mapmarker_app/data/addresses/address_api.dart';
 import 'package:mapmarker_app/data/api/api_client.dart';
 import 'package:mapmarker_app/data/auth/auth_api.dart';
 import 'package:mapmarker_app/data/auth/auth_session.dart';
@@ -18,6 +19,7 @@ import 'package:mapmarker_app/data/trips/memory_trip_repository.dart';
 import 'package:mapmarker_app/data/trips/trip_repository.dart';
 import 'package:mapmarker_app/l10n/l10n.dart';
 
+import 'fake_address_api.dart';
 import 'fake_auth.dart';
 import 'fake_http.dart';
 import 'fake_map.dart';
@@ -139,7 +141,7 @@ List<Override> authOverrides({
 }
 
 /// 앱과 같은 경로 표와 로캘로 띄운다. 시각은 [testNow]로 고정하고, 지도는 가짜 지도([FakeMap])다.
-/// 앱 밖으로 여는 링크는 [openLink]가 받는다.
+/// 앱 밖으로 여는 링크는 [openLink]가 받는다. 주소 검색은 [addressApi](기본은 결과 없음)가 답한다.
 ///
 /// 기본으로 로그인 상태다. 로그인 화면은 [session]에 `testSession(loggedIn: false)`를 넘겨 띄운다.
 Future<ProviderContainer> pumpTestApp(
@@ -150,10 +152,12 @@ Future<ProviderContainer> pumpTestApp(
   AuthSession? session,
   SocialSdk? socialSdk,
   FakeHttp? authServer,
+  AddressApi? addressApi,
 }) async {
   final container = ProviderContainer.test(
     overrides: [
       clockProvider.overrideWithValue(() => testNow),
+      addressApiProvider.overrideWithValue(addressApi ?? FakeAddressApi()),
       tripRepositoryProvider.overrideWithValue(repository),
       mapProviderProvider.overrideWith((ref, type) => const FakeMapProvider()),
       openLinkProvider.overrideWithValue(openLink),

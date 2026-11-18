@@ -14,6 +14,13 @@ extension ModelTexts on AppLocalizations {
     _ => saveFailed,
   };
 
+  /// 주소를 찾지 못했을 때의 안내.
+  String searchFailureText(ApiFailure failure) => switch (failure) {
+    ApiFailure.network => searchFailedNetwork,
+    ApiFailure.unavailable => searchUnavailable,
+    _ => searchFailed,
+  };
+
   String tripPhaseName(TripPhase phase) => switch (phase) {
     TripPhase.before => phaseBefore,
     TripPhase.during => phaseDuring,

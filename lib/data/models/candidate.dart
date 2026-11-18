@@ -17,6 +17,7 @@ class Candidate {
     required this.latitude,
     required this.longitude,
     required this.name,
+    this.address = '',
     this.kind = StopKind.other,
     this.description = '',
     this.memo = '',
@@ -29,6 +30,10 @@ class Candidate {
   final double latitude;
   final double longitude;
   final String name;
+
+  /// 주소. 없으면 빈 문자열이다. 좌표와 따로 고친다.
+  final String address;
+
   final StopKind kind;
 
   /// 사용자가 직접 쓴 설명. 공유하면 보인다.
@@ -45,16 +50,20 @@ class Candidate {
   LatLng get position => LatLng(latitude, longitude);
 
   Candidate copyWith({
+    double? latitude,
+    double? longitude,
     String? name,
+    String? address,
     StopKind? kind,
     String? description,
     String? memo,
   }) => Candidate(
     id: id,
     tripId: tripId,
-    latitude: latitude,
-    longitude: longitude,
+    latitude: latitude ?? this.latitude,
+    longitude: longitude ?? this.longitude,
     name: name ?? this.name,
+    address: address ?? this.address,
     kind: kind ?? this.kind,
     description: description ?? this.description,
     memo: memo ?? this.memo,
@@ -69,6 +78,7 @@ class Candidate {
     latitude: stop.latitude,
     longitude: stop.longitude,
     name: stop.name,
+    address: stop.address,
     kind: stop.kind,
     description: stop.description,
     memo: stop.memo,
@@ -84,6 +94,7 @@ class Candidate {
       other.latitude == latitude &&
       other.longitude == longitude &&
       other.name == name &&
+      other.address == address &&
       other.kind == kind &&
       other.description == description &&
       other.memo == memo &&
@@ -97,6 +108,7 @@ class Candidate {
     latitude,
     longitude,
     name,
+    address,
     kind,
     description,
     memo,

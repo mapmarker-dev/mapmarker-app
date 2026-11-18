@@ -240,6 +240,7 @@ class MemoryTripRepository implements TripRepository {
       latitude: candidate.latitude,
       longitude: candidate.longitude,
       name: stop.name,
+      address: stop.address,
       kind: stop.kind,
       day: stop.day,
       order: 0,
