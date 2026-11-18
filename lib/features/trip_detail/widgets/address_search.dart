@@ -217,15 +217,26 @@ class _AddressSearchState extends ConsumerState<AddressSearch> {
       return [if (widget.guide case final guide?) message(guide, style: muted)];
     }
     if (result.addresses.isEmpty) return [boxed(l10n.placeFinderEmpty)];
+    const divider = Divider(
+      height: 1,
+      indent: AppSpace.lg,
+      endIndent: AppSpace.lg,
+    );
     return [
       _box([
-        for (final (index, address) in result.addresses.indexed) ...[
-          if (index > 0)
-            const Divider(
-              height: 1,
-              indent: AppSpace.lg,
-              endIndent: AppSpace.lg,
+        // 더 있으면 맨 위에 검색어를 좁히라고 쓴다.
+        if (result.hasMore) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpace.lg,
+              vertical: AppSpace.sm,
             ),
+            child: Text(l10n.placeFinderTooMany, style: muted),
+          ),
+          divider,
+        ],
+        for (final (index, address) in result.addresses.indexed) ...[
+          if (index > 0) divider,
           _row(l10n, index, address, muted),
         ],
       ]),

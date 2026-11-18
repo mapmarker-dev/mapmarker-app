@@ -573,6 +573,7 @@
   },
   "placeFinderGuide": "지도 앱에서 복사한 주소를 붙여 넣거나 주소나 건물명을 입력하세요.",
   "placeFinderEmpty": "찾지 못했습니다. 주소를 확인하거나 지도를 눌러 넣어 주세요.",
+  "placeFinderTooMany": "결과가 많아 일부만 보여 줍니다. 번지나 건물명까지 입력해 보세요.",
   "placeFinderNoPosition": "이 주소는 위치를 찾지 못했습니다. 지도를 눌러 넣어 주세요.",
   "placeFinderLoading": "위치를 찾는 중",
   "placeFinderJibun": "지번 {address}",

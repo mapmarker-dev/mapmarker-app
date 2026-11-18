@@ -70,6 +70,62 @@ void main() {
     );
 
     test(
+      'reads the total count and has more when it exceeds the list',
+      () async {
+        http.handler = (_) => FakeReply.json(200, {
+          'detail': null,
+          'addresses': [for (var i = 0; i < 10; i++) serverAddress()],
+          'totalCount': 1234,
+        });
+
+        final result = await api.search('강남역');
+
+        expect(result.totalCount, 1234);
+        expect(result.hasMore, isTrue);
+      },
+    );
+
+    test('has no more when the total equals the list', () async {
+      http.handler = (_) => FakeReply.json(200, {
+        'detail': null,
+        'addresses': [for (var i = 0; i < 10; i++) serverAddress()],
+        'totalCount': 10,
+      });
+
+      expect((await api.search('관악대로 472')).hasMore, isFalse);
+    });
+
+    test('has no more when an older server sends no total count', () async {
+      // setUp의 응답에는 totalCount가 없다.
+      final result = await api.search('관악대로 472');
+
+      expect(result.totalCount, 2);
+      expect(result.hasMore, isFalse);
+    });
+
+    test(
+      'throws a server failure for a total count that is not a number',
+      () async {
+        http.handler = (_) => FakeReply.json(200, {
+          'detail': null,
+          'addresses': [serverAddress()],
+          'totalCount': '많음',
+        });
+
+        expect(
+          () => api.search('관악대로 472'),
+          throwsA(
+            isA<ApiException>().having(
+              (e) => e.failure,
+              'failure',
+              ApiFailure.server,
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
       'treats a query the server cannot search (400) as no result',
       () async {
         http.handler = (_) => FakeReply.json(400, {'message': '찾을 주소가 없습니다'});
@@ -78,6 +134,7 @@ void main() {
 
         expect(result.addresses, isEmpty);
         expect(result.detail, isNull);
+        expect(result.hasMore, isFalse);
       },
     );
 

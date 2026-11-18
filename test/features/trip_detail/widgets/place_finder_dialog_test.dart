@@ -215,6 +215,54 @@ void main() {
     expect(results, [null]);
   });
 
+  group('too many results', () {
+    const tooMany = '결과가 많아 일부만 보여 줍니다. 번지나 건물명까지 입력해 보세요.';
+    final ten = [for (var i = 0; i < 10; i++) testAddress()];
+
+    testWidgets('says so at the top of the box when there are more', (
+      tester,
+    ) async {
+      api.result = AddressSearchResult(
+        detail: null,
+        addresses: ten,
+        totalCount: 1234,
+      );
+      await _pump(tester, api);
+      await _type(tester, '강남역');
+      await _submit(tester);
+
+      final box = find.byKey(const ValueKey('addressResults'));
+      final hint = find.descendant(of: box, matching: find.text(tooMany));
+      expect(hint, findsOneWidget);
+      // 첫 결과 줄보다 위에 있다.
+      expect(
+        tester.getBottomLeft(hint).dy,
+        lessThanOrEqualTo(tester.getTopLeft(find.byType(ListTile).first).dy),
+      );
+    });
+
+    testWidgets('says nothing when there are exactly ten', (tester) async {
+      api.result = AddressSearchResult(
+        detail: null,
+        addresses: ten,
+        totalCount: 10,
+      );
+      await _pump(tester, api);
+      await _type(tester, '관악대로 472');
+      await _submit(tester);
+
+      expect(find.text(tooMany), findsNothing);
+    });
+
+    testWidgets('says nothing without a total count', (tester) async {
+      await _pump(tester, api);
+      await _type(tester, '관악대로 472');
+      await _submit(tester);
+
+      expect(find.text(tooMany), findsNothing);
+    });
+  });
+
   testWidgets('says so when nothing is found', (tester) async {
     api.result = const AddressSearchResult(detail: null, addresses: []);
     await _pump(tester, api);

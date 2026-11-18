@@ -58,12 +58,25 @@ final addressApiProvider = Provider<AddressApi>(
 /// 주소 검색 결과.
 @immutable
 class AddressSearchResult {
-  const AddressSearchResult({required this.detail, required this.addresses});
+  const AddressSearchResult({
+    required this.detail,
+    required this.addresses,
+    this._totalCount,
+  });
 
   /// 검색어에서 떼어 낸 상세 주소. 예: "1,2층". 없으면 null이다.
   final String? detail;
 
+  /// 받은 주소. 서버가 앞의 10건만 준다.
   final List<AddressCandidate> addresses;
+
+  final int? _totalCount;
+
+  /// 행안부가 찾은 전체 개수. 서버가 주지 않으면(예전 서버) [addresses]의 길이다.
+  int get totalCount => _totalCount ?? addresses.length;
+
+  /// 받지 못한 결과가 더 있다. 검색어를 좁히라고 안내한다.
+  bool get hasMore => totalCount > addresses.length;
 }
 
 /// 좌표 조회에 넘기는 건물 키. 서버가 준 값을 그대로 돌려보낸다.
@@ -138,6 +151,14 @@ AddressSearchResult _searchResultFromJson(Object? json) {
         for (final item in list) addressCandidateFromJson(item),
       ],
       _ => throw FormatException('addresses가 목록이 아닙니다', map),
+    },
+    totalCount: switch (map['totalCount']) {
+      null => null,
+      final int value => value,
+      final value => throw FormatException(
+        'totalCount: ${value.runtimeType}',
+        map,
+      ),
     },
   );
 }

@@ -6,7 +6,7 @@
 
 **장소 검색과 동선 사이 +**(PLAN "1-2 후속"). 앱 구현과 실기기 확인(태블릿·휴대폰)이 끝났다. 설계와 계획은 작업 폴더(저장소 밖)의 `../DESIGN-place-search.md`, `../PLAN-place-search.md`이고, 남은 일을 마치면 OVERVIEW·PLAN으로 옮기고 지운다.
 
-- 찾는 방법은 **주소(또는 건물명) 한 줄 + 행안부 도로명주소 API**다(서버 `GET /v1/addresses`·`/v1/addresses/coordinates`, 키는 서버에만). 결과는 최대 10건이다(서버 `SEARCH_COUNT`). 이름은 늘 사용자가 쓴다(주소로는 어떤 가게인지 모른다). 여러 줄 붙여넣기(공유 글의 이름·주소·링크 나누기)는 다루지 않는다(네이버 [공유]는 링크만 준다).
+- 찾는 방법은 **주소(또는 건물명) 한 줄 + 행안부 도로명주소 API**다(서버 `GET /v1/addresses`·`/v1/addresses/coordinates`, 키는 서버에만). 결과는 최대 10건이다(서버 `SEARCH_COUNT`). 서버가 준 전체 개수(`totalCount`)가 받은 것보다 많으면 결과 카드 맨 위에 "결과가 많아 일부만 보여 줍니다. 번지나 건물명까지 입력해 보세요."를 띄운다(`AddressSearchResult.hasMore`, 실기기 확인함). 넓은 검색어면 찾는 곳이 앞의 10건에 없을 때가 많아 끝까지 내려 보기 전에 알리려고 맨 위다. `totalCount`가 없으면(예전 서버) 더 없음으로 본다. 이름은 늘 사용자가 쓴다(주소로는 어떤 가게인지 모른다). 여러 줄 붙여넣기(공유 글의 이름·주소·링크 나누기)는 다루지 않는다(네이버 [공유]는 링크만 준다).
 - 코드 위치
   - 주소 칸과 결과 카드 `widgets/address_search.dart`(`AddressSearch`): 찾기 화면(`place_finder_dialog.dart`)과 입력 화면의 주소 칸(`PlaceAddressSearch`)이 함께 쓴다. 🔍·엔터 때만 찾고, 칸은 긴 주소가 보이게 3줄까지 감싼다. 글이 있으면 [x](지워도 위치는 그대로).
   - 입력 화면에서 결과를 고르면 초안의 `relocatedTo`가 되어 저장할 때 위치를 옮긴다(새 장소·후보는 그 위치에 넣음). 글자만 고치면 위치는 그대로다.
@@ -15,14 +15,13 @@
 
 ## 다음에 할 첫 단계
 
-1. 주소 검색 결과가 10건을 넘으면 "결과가 많아요. 번지나 건물명까지 써 보세요" 같은 안내를 띄운다(사용자 결정). 행안부 응답의 `totalCount`를 서버가 응답에 더하고(필드 추가라 지금 앱을 깨지 않는다) 앱이 읽는다.
-2. 제주 샘플 장소·후보 주소를 실제 키로 찾은 값으로 채운다(`sampleJeju…` ARB, 못 찾는 자연 명소는 비움).
-3. 설계 문서의 "문서에 반영할 것"을 OVERVIEW·PLAN에 한 번에 옮기고(특히 "넣을 자리" 칸을 없앤 것: OVERVIEW 45·174·175·188줄, PLAN 66·93줄), 작업 폴더의 설계·계획 문서를 지운 뒤 dev → main PR.
+1. 제주 샘플 장소·후보 주소를 실제 키로 찾은 값으로 채운다(`sampleJeju…` ARB, 못 찾는 자연 명소는 비움).
+2. 설계 문서의 "문서에 반영할 것"을 OVERVIEW·PLAN에 한 번에 옮기고(특히 "넣을 자리" 칸을 없앤 것: OVERVIEW 45·174·175·188줄, PLAN 66·93줄), 작업 폴더의 설계·계획 문서를 지운 뒤 dev → main PR.
    - 나중에 더할 경로: `/trips/:tripId/export`, `/settings`. 3단계에 `/shared/:shareId`(공유 링크 `/trip/<공유ID>`를 redirect로 연결).
 
 ## 현재 상태
 
-- `flutter analyze` 0건, `flutter test` 731개 통과. 장소·후보 입력 화면 맨 아래 버튼([후보로 빼기] [장소 지우기])은 한 줄에 놓고 폭이 모자랄 때만 넘긴다(`FormActionRow`).
+- `flutter analyze` 0건, `flutter test` 738개 통과. 장소·후보 입력 화면 맨 아래 버튼([후보로 빼기] [장소 지우기])은 한 줄에 놓고 폭이 모자랄 때만 넘긴다(`FormActionRow`).
 - 태블릿(카카오톡 없음, 네이버 앱 있음)에서 확인한 것: 카카오 계정·네이버 로그인, 다시 켜도 유지(서버가 꺼져도 묻지 않음), 로그아웃, 카카오 취소(안내 없음), 서버 끔 안내, 사용자를 지운 뒤 재가입, 여행·장소·구간 저장과 유지, 계정별 여행, 저장 중 표시와 실패 안내, 샘플과 여행 삭제, 휴지통 전체(남은 날, 되살린 뒤 원래 자리와 동선, 영구 삭제, 빈 휴지통, 당겨서 새로고침, 긴 제목, 서버를 끈 실패).
 - 코드 위치: `lib/data/api/`(`ApiClient` 토큰·재발급), `lib/data/auth/`(`AuthSession`, `Account`, `SocialSdk`), `lib/data/trips/`(`TripApi`, `trip_json.dart`, `ServerTripRepository`, `TripCache`), `lib/data/sample/`, `lib/features/login/`, `lib/features/trash/`. 값의 위치·실행 순서·`/login` 예외는 `CLAUDE.md`.
 - `tripRepositoryProvider`는 로그인·로그아웃마다(`authGenerationProvider`) `ServerTripRepository`를 새로 만들어 `SampleTripRepository`로 감싼다. 로그아웃 상태는 빈 메모리 저장소다.
