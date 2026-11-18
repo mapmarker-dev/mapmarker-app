@@ -215,7 +215,7 @@ class _TransportFormDialogState extends State<TransportFormDialog>
                   const SizedBox(height: AppSpace.sm),
                   Wrap(
                     spacing: AppSpace.sm,
-                    runSpacing: AppSpace.sm,
+                    runSpacing: 0,
                     children: [
                       for (final mode in TransportMode.values)
                         ActionChip(

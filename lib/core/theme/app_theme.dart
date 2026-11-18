@@ -24,6 +24,8 @@ abstract final class AppTheme {
       labelLarge: text.labelLarge?.copyWith(fontWeight: AppFont.bold),
       labelMedium: text.labelMedium?.copyWith(fontWeight: AppFont.bold),
     );
+    final sized = base.typography.dense.merge(textTheme);
+    final titleStyle = sized.titleMedium?.copyWith(color: scheme.onSurface);
     const stadium = StadiumBorder();
     const buttonPadding = EdgeInsets.symmetric(
       horizontal: AppSpace.xl,
@@ -36,7 +38,7 @@ abstract final class AppTheme {
         backgroundColor: scheme.surface,
         foregroundColor: scheme.onSurface,
         scrolledUnderElevation: 0,
-        titleTextStyle: textTheme.titleLarge?.copyWith(color: scheme.onSurface),
+        titleTextStyle: titleStyle,
       ),
       cardTheme: CardThemeData(
         elevation: 0,
@@ -73,17 +75,18 @@ abstract final class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: scheme.surfaceContainerLow,
-        border: const OutlineInputBorder(
+        border: const UnderlineInputBorder(
           borderRadius: AppRadius.md,
           borderSide: BorderSide.none,
         ),
-        focusedBorder: OutlineInputBorder(
+        focusedBorder: UnderlineInputBorder(
           borderRadius: AppRadius.md,
-          borderSide: BorderSide(color: scheme.primary, width: 1.5),
+          borderSide: BorderSide(color: scheme.primary, width: 2),
         ),
       ),
-      dialogTheme: const DialogThemeData(
-        shape: RoundedRectangleBorder(borderRadius: AppRadius.dialog),
+      dialogTheme: DialogThemeData(
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.dialog),
+        titleTextStyle: titleStyle,
       ),
       popupMenuTheme: const PopupMenuThemeData(
         shape: RoundedRectangleBorder(borderRadius: AppRadius.md),

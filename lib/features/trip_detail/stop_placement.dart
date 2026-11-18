@@ -7,7 +7,7 @@ import '../../data/trips/route_links.dart';
 import 'stop_draft.dart';
 
 /// 새로 넣거나 다른 일차로 옮긴 장소가 들어갈 기본 일차 안 순서([Stop.order]).
-/// 장소 입력 화면의 "넣을 자리" 칸이 처음 고르고 있는 자리다.
+/// ⊕로 자리를 정하지 않은 장소가 들어가는 자리다.
 ///
 /// 그 일차의 맨 뒤다. 다만 마지막이 숙소면 숙소 바로 앞이다.
 /// 숙소는 그날 밤 묵는 곳이라 일차 마지막에 남아야 다음 날 보기가 그 숙소에서 출발한다.
@@ -20,7 +20,7 @@ int insertionOrder(List<Stop> dayStops, StopKind kind) {
   return dayStops.length;
 }
 
-/// 장소 입력 화면의 "넣을 자리" 칸에서 고를 수 있는 자리 하나. 그 일차 장소 사이의 빈자리다.
+/// 그 일차 장소 사이의 빈자리 하나. ⊕가 가리키는 자리이고, 장소 입력 화면 제목에 쓴다.
 @immutable
 class InsertionSlot {
   const InsertionSlot({required this.order, this.before, this.after});
@@ -66,9 +66,9 @@ List<Stop> dayStopsOf(TripRoute route, int day, {String? stopId}) => [
     if (stop.day == day && stop.id != stopId) stop,
 ];
 
-/// 입력 화면 값으로 장소가 들어갈 일차 안 순서. "넣을 자리" 칸도 이 자리를 고르고 있다.
+/// 입력 화면 값으로 장소가 들어갈 일차 안 순서.
 ///
-/// 넣을 자리를 고르지 않았거나, 고른 자리가 지금 종류로는 고를 수 없는 자리면 기본 자리([insertionOrder])다.
+/// ⊕로 자리를 정하지 않았거나, 정한 자리가 지금 종류로는 넣을 수 없는 자리면 기본 자리([insertionOrder])다.
 /// 예: 숙소로 그날 밤 숙소 뒤를 고른 뒤 종류를 음식으로 바꿨다.
 ///
 /// [stopId]는 편집해서 옮기는 장소다. 새 장소면 null이다.
@@ -89,7 +89,7 @@ List<Segment> withTransport(Iterable<Segment> segments) => [
 ];
 
 /// 입력 화면 값대로 새 장소를 넣거나([stop]이 null) [stop]을 옮기면 지워지는 이동 수단.
-/// "넣을 자리" 칸 아래에 미리 보여 준다.
+/// 입력 화면의 일차 칸 아래에 미리 보여 준다.
 ///
 /// 편집에서 일차를 바꾸지 않았으면 없다. 같은 일차 안 순서는 입력 화면이 아니라 끌어서 바꾼다.
 List<Segment> transportsDroppedByDraft(

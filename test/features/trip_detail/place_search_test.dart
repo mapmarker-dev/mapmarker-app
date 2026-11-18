@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/app/routes.dart';
@@ -11,6 +10,7 @@ import 'package:mapmarker_app/data/models/trip_route.dart';
 import 'package:mapmarker_app/data/sample/jeju_sample.dart';
 import 'package:mapmarker_app/features/trip_detail/trip_detail_controller.dart';
 import 'package:mapmarker_app/features/trip_detail/widgets/candidate_form_dialog.dart';
+import 'package:mapmarker_app/features/trip_detail/widgets/itinerary_tiles.dart';
 import 'package:mapmarker_app/features/trip_detail/widgets/place_finder_dialog.dart';
 import 'package:mapmarker_app/features/trip_detail/widgets/stop_form_dialog.dart';
 
@@ -125,19 +125,21 @@ void main() {
       await tester.tap(_plus.at(1));
       await tester.pumpAndSettle();
 
-      expect(find.text('2일차 · c → d 사이에 넣기'), findsOneWidget);
+      expect(find.text('2일차 c → d 사이에 넣기'), findsOneWidget);
       await _findAndPick(tester);
 
-      // 주소·넣을 자리가 채워지고, 이름은 비어 있다(가게 이름은 사용자가 쓴다).
+      // 주소가 채워지고 이름은 비어 있다(가게 이름은 사용자가 쓴다).
+      // 넣을 자리 칸은 없고, 넣을 곳은 제목으로 보인다.
       expect(find.byType(StopFormDialog), findsOneWidget);
-      // 방금 찾은 곳이라 다시 찾을 일이 없다.
-      expect(find.text('주소로 위치 다시 찾기'), findsNothing);
       expect(_field(tester, StopFormDialog, '이름').controller!.text, '');
       expect(
         _field(tester, StopFormDialog, '주소').controller!.text,
         '제주특별자치도 제주시 관덕로 1, 1층',
       );
-      expect(_inDialog(StopFormDialog, find.text('c 뒤')), findsOneWidget);
+      expect(
+        _inDialog(StopFormDialog, find.text('2일차 c → d 사이에 넣기')),
+        findsOneWidget,
+      );
 
       await _nameAndSave(tester, StopFormDialog, '카페');
 
@@ -145,6 +147,40 @@ void main() {
       final added = _route(container).stops.singleWhere((s) => s.name == '카페');
       expect(added.address, '제주특별자치도 제주시 관덕로 1, 1층');
       expect(added.position, _found);
+    });
+
+    testWidgets('goes to the default place when the day is changed', (
+      tester,
+    ) async {
+      final container = await _pump(tester);
+      await tapChip(tester, '2일차');
+      await tester.tap(_plus.at(1));
+      await tester.pumpAndSettle();
+      await _findAndPick(tester);
+      await tester.enterText(
+        _inDialog(StopFormDialog, find.widgetWithText(TextField, '이름')),
+        '카페',
+      );
+      await tester.pump();
+
+      final dayField = _inDialog(
+        StopFormDialog,
+        find.widgetWithText(DropdownButtonFormField<int>, '일차'),
+      );
+      await tester.ensureVisible(dayField);
+      await tester.pumpAndSettle();
+      await tester.tap(dayField);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('1일차').last);
+      await tester.pumpAndSettle();
+
+      // ⊕ 자리는 2일차의 자리라 1일차에서는 기본 자리(숙소 앞)다.
+      expect(find.text('2일차 c → d 사이에 넣기'), findsNothing);
+      expect(_inDialog(StopFormDialog, find.text('장소 추가')), findsOneWidget);
+      await tester.tap(_inDialog(StopFormDialog, find.text('저장')));
+      await tester.pumpAndSettle();
+
+      expect(_dayNames(container, 1), ['a', 'b', '카페', 'hotel']);
     });
 
     testWidgets('puts the place first when tapped after the start', (
@@ -156,11 +192,39 @@ void main() {
       await tester.tap(_plus.first);
       await tester.pumpAndSettle();
 
-      expect(find.text('2일차 · hotel → c 사이에 넣기'), findsOneWidget);
+      expect(find.text('2일차 hotel → c 사이에 넣기'), findsOneWidget);
       await _findAndPick(tester);
       await _nameAndSave(tester, StopFormDialog, '카페');
 
       expect(_dayNames(container, 2), ['카페', 'c', 'd', 'hotel2']);
+    });
+
+    testWidgets('stays apart from the transport row when it is picked', (
+      tester,
+    ) async {
+      await _pump(tester);
+      await tapChip(tester, '2일차');
+
+      // c→d 구간 줄을 눌러 고른다.
+      await tester.tap(find.text('이동 수단 미정').at(1));
+      await tester.pumpAndSettle();
+
+      final segment = find.ancestor(
+        of: find.text('이동 수단 미정').at(1),
+        matching: find.byType(ItinerarySegmentTile),
+      );
+      expect(tester.widget<ItinerarySegmentTile>(segment).highlighted, isTrue);
+      // 구간 줄의 바탕(고르면 색이 바뀌는 Material)은 ⊕를 품지 않는다.
+      final background = find
+          .descendant(of: segment, matching: find.byType(Material))
+          .first;
+      expect(find.descendant(of: background, matching: _plus), findsNothing);
+      expect(find.descendant(of: segment, matching: _plus), findsOneWidget);
+      // ⊕는 구간 줄 바로 위에 있다.
+      expect(
+        tester.getBottomLeft(find.descendant(of: segment, matching: _plus)).dy,
+        lessThanOrEqualTo(tester.getTopLeft(background).dy),
+      );
     });
 
     testWidgets('the add row puts it in the default slot', (tester) async {
@@ -168,7 +232,7 @@ void main() {
       await tapChip(tester, '2일차');
 
       // 목록 끝이라 넘겨야 보인다.
-      await tester.ensureVisible(find.text('장소 넣기'));
+      await tester.ensureVisible(find.text('장소 넣기', skipOffstage: false));
       await tester.pumpAndSettle();
       await tester.tap(find.text('장소 넣기'));
       await tester.pumpAndSettle();
@@ -186,7 +250,7 @@ void main() {
       await tapChip(tester, '3일차');
 
       // 목록 끝이라 넘겨야 보인다.
-      await tester.ensureVisible(find.text('장소 넣기'));
+      await tester.ensureVisible(find.text('장소 넣기', skipOffstage: false));
       await tester.pumpAndSettle();
       await tester.tap(find.text('장소 넣기'));
       await tester.pumpAndSettle();
@@ -242,21 +306,9 @@ void main() {
   });
 
   group('add row in the candidate list', () {
-    testWidgets('saves a candidate found by a pasted address with its name', (
+    testWidgets('saves a candidate found by address with the typed name', (
       tester,
     ) async {
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async => call.method == 'Clipboard.getData'
-            ? {'text': '동문시장\n제주특별자치도 제주시 관덕로 1 1층\nhttps://naver.me/x'}
-            : null,
-      );
-      addTearDown(
-        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-          SystemChannels.platform,
-          null,
-        ),
-      );
       final container = await _pump(tester);
       await tapChip(tester, '후보 목록');
 
@@ -264,19 +316,12 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('후보로 저장할 곳 찾기'), findsOneWidget);
-      await tester.tap(find.text('붙여넣기'));
-      await tester.pumpAndSettle();
-      expect(_api.searches, ['제주특별자치도 제주시 관덕로 1 1층']);
-      await tester.tap(find.widgetWithText(ListTile, '제주특별자치도 제주시 관덕로 1'));
-      await tester.pumpAndSettle();
+      await _findAndPick(tester);
 
+      // 이름은 비어 있고 사용자가 쓴다.
       expect(find.byType(CandidateFormDialog), findsOneWidget);
-      expect(
-        _field(tester, CandidateFormDialog, '이름').controller!.text,
-        '동문시장',
-      );
-      await tester.tap(_inDialog(CandidateFormDialog, find.text('저장')));
-      await tester.pumpAndSettle();
+      expect(_field(tester, CandidateFormDialog, '이름').controller!.text, '');
+      await _nameAndSave(tester, CandidateFormDialog, '동문시장');
 
       final saved = _route(container).candidates.last;
       expect(saved.name, '동문시장');
@@ -287,17 +332,35 @@ void main() {
     });
   });
 
-  group('finding the place again by address', () {
-    /// 입력 화면에서 [주소로 위치 다시 찾기]를 눌러 찾기 화면에서 고른다.
+  group('finding the place again in the address field', () {
+    /// 입력 화면의 주소 칸에 새 주소를 쓰고 돋보기로 찾아 첫 결과를 고른다.
     Future<void> relocate(WidgetTester tester, Type form) async {
-      final button = _inDialog(form, find.text('주소로 위치 다시 찾기'));
-      await tester.ensureVisible(button);
+      final field = _inDialog(form, find.widgetWithText(TextField, '주소'));
+      await tester.enterText(field, '관덕로 1 1층');
+      await tester.pump();
+      await tester.tap(_inDialog(form, find.byTooltip('찾기')));
       await tester.pumpAndSettle();
-      await tester.tap(button);
+      final row = _inDialog(
+        form,
+        find.widgetWithText(ListTile, '제주특별자치도 제주시 관덕로 1'),
+      );
+      await tester.ensureVisible(row);
       await tester.pumpAndSettle();
-      expect(find.text('위치 다시 찾기'), findsOneWidget);
-      await _findAndPick(tester);
+      await tester.tap(row);
+      await tester.pumpAndSettle();
     }
+
+    testWidgets('has no separate page or button for it', (tester) async {
+      await _pump(tester);
+      await tapChip(tester, '2일차');
+      await tester.tap(find.text('c'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('장소 편집'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('주소로 위치 다시 찾기'), findsNothing);
+      expect(_inDialog(StopFormDialog, find.byTooltip('찾기')), findsOneWidget);
+    });
 
     testWidgets('moves a stop with its new address when saved', (tester) async {
       final container = await _pump(tester);
@@ -313,7 +376,6 @@ void main() {
         _field(tester, StopFormDialog, '주소').controller!.text,
         '제주특별자치도 제주시 관덕로 1, 1층',
       );
-      expect(find.text('저장하면 지도의 위치가 이 주소로 바뀝니다.'), findsOneWidget);
       // 저장하기 전에는 그대로다.
       final before = _route(container).stopById('c')!;
       expect(before.position, isNot(_found));
@@ -349,6 +411,30 @@ void main() {
       expect(_route(container).stopById('c')!.address, before.address);
     });
 
+    testWidgets('clears the address with x but keeps the place', (
+      tester,
+    ) async {
+      final container = await _pump(tester);
+      await tapChip(tester, '후보 목록');
+      await tester.tap(find.text('우도'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('후보 고치기'));
+      await tester.pumpAndSettle();
+      final before = _route(container).candidateById('udo')!;
+
+      await tester.tap(
+        _inDialog(CandidateFormDialog, find.byTooltip('주소 지우기')),
+      );
+      await tester.pumpAndSettle();
+      expect(_field(tester, CandidateFormDialog, '주소').controller!.text, '');
+      await tester.tap(_inDialog(CandidateFormDialog, find.text('저장')));
+      await tester.pumpAndSettle();
+
+      final saved = _route(container).candidateById('udo')!;
+      expect(saved.address, isEmpty);
+      expect(saved.position, before.position);
+    });
+
     testWidgets('moves a candidate with its new address when saved', (
       tester,
     ) async {
@@ -367,6 +453,33 @@ void main() {
       expect(moved.position, _found);
       expect(moved.address, '제주특별자치도 제주시 관덕로 1, 1층');
       expect(moved.name, '우도');
+    });
+
+    testWidgets('is not offered when a candidate goes into the route', (
+      tester,
+    ) async {
+      await _pump(tester);
+      await tapChip(tester, '후보 목록');
+      await tester.tap(find.text('우도'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('동선에 넣기'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(StopFormDialog), findsOneWidget);
+      // 후보 위치 그대로 넣어서 주소 칸은 고칠 수 없고, 그 까닭과 바꾸는 곳을 알린다.
+      expect(_inDialog(StopFormDialog, find.byTooltip('찾기')), findsNothing);
+      expect(_inDialog(StopFormDialog, find.byTooltip('주소 지우기')), findsNothing);
+      final address = _field(tester, StopFormDialog, '주소');
+      expect(address.controller!.text, '제주 우도면');
+      expect(address.enabled, isFalse);
+      expect(
+        _inDialog(
+          StopFormDialog,
+          find.text('후보의 위치 그대로 넣습니다. 위치는 넣은 뒤 장소 편집에서 바꿀 수 있습니다.'),
+        ),
+        findsOneWidget,
+      );
     });
   });
 }

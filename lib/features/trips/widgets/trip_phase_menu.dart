@@ -125,10 +125,10 @@ class _PhaseChip extends StatelessWidget {
         shape: const StadiumBorder(),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
+        padding: EdgeInsets.fromLTRB(
           AppSpace.md,
           AppSpace.xs,
-          AppSpace.xs,
+          canChange || saving ? AppSpace.xs : AppSpace.md,
           AppSpace.xs,
         ),
         child: Row(

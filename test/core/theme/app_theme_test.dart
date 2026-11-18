@@ -27,6 +27,18 @@ void main() {
     expect(theme.textTheme.titleMedium?.fontWeight, AppFont.bold);
   });
 
+  test('gives top bar and dialog titles a real size, like the trip name', () {
+    // 컴포넌트 테마의 글자는 Theme.of가 크기를 붙이지 않아, 빠지면 기본 14로 그려진다.
+    for (final style in [
+      theme.appBarTheme.titleTextStyle,
+      theme.dialogTheme.titleTextStyle,
+    ]) {
+      expect(style?.fontSize, 16);
+      expect(style?.fontWeight, AppFont.bold);
+      expect(style?.fontFamily, AppFont.family);
+    }
+  });
+
   test('keeps text readable on every background', () {
     final pairs = {
       'primary': (scheme.primary, scheme.onPrimary),
@@ -53,6 +65,10 @@ void main() {
         'route day ${i + 1} number': (day.background, day.foreground),
       for (final (i, day) in appColors.routeDays.indexed)
         'route day ${i + 1} badge': (appColors.routeHalo, day.foreground),
+      'focused candidate icon': (
+        appColors.routeCandidateFocus.background,
+        appColors.routeCandidateFocus.foreground,
+      ),
       'route lodging icon': (
         appColors.routeLodging.background,
         appColors.routeLodging.foreground,

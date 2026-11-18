@@ -61,7 +61,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('부산 2박 3일 봄 여행'), findsOneWidget);
-    expect(find.text('날짜 미정 · 2박 3일'), findsOneWidget);
+    expect(find.text('날짜 미정, 2박 3일'), findsOneWidget);
     expect(find.text('여행 전'), findsOneWidget);
   });
 

@@ -53,7 +53,7 @@ class StopDraft {
   /// [주소로 위치 다시 찾기]로 고른 새 좌표. 저장하면 장소가 여기로 옮겨진다. null이면 그대로다.
   final LatLng? relocatedTo;
 
-  /// "넣을 자리" 칸에서 고른 일차 안 순서([Stop.order]). null이면 고르지 않은 것이라 기본 자리다
+  /// ⊕로 정한 일차 안 순서([Stop.order]). null이면 기본 자리다
   /// (`stop_placement.dart`의 `insertionOrder`). 기본 자리는 종류에 따라 바뀌어서 저장할 때 정한다.
   final int? slotOrder;
 
@@ -98,8 +98,8 @@ class StopDraft {
   }) => Stop(
     id: id,
     tripId: tripId,
-    latitude: position.latitude,
-    longitude: position.longitude,
+    latitude: (relocatedTo ?? position).latitude,
+    longitude: (relocatedTo ?? position).longitude,
     name: name.trim(),
     kind: kind,
     day: day,

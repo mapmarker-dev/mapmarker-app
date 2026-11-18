@@ -59,12 +59,14 @@ lib/
 
 - 화면 글자는 `lib/l10n/app_ko.arb`에 두고 `context.l10n`(컨트롤러는 `l10nProvider`)으로 읽는다. 모델(`data/`)에는 글자를 두지 않는다.
 - 문장은 조각을 이어 붙이지 않고 자리 표시자가 있는 문장 하나로 둔다(언어마다 어순이 다르다).
+- 화면 글자에는 가운뎃점(·)을 쓰지 않는다(공통 규칙). `test/l10n/arb_style_test.dart`가 ARB를 검사한다.
 - 개발자만 보는 글자(오류·로그, 디버그 전용 화면)는 옮기지 않는다.
 
 ## 디자인
 
 - 색·여백·모서리는 값을 직접 쓰지 않고 `lib/core/theme/`의 토큰으로 읽는다. 색은 `colorScheme`이나 `context.appColors`, 여백은 `AppSpace`, 모서리는 `AppRadius`다.
 - `colorScheme`에 없는 색은 `AppColors`에 이름을 붙여 더한다(다크 모드 때 값만 바꾸려고).
+- 컴포넌트 테마(`AppBarTheme`, `DialogThemeData` 등)에 글자 모양을 넣을 때는 `app_theme.dart`의 크기를 붙인 글자(`typography.dense`를 합친 것)를 쓴다. `ThemeData.textTheme`에는 크기가 없어서(`Theme.of`가 나중에 붙인다) 그대로 넣으면 기본 14로 그려진다. 입력 칸 모양(밑줄형, 이름표가 칸 안)도 테마가 정하니 화면에서 테두리를 따로 주지 않는다.
 - 스크롤 여백을 직접 정하면 `MediaQuery.paddingOf(context)`를 더하고, 화면 전체를 `SafeArea`로 감싸지 않는다(내용이 시스템 막대 뒤로 지나가되 끝까지 보이게. Android 15 이상은 화면 끝까지 그린다).
 - 글꼴 파일(`assets/fonts/`)은 원본 그대로 둔다. 고치면 OFL 예약 이름 때문에 글꼴 이름을 바꿔야 한다.
 
@@ -77,7 +79,7 @@ lib/
 
 ## 테스트
 
-- 테스트는 실제 서버·카카오·네이버에 붙지 않는다. HTTP는 `FakeHttp`(`fake_http.dart`)를 끼운 dio, 로그인 상태·SDK는 `authOverrides`·`testSession`·`FakeSocialSdk`(`fake_auth.dart`), 저장 실패와 저장을 기다리는 동안은 `FlakyTripRepository`(`failWrites`·`holdWrites`), 샘플은 `withSample`·`MemorySampleStore`로 본다. 주소 검색은 `FakeAddressApi`(`fake_address_api.dart`, `pumpTestApp(addressApi:)`)이고, 붙여넣기는 `SystemChannels.platform`의 `Clipboard.getData`를 가짜로 답한다.
+- 테스트는 실제 서버·카카오·네이버에 붙지 않는다. HTTP는 `FakeHttp`(`fake_http.dart`)를 끼운 dio, 로그인 상태·SDK는 `authOverrides`·`testSession`·`FakeSocialSdk`(`fake_auth.dart`), 저장 실패와 저장을 기다리는 동안은 `FlakyTripRepository`(`failWrites`·`holdWrites`), 샘플은 `withSample`·`MemorySampleStore`로 본다. 주소 검색은 `FakeAddressApi`(`fake_address_api.dart`, `pumpTestApp(addressApi:)`)다.
 - 공용 도우미는 `test/helpers/`다. 화면은 `pumpTestApp`(지도를 가짜 지도로 바꿔 끼움, 기본으로 로그인 상태)이나 `testMaterialApp`으로 띄운다. 지도에 넘긴 장면은 `mapScene(tester)`, 지도 탭은 `tapMarker`·`tapLine`·`tapMap`으로 본다.
 - 기본 화면(800×600)은 가로라 동선 목록이 오른쪽 패널로 뜬다. 아래 시트는 `usePortraitPhone`으로 띄운다. 연필·손잡이는 줄을 먼저 눌러야 뜬다.
 - 앱 로캘이 한국어라 `tester.pageBack()` 대신 `find.byType(BackButton)`을 누른다. 칩은 글자 대신 `ChoiceChip`·`FilterChip` 위젯을 누른다.

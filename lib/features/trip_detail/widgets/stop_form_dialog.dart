@@ -37,6 +37,7 @@ Future<StopDraft?> showStopForm(
   String? title,
   Future<void> Function()? onDelete,
   Future<void> Function(StopDraft draft)? onDemote,
+  bool relocatable = true,
 }) => showDialog<StopDraft>(
   context: context,
   useSafeArea: false,
@@ -49,22 +50,9 @@ Future<StopDraft?> showStopForm(
     onSave: onSave,
     onDelete: onDelete,
     onDemote: onDemote,
+    relocatable: relocatable,
   ),
 );
-
-/// "넣을 자리" 칸의 선택지 글자. 예: "숙소 앞", "동문시장 뒤".
-///
-/// 빈자리는 바로 앞 장소로 가리킨다("A 뒤"). 맨 앞과 바로 뒤가 숙소인 자리는 뒤 장소로 가리킨다("숙소 앞").
-/// 숙소 앞은 그날 밤 숙소 앞이라는 기본 자리라서, 사용자가 떠올리는 말 그대로 쓴다.
-String insertionSlotText(AppLocalizations l10n, InsertionSlot slot) {
-  final before = slot.before;
-  final after = slot.after;
-  if (after != null && (after.isLodging || before == null)) {
-    return l10n.stopSlotBefore(after.name);
-  }
-  if (before != null) return l10n.stopSlotAfter(before.name);
-  return l10n.stopSlotOnly;
-}
 
 class StopFormDialog extends StatefulWidget {
   const StopFormDialog({
@@ -77,11 +65,12 @@ class StopFormDialog extends StatefulWidget {
     this.title,
     this.onDelete,
     this.onDemote,
+    this.relocatable = true,
   });
 
   final Trip trip;
 
-  /// 입력 화면을 열 때의 동선. 넣을 자리의 선택지와 지워질 이동 수단을 여기서 계산한다.
+  /// 입력 화면을 열 때의 동선. 들어갈 자리와 지워질 이동 수단을 여기서 계산한다.
   final TripRoute route;
 
   final StopDraft initial;
@@ -107,6 +96,9 @@ class StopFormDialog extends StatefulWidget {
 
   /// 제목. null이면 새 장소는 "장소 추가", 편집은 "장소 편집"이다.
   final String? title;
+
+  /// 주소 칸에서 찾아 위치를 바꿀 수 있는지. [동선에 넣기]는 좌표를 후보 것으로 써서 false다.
+  final bool relocatable;
 
   bool get isNew => stop == null;
 
@@ -143,14 +135,6 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
     _address.addListener(
       () => setState(() => _draft = _draft.copyWith(address: _address.text)),
     );
-  }
-
-  /// [주소로 위치 다시 찾기]: 고르면 주소 칸을 바꾸고, 저장할 때 위치를 옮긴다.
-  Future<void> _relocate() async {
-    final found = await findNewPosition(context);
-    if (found == null || !mounted) return;
-    _address.text = found.address;
-    setState(() => _draft = _draft.copyWith(relocatedTo: () => found.position));
   }
 
   @override
@@ -260,9 +244,31 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
     return confirmed ?? false;
   }
 
-  /// 넣을 자리 칸이 보이는지. 새 장소이거나, 편집에서 다른 일차로 옮길 때다.
+  /// 넣거나 다른 일차로 옮기는지. 지워질 이동 수단을 미리 알린다.
   /// 같은 일차 안에서 순서를 바꾸는 것은 목록에서 끌어서 한다.
   bool get _placing => widget.stop == null || _draft.day != widget.stop!.day;
+
+  /// 제목. ⊕로 연 새 장소는 넣을 자리 칸이 없어서 어디에 넣는지를 제목으로 보인다
+  /// ("2일차 c → d 사이에 넣기"). 일차를 바꾸면 기본 자리라 보통 제목으로 돌아간다.
+  String _titleText(AppLocalizations l10n) {
+    if (widget.title case final title?) return title;
+    if (!widget.isNew) return l10n.stopFormEditTitle;
+    final order = _draft.slotOrder;
+    if (order != null) {
+      final slot = insertionSlots(
+        dayStopsOf(widget.route, _draft.day),
+        _draft.kind,
+      ).where((slot) => slot.order == order).firstOrNull;
+      if (slot case InsertionSlot(:final before?, :final after?)) {
+        return l10n.placeFinderTitleBetween(
+          _draft.day,
+          before.name,
+          after.name,
+        );
+      }
+    }
+    return l10n.stopFormAddTitle;
+  }
 
   Future<void> _pickTime() async {
     final picked = await showTimeWheel(context, initial: _draft.plannedTime);
@@ -296,12 +302,7 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
               icon: const Icon(Icons.close),
               onPressed: saving ? null : () => Navigator.of(context).maybePop(),
             ),
-            title: Text(
-              widget.title ??
-                  (widget.isNew
-                      ? l10n.stopFormAddTitle
-                      : l10n.stopFormEditTitle),
-            ),
+            title: Text(_titleText(l10n)),
             actions: [
               if (saving && !_deleting && !_demoting)
                 SavingIndicator(label: l10n.saving)
@@ -330,13 +331,17 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
                   autofocus: widget.isNew && widget.initial.name.isEmpty,
                 ),
                 gap,
-                PlaceAddressField(controller: _address, enabled: !saving),
-                // 고칠 때만 있다. 새로 넣는 곳은 방금 찾았거나 지도에서 찍었다.
-                if (!widget.isNew)
-                  RelocateButton(
-                    relocated: _draft.relocatedTo != null,
-                    onPressed: saving ? null : _relocate,
+                PlaceAddressSearch(
+                  controller: _address,
+                  enabled: !saving,
+                  searchable: widget.relocatable,
+                  // 고르면 주소 칸은 그 주소가 되고(칸이 바꾼다), 저장할 때 위치를 옮긴다.
+                  onPicked: (found) => setState(
+                    () => _draft = _draft.copyWith(
+                      relocatedTo: () => found.position,
+                    ),
                   ),
+                ),
                 gap,
                 PlaceKindChips(
                   kind: _draft.kind,
@@ -346,6 +351,7 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
                 gap,
                 DropdownButtonFormField<int>(
                   initialValue: _draft.day,
+                  style: Theme.of(context).textTheme.bodyLarge,
                   decoration: InputDecoration(labelText: l10n.stopDayLabel),
                   items: [
                     for (var day = 1; day <= widget.trip.nights + 1; day++)
@@ -363,17 +369,12 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
                     }
                   },
                 ),
-                if (_placing) ...[
-                  gap,
-                  _SlotField(
+                if (_placing)
+                  _DroppedTransportNotice(
                     route: widget.route,
                     draft: _draft,
                     stop: widget.stop,
-                    onChanged: (order) => setState(
-                      () => _draft = _draft.copyWith(slotOrder: () => order),
-                    ),
                   ),
-                ],
                 gap,
                 _TimeField(
                   time: _draft.plannedTime,
@@ -433,91 +434,51 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
   }
 }
 
-/// "넣을 자리" 칸과, 그 자리에 넣으면 지워질 이동 수단의 미리 알림.
+/// 이 장소를 넣으면(옮기면) 지워질 이동 수단의 미리 알림. 지워질 것이 없으면 아무것도 없다.
 ///
-/// 고르지 않았으면 기본 자리(맨 뒤, 마지막이 숙소면 숙소 앞)를 가리키고 "(기본)"을 붙인다.
-/// 고르지 않은 동안은 종류를 바꾸면 기본 자리도 따라 바뀐다(숙소는 맨 뒤).
+/// 넣을 자리는 고르지 않는다. ⊕로 연 새 장소는 그 자리, 나머지는 기본 자리(맨 뒤, 마지막이 숙소면 숙소 앞)에 넣고, 같은 일차 안 순서는 목록에서 끌어 바꾼다.
 /// 미리 알림을 보고 저장하는 것이라, 저장할 때 따로 묻지 않는다.
-class _SlotField extends StatelessWidget {
-  const _SlotField({
+class _DroppedTransportNotice extends StatelessWidget {
+  const _DroppedTransportNotice({
     required this.route,
     required this.draft,
     required this.stop,
-    required this.onChanged,
   });
 
   final TripRoute route;
   final StopDraft draft;
   final Stop? stop;
-  final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final dayStops = dayStopsOf(route, draft.day, stopId: stop?.id);
-    final slots = insertionSlots(dayStops, draft.kind);
-    final defaultOrder = insertionOrder(dayStops, draft.kind);
-    final selected = placedOrder(route, draft, stopId: stop?.id);
     final dropped = transportsDroppedByDraft(route, draft, stop: stop);
+    if (dropped.isEmpty) return const SizedBox.shrink();
     final error = Theme.of(context).colorScheme.error;
     final textTheme = Theme.of(context).textTheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        DropdownButtonFormField<int>(
-          // 처음 값만 읽는 칸이라, 일차·기본 자리가 바뀌면 새로 만든다.
-          key: ValueKey(('slot', draft.day, selected)),
-          initialValue: selected,
-          isExpanded: true,
-          decoration: InputDecoration(labelText: l10n.stopSlotLabel),
-          items: [
-            for (final slot in slots)
-              DropdownMenuItem(
-                value: slot.order,
-                child: Text(
-                  slots.length > 1 && slot.order == defaultOrder
-                      ? l10n.stopSlotDefault(insertionSlotText(l10n, slot))
-                      : insertionSlotText(l10n, slot),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-          ],
-          // 장소가 없는 일차는 자리가 하나뿐이라 고를 것이 없다.
-          disabledHint: Text(insertionSlotText(l10n, slots.first)),
-          onChanged: slots.length > 1
-              ? (order) {
-                  if (order != null) onChanged(order);
-                }
-              : null,
-        ),
-        if (dropped.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpace.md),
-            child: Row(
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpace.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.warning_amber_rounded, color: error),
+          const SizedBox(width: AppSpace.sm),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.warning_amber_rounded, color: error),
-                const SizedBox(width: AppSpace.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        stop == null
-                            ? l10n.stopSlotDropsTransportAdd
-                            : l10n.stopSlotDropsTransportMove,
-                        style: textTheme.bodyMedium?.copyWith(color: error),
-                      ),
-                      DroppedTransportList(route: route, segments: dropped),
-                    ],
-                  ),
+                Text(
+                  stop == null
+                      ? l10n.stopSlotDropsTransportAdd
+                      : l10n.stopSlotDropsTransportMove,
+                  style: textTheme.bodyMedium?.copyWith(color: error),
                 ),
+                DroppedTransportList(route: route, segments: dropped),
               ],
             ),
           ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -540,7 +501,8 @@ class _TimeField extends StatelessWidget {
     final time = this.time;
     return InkWell(
       onTap: onPick,
-      borderRadius: AppRadius.sm,
+      // 칸 모양(AppRadius.md)과 같은 모서리로 물결을 그린다.
+      borderRadius: AppRadius.md,
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: l10n.stopTimeLabel,
@@ -553,6 +515,7 @@ class _TimeField extends StatelessWidget {
                 ),
         ),
         child: Text(
+          style: Theme.of(context).textTheme.bodyLarge,
           time == null
               ? l10n.stopTimeNone
               : MaterialLocalizations.of(context).formatTimeOfDay(

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/l10n/l10n.dart' show appLocale;
@@ -55,20 +54,6 @@ Future<void> _submit(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-/// 클립보드에 [text]를 둔다.
-void _clipboard(WidgetTester tester, String text) {
-  tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-    SystemChannels.platform,
-    (call) async => call.method == 'Clipboard.getData' ? {'text': text} : null,
-  );
-  addTearDown(
-    () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-      SystemChannels.platform,
-      null,
-    ),
-  );
-}
-
 void main() {
   late FakeAddressApi api;
 
@@ -93,7 +78,7 @@ void main() {
     await _pump(tester, api);
 
     expect(find.text('찾기 시험'), findsOneWidget);
-    expect(find.text('지도 앱에서 복사한 주소를 붙여 넣거나 주소·건물명을 입력하세요.'), findsOneWidget);
+    expect(find.text('지도 앱에서 복사한 주소를 붙여 넣거나 주소나 건물명을 입력하세요.'), findsOneWidget);
   });
 
   testWidgets('searches on submit, not on each keystroke', (tester) async {
@@ -124,6 +109,51 @@ void main() {
     expect(find.text('서울특별시 송파구 올림픽로 300'), findsOneWidget);
   });
 
+  testWidgets('shows x only with text and clears the text and results', (
+    tester,
+  ) async {
+    await _pump(tester, api);
+    expect(find.byTooltip('주소 지우기'), findsNothing);
+
+    await _type(tester, '관악대로 472');
+    await _submit(tester);
+    expect(_row('롯데월드타워'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('주소 지우기'));
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<TextField>(_field).controller!.text, '');
+    expect(_row('롯데월드타워'), findsNothing);
+    expect(find.byTooltip('주소 지우기'), findsNothing);
+    // 지우고 바로 다시 쓸 수 있다.
+    expect(tester.widget<TextField>(_field).focusNode!.hasFocus, isTrue);
+  });
+
+  testWidgets('groups the results in one outlined box below the field', (
+    tester,
+  ) async {
+    await _pump(tester, api);
+    final box = find.byKey(const ValueKey('addressResults'));
+    expect(box, findsNothing);
+
+    await _type(tester, '관악대로 472');
+    await _submit(tester);
+
+    expect(box, findsOneWidget);
+    expect(
+      find.descendant(of: box, matching: find.byType(ListTile)),
+      findsNWidgets(2),
+    );
+    final decoration =
+        tester.widget<Container>(box).decoration! as BoxDecoration;
+    expect(decoration.border, isNotNull);
+    // 상자는 칸 아래에 놓인다.
+    expect(
+      tester.getTopLeft(box).dy,
+      greaterThanOrEqualTo(tester.getBottomLeft(_field).dy),
+    );
+  });
+
   testWidgets('returns the full address and position of the chosen result', (
     tester,
   ) async {
@@ -138,48 +168,7 @@ void main() {
     final found = results.single!;
     expect(found.address, '경기도 안양시 동안구 관악대로 472, 1,2층 (관양동)');
     expect(found.position, const LatLng(37.4, 126.98));
-    expect(found.nameHint, isNull);
     expect(api.refs, hasLength(1));
-  });
-
-  testWidgets('pastes, searches the address line and keeps the name line', (
-    tester,
-  ) async {
-    _clipboard(
-      tester,
-      '투썸플레이스 인덕원역점\n경기 안양시 동안구 관악대로 472 1,2층\nhttps://naver.me/abc',
-    );
-    final results = await _pump(tester, api);
-
-    await tester.tap(find.text('붙여넣기'));
-    await tester.pumpAndSettle();
-
-    expect(api.searches, ['경기 안양시 동안구 관악대로 472 1,2층']);
-    expect(
-      tester.widget<TextField>(_field).controller!.text,
-      '경기 안양시 동안구 관악대로 472 1,2층',
-    );
-
-    await tester.tap(_row('경기도 안양시 동안구 관악대로 472'));
-    await tester.pumpAndSettle();
-
-    expect(results.single!.nameHint, '투썸플레이스 인덕원역점');
-  });
-
-  testWidgets('drops the pasted name once the text is edited by hand', (
-    tester,
-  ) async {
-    _clipboard(tester, '카페\n서울 종로구 사직로 161');
-    final results = await _pump(tester, api);
-    await tester.tap(find.text('붙여넣기'));
-    await tester.pumpAndSettle();
-
-    await _type(tester, '롯데월드타워');
-    await _submit(tester);
-    await tester.tap(_row('롯데월드타워'));
-    await tester.pumpAndSettle();
-
-    expect(results.single!.nameHint, isNull);
   });
 
   testWidgets('shows progress on the row and ignores other taps meanwhile', (

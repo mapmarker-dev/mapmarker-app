@@ -106,6 +106,18 @@ void main() {
     );
   });
 
+  test('a new stop goes where the address field found it, if it did', () {
+    const draft = StopDraft(name: '카페', day: 1);
+    const tapped = LatLng(33.51, 126.51);
+    const found = LatLng(33.45, 126.56);
+
+    Stop make(StopDraft draft) =>
+        draft.toNewStop(id: 'n', tripId: 'jeju', position: tapped, order: 0);
+
+    expect(make(draft).position, tapped);
+    expect(make(draft.copyWith(relocatedTo: () => found)).position, found);
+  });
+
   test('knows when nothing changed', () {
     final stop = testStop('c');
 

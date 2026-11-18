@@ -121,9 +121,9 @@
   "@trashItemMenuTooltip": {
     "description": "휴지통 화면의 여행 줄 오른쪽 ⋮ 메뉴"
   },
-  "trashItemSummary": "{region} · {purge}",
+  "trashItemSummary": "{region}, {purge}",
   "@trashItemSummary": {
-    "description": "휴지통 여행 줄의 둘째 줄. 예: 부산 · 29일 뒤 삭제",
+    "description": "휴지통 여행 줄의 둘째 줄. 예: 부산, 29일 뒤 삭제",
     "placeholders": {
       "region": {"type": "String", "example": "부산"},
       "purge": {"type": "String", "example": "29일 뒤 삭제"}
@@ -163,9 +163,9 @@
   "phaseBefore": "여행 전",
   "phaseDuring": "여행 중",
   "phaseAfter": "여행 후",
-  "phaseManual": "{phase} · 직접",
+  "phaseManual": "{phase}(직접)",
   "@phaseManual": {
-    "description": "사용자가 직접 바꾼 상태의 칩. 예: 여행 중 · 직접",
+    "description": "사용자가 직접 바꾼 상태의 칩. 예: 여행 중(직접)",
     "placeholders": {
       "phase": {"type": "String", "example": "여행 중"}
     }
@@ -234,9 +234,9 @@
       "end": {"type": "DateTime", "format": "yyyy.MM.dd", "isCustomDateFormat": "true"}
     }
   },
-  "tripSummary": "{dates} · {length}",
+  "tripSummary": "{dates}, {length}",
   "@tripSummary": {
-    "description": "여행 목록의 기간과 일정. 예: 2026.10.14 – 10.17 · 3박 4일",
+    "description": "여행 목록의 기간과 일정. 예: 2026.10.14 – 10.17, 3박 4일",
     "placeholders": {
       "dates": {"type": "String", "example": "2026.10.14 – 10.17"},
       "length": {"type": "String", "example": "3박 4일"}
@@ -273,12 +273,12 @@
   "renameTripHelper": "비우면 기본 제목으로 돌아갑니다.",
   "tripNotFound": "여행을 찾을 수 없습니다.",
   "tripLoadFailed": "여행을 불러오지 못했습니다.",
-  "tripRouteSubtitle": "{phase} · {summary}",
+  "tripRouteSubtitle": "{phase}, {summary}",
   "@tripRouteSubtitle": {
-    "description": "동선 페이지 제목 아래 줄. 예: 여행 중 · 2026.10.14 – 10.17 · 3박 4일",
+    "description": "동선 페이지 제목 아래 줄. 예: 여행 중, 2026.10.14 – 10.17, 3박 4일",
     "placeholders": {
       "phase": {"type": "String", "example": "여행 중"},
-      "summary": {"type": "String", "example": "2026.10.14 – 10.17 · 3박 4일"}
+      "summary": {"type": "String", "example": "2026.10.14 – 10.17, 3박 4일"}
     }
   },
   "routeAllDays": "전체",
@@ -407,9 +407,9 @@
     "description": "여러 일차에 넣은 같은 자리의 마커(예: 처음과 끝이 같은 공항)를 눌렀을 때 대화상자 제목"
   },
 
-  "itineraryTitleWithDate": "{day}일차 · {date}",
+  "itineraryTitleWithDate": "{day}일차, {date}",
   "@itineraryTitleWithDate": {
-    "description": "일차 동선 시트 제목. 기간이 있는 여행. 예: 2일차 · 10월 21일 (수)",
+    "description": "일차 동선 시트 제목. 기간이 있는 여행. 예: 2일차, 10월 21일 (수)",
     "placeholders": {
       "day": {"type": "int"},
       "date": {"type": "DateTime", "format": "MMMEd"}
@@ -430,15 +430,15 @@
   "@itineraryStartPlace": {
     "description": "일차 동선 시트 맨 위의 출발 장소 줄. 전날 마지막 장소가 숙소가 아닐 때(공항, 야간 이동 등)"
   },
-  "itineraryKindAndTime": "{kind} · {time}",
+  "itineraryKindAndTime": "{kind}, {time}",
   "@itineraryKindAndTime": {
-    "description": "장소 줄의 종류와 예정 시각. 예: 음식 · 오후 12:30",
+    "description": "장소 줄의 종류와 예정 시각. 예: 음식, 오후 12:30",
     "placeholders": {
       "kind": {"type": "String", "example": "음식"},
       "time": {"type": "String", "example": "오후 12:30"}
     }
   },
-  "itineraryOpenNaverMap": "네이버 지도에서 영업시간·리뷰 보기",
+  "itineraryOpenNaverMap": "네이버 지도에서 영업시간과 리뷰 보기",
   "@itineraryOpenNaverMap": {
     "description": "장소 줄 아래 칸. 누르면 네이버 지도에서 이름과 좌표로 장소를 찾는다"
   },
@@ -565,9 +565,13 @@
   },
   "stopAddressLabel": "주소",
   "placeFinderHint": "주소나 건물명",
-  "placeFinderPaste": "붙여넣기",
   "placeFinderSearch": "찾기",
-  "placeFinderGuide": "지도 앱에서 복사한 주소를 붙여 넣거나 주소·건물명을 입력하세요.",
+  "addressClear": "주소 지우기",
+  "addressFixedHelper": "후보의 위치 그대로 넣습니다. 위치는 넣은 뒤 장소 편집에서 바꿀 수 있습니다.",
+  "@addressFixedHelper": {
+    "description": "[동선에 넣기] 화면의 주소 칸 아래. 이 화면에서는 주소를 고칠 수 없다"
+  },
+  "placeFinderGuide": "지도 앱에서 복사한 주소를 붙여 넣거나 주소나 건물명을 입력하세요.",
   "placeFinderEmpty": "찾지 못했습니다. 주소를 확인하거나 지도를 눌러 넣어 주세요.",
   "placeFinderNoPosition": "이 주소는 위치를 찾지 못했습니다. 지도를 눌러 넣어 주세요.",
   "placeFinderLoading": "위치를 찾는 중",
@@ -577,7 +581,7 @@
       "address": {"type": "String"}
     }
   },
-  "placeFinderTitleBetween": "{day}일차 · {from} → {to} 사이에 넣기",
+  "placeFinderTitleBetween": "{day}일차 {from} → {to} 사이에 넣기",
   "@placeFinderTitleBetween": {
     "description": "동선 사이 +로 연 찾기 화면 제목",
     "placeholders": {
@@ -593,50 +597,18 @@
     }
   },
   "placeFinderTitleCandidate": "후보로 저장할 곳 찾기",
-  "placeFinderTitleRelocate": "위치 다시 찾기",
-  "relocateByAddress": "주소로 위치 다시 찾기",
-  "relocatedNotice": "저장하면 지도의 위치가 이 주소로 바뀝니다.",
   "itineraryAddPlace": "장소 넣기",
   "itineraryInsertHere": "여기에 장소 넣기",
   "candidateAdd": "후보 찾아 넣기",
   "stopKindLabel": "종류",
   "stopDayLabel": "일차",
-  "stopSlotLabel": "넣을 자리",
-  "@stopSlotLabel": {
-    "description": "장소 입력 화면에서 그 일차의 어느 장소 사이에 넣을지 고르는 칸. 장소를 추가할 때와 다른 일차로 옮길 때 보인다"
-  },
-  "stopSlotOnly": "첫 장소",
-  "@stopSlotOnly": {
-    "description": "넣을 자리 칸. 장소가 없는 일차라 고를 자리가 하나뿐일 때"
-  },
-  "stopSlotBefore": "{name} 앞",
-  "@stopSlotBefore": {
-    "description": "넣을 자리 칸의 선택지. 맨 앞이거나 바로 뒤가 숙소인 자리",
-    "placeholders": {
-      "name": {"type": "String", "example": "제주시 숙소"}
-    }
-  },
-  "stopSlotAfter": "{name} 뒤",
-  "@stopSlotAfter": {
-    "description": "넣을 자리 칸의 선택지. 바로 앞 장소로 가리키는 자리",
-    "placeholders": {
-      "name": {"type": "String", "example": "동문시장"}
-    }
-  },
-  "stopSlotDefault": "{slot} (기본)",
-  "@stopSlotDefault": {
-    "description": "넣을 자리 칸에서 기본 자리(맨 뒤, 마지막이 숙소면 숙소 앞)에 붙인다",
-    "placeholders": {
-      "slot": {"type": "String", "example": "제주시 숙소 앞"}
-    }
-  },
-  "stopSlotDropsTransportAdd": "이 자리에 넣으면 아래 이동 수단이 지워집니다.",
+  "stopSlotDropsTransportAdd": "여기에 넣으면 아래 이동 수단이 지워집니다.",
   "@stopSlotDropsTransportAdd": {
-    "description": "장소 추가 화면의 넣을 자리 칸 아래 미리 알림"
+    "description": "장소 추가 화면의 일차 칸 아래 미리 알림(넣을 자리는 ⊕ 자리나 기본 자리)"
   },
-  "stopSlotDropsTransportMove": "이 자리로 옮기면 아래 이동 수단이 지워집니다.",
+  "stopSlotDropsTransportMove": "이 일차로 옮기면 아래 이동 수단이 지워집니다.",
   "@stopSlotDropsTransportMove": {
-    "description": "장소 편집 화면에서 일차를 바꿨을 때 넣을 자리 칸 아래 미리 알림"
+    "description": "장소 편집 화면에서 일차를 바꿨을 때 일차 칸 아래 미리 알림"
   },
   "stopTimeLabel": "예정 시각",
   "stopTimeNone": "정하지 않음",

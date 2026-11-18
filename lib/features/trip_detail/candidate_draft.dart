@@ -6,7 +6,7 @@ import '../../data/models/stop.dart';
 import 'stop_draft.dart';
 
 /// 후보 입력 화면에서 고치는 값. 저장과 고치기가 함께 쓴다. 좌표는 고치지 않는다.
-/// 일차·넣을 자리·예정 시각은 없다(동선에 넣을 때 장소 입력 화면에서 정한다).
+/// 일차·예정 시각은 없다.
 @immutable
 class CandidateDraft {
   const CandidateDraft({
@@ -70,8 +70,8 @@ class CandidateDraft {
   }) => Candidate(
     id: id,
     tripId: tripId,
-    latitude: position.latitude,
-    longitude: position.longitude,
+    latitude: (relocatedTo ?? position).latitude,
+    longitude: (relocatedTo ?? position).longitude,
     name: name.trim(),
     kind: kind,
     description: description.trim(),

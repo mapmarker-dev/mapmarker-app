@@ -332,9 +332,9 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   TripRoute _latestRoute(TripRoute fallback) =>
       ref.read(tripRouteProvider(trip.id)).value ?? fallback;
 
-  /// 임시 핀 자리에 장소를 넣는다. 입력 화면에서 이름과 넣을 자리 등을 받는다.
+  /// 임시 핀 자리에 장소를 넣는다. 입력 화면에서 이름과 일차 등을 받는다(자리는 기본 자리).
   ///
-  /// 넣을 자리 때문에 지워질 이동 수단은 입력 화면이 칸 아래에 미리 보여 준다. 그걸 보고 저장한 것이라 따로 묻지 않는다.
+  /// 넣어서 지워질 이동 수단은 입력 화면이 일차 칸 아래에 미리 보여 준다. 그걸 보고 저장한 것이라 따로 묻지 않는다.
   Future<void> _addStop(TripRoute route, int? viewDay) async {
     final place = _draftPlace;
     if (place == null) return;
@@ -394,8 +394,8 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
 
   /// 동선 사이 ⊕(그 장소 [before] 앞)나 "장소 넣기" 줄(기본 자리)에서 주소로 찾아 [day]일차에 넣는다.
   ///
-  /// 찾기 화면에서 고르면 장소 입력 화면을 주소·좌표·넣을 자리로 채워 연다. 이름은 사용자가 쓴다
-  /// (붙여 넣은 글의 이름 줄만 미리 넣는다). 입력 화면을 그냥 닫으면 찾기 화면으로 돌아가지 않는다.
+  /// 찾기 화면에서 고르면 장소 입력 화면을 주소·좌표로 채우고 ⊕ 자리를 정해 연다. 이름은 사용자가 쓴다
+  /// (주소로는 어떤 가게인지 모른다). 입력 화면을 그냥 닫으면 찾기 화면으로 돌아가지 않는다.
   Future<void> _findStop(
     TripRoute route, {
     required int day,
@@ -422,7 +422,6 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       trip: trip,
       route: _latestRoute(route),
       initial: StopDraft(
-        name: found.nameHint ?? '',
         address: found.address,
         day: day,
         slotOrder: index >= 0 ? before!.order : null,
@@ -447,7 +446,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     );
   }
 
-  /// 후보 목록 끝 "후보 찾아 넣기" 줄에서 주소로 찾아 후보로 저장한다. 고르면 후보 입력 화면을 주소로 채워 연다.
+  /// 후보 목록 맨 위 "후보 찾아 넣기" 줄에서 주소로 찾아 후보로 저장한다. 고르면 후보 입력 화면을 주소로 채워 연다.
   Future<void> _findCandidate() async {
     final found = await showPlaceFinder(
       context,
@@ -458,10 +457,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     final controller = ref.read(tripDetailProvider(trip.id).notifier);
     final draft = await showCandidateForm(
       context,
-      initial: CandidateDraft(
-        name: found.nameHint ?? '',
-        address: found.address,
-      ),
+      initial: CandidateDraft(address: found.address),
       isNew: true,
       onSave: (draft) => controller.addCandidate(
         draft.toNewCandidate(id: id, tripId: trip.id, position: found.position),
@@ -488,7 +484,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   }
 
   /// 후보를 동선에 넣는다. 장소 입력 화면을 후보 값(이름·종류·설명·메모)으로 채워 새 장소처럼 연다
-  /// (일차·넣을 자리·예정 시각). 넣을 자리 때문에 지워질 이동 수단은 입력 화면이 칸 아래에 미리 보여 준다.
+  /// (일차·예정 시각, 자리는 기본 자리). 지워질 이동 수단은 입력 화면이 일차 칸 아래에 미리 보여 준다.
   ///
   /// 넣으면 그 일차로 가서 넣은 장소를 보여 준다. 숙소를 끈 보기에 숙소로 넣었으면 먼저 그렇다고 알린다.
   /// 같은 ID의 장소가 된다. 좌표와 장소 서비스 ID는 저장소가 후보 것을 쓴다.
@@ -499,6 +495,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       trip: trip,
       route: latest,
       title: context.l10n.candidatePromote,
+      relocatable: false,
       initial: StopDraft(
         name: candidate.name,
         kind: candidate.kind,
@@ -559,7 +556,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
 
   /// [canDelete]가 false면(출발 장소) 입력 화면에 지우기와 후보로 빼기가 없다.
   ///
-  /// 다른 일차로 옮기면 입력 화면에 넣을 자리 칸이 생기고, 지워질 이동 수단을 칸 아래에 미리 보여 준다.
+  /// 다른 일차로 옮기면 그 일차의 기본 자리로 가고, 지워질 이동 수단을 일차 칸 아래에 미리 보여 준다.
   /// 그걸 보고 저장한 것이라 따로 묻지 않는다.
   ///
   /// 후보로 빼면 입력 화면에서 고친 이름·종류·설명·메모를 먼저 저장하고 뺀다(후보에 남는 값이라서).
@@ -1392,8 +1389,11 @@ class _RouteMap extends ConsumerWidget {
     return map.buildMap(
       MapScene(
         markers: [
-          if (showCandidates) ...candidateMarkers(route, colors),
+          // "후보 목록" 보기는 후보가 주인공이라 흐린 동선 위에 그린다(뒤에 넣은 마커가 위다).
+          if (showCandidates && !candidateView)
+            ...candidateMarkers(route, colors),
           ...markers,
+          if (candidateView) ...candidateMarkers(route, colors, focused: true),
           if (draft != null)
             draftMarker(draft, Theme.of(context).colorScheme, colors),
         ],

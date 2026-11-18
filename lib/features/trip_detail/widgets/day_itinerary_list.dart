@@ -424,7 +424,9 @@ class _DayItineraryListState extends State<DayItineraryList> {
         if (!widget.readOnly)
           for (final lodging in itinerary.lodgingsToStayAgain)
             SliverPadding(
-              padding: side.add(const EdgeInsets.only(top: AppSpace.sm)),
+              padding: side.add(
+                const EdgeInsets.only(left: AppSpace.sm, top: AppSpace.sm),
+              ),
               sliver: SliverToBoxAdapter(
                 child: Align(
                   alignment: Alignment.centerLeft,

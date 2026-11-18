@@ -62,15 +62,15 @@ void main() {
     );
 
     expect(find.text('제주 3박 4일 가을 여행'), findsOneWidget);
-    expect(find.text('2026.10.14 – 10.17 · 3박 4일'), findsOneWidget);
+    expect(find.text('2026.10.14 – 10.17, 3박 4일'), findsOneWidget);
     expect(find.text('여행 중'), findsOneWidget);
 
     expect(find.text('강릉 1박 2일 겨울 여행'), findsOneWidget);
-    expect(find.text('날짜 미정 · 1박 2일'), findsOneWidget);
+    expect(find.text('날짜 미정, 1박 2일'), findsOneWidget);
     expect(find.text('여행 전'), findsOneWidget);
 
     expect(find.text('부산 2박 3일 가을 여행'), findsOneWidget);
-    expect(find.text('2026.09.05 – 09.07 · 2박 3일'), findsOneWidget);
+    expect(find.text('2026.09.05 – 09.07, 2박 3일'), findsOneWidget);
     expect(find.text('여행 후'), findsOneWidget);
 
     // 최근에 고친 여행이 앞에 있다.
@@ -123,10 +123,10 @@ void main() {
     await tester.tap(_menuItem('여행 중'));
     await tester.pumpAndSettle();
 
-    expect(find.text('여행 중 · 직접'), findsOneWidget);
+    expect(find.text('여행 중(직접)'), findsOneWidget);
     expect(savedOverride(), TripPhase.during);
 
-    await tester.tap(find.text('여행 중 · 직접'));
+    await tester.tap(find.text('여행 중(직접)'));
     await tester.pumpAndSettle();
     await tester.tap(_menuItem('자동으로 되돌리기 (자동: 여행 전)'));
     await tester.pumpAndSettle();
@@ -203,7 +203,7 @@ void main() {
       final card = tester.getRect(find.byType(TripCard).first);
       final chip = tester.getRect(find.byType(TripPhaseMenu).first);
       expect(chip.right, lessThanOrEqualTo(card.right));
-      expect(find.text('여행 중 · 직접'), findsOneWidget);
+      expect(find.text('여행 중(직접)'), findsOneWidget);
     });
 
     testWidgets('keeps the last cards above the + button and navigation bar', (

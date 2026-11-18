@@ -60,16 +60,19 @@ Future<void> _pumpJeju(
   openLink: openLink ?? refuseLinks,
 );
 
-/// 지도의 후보 마커(보조 마커) ID.
+bool _isCandidate(MapMarker marker) =>
+    marker.id == _udo.id || marker.id == _cafe.id;
+
+/// 지도의 후보 마커 ID.
 List<String> _candidateMarkers(MapScene scene) => [
   for (final marker in scene.markers)
-    if (marker.secondary) marker.id,
+    if (_isCandidate(marker)) marker.id,
 ];
 
 /// 지도의 장소 마커 ID.
 List<String> _stopMarkers(MapScene scene) => [
   for (final marker in scene.markers)
-    if (!marker.secondary) marker.id,
+    if (!_isCandidate(marker)) marker.id,
 ];
 
 LatLngBounds _boundsOf(Iterable<LatLng> positions) =>
@@ -121,8 +124,12 @@ void main() {
       final scene = mapScene(tester);
       expect(_candidateMarkers(scene), ['udo', 'cafe']);
       expect(_stopMarkers(scene), ['a', 'b', 'hotel', 'c']);
-      // 후보는 작은 회색 마커다. 동선 카메라 맞춤에는 넣지 않는다.
+      // 후보는 작은 회색 보조 마커다(동선을 가리지 않는다). 동선 카메라 맞춤에는 넣지 않는다.
       expect(scene.markers.first.look.small, isTrue);
+      expect(
+        scene.markers.where(_isCandidate).every((m) => m.secondary),
+        isTrue,
+      );
       expect(
         scene.camera.bounds,
         _boundsOf(_stops.map((stop) => stop.position)),
@@ -163,7 +170,21 @@ void main() {
       expect(_candidateMarkers(scene), ['udo', 'cafe']);
       // 동선은 흐리게 깔려 있고, 화살표·선 아이콘은 없다.
       expect(_stopMarkers(scene), ['a', 'b', 'hotel', 'c']);
-      expect(scene.markers.last.look.fill.a, lessThan(1));
+      expect(
+        scene.markers
+            .where((m) => !_isCandidate(m))
+            .every((m) => m.look.fill.a < 1),
+        isTrue,
+      );
+      // 후보는 주인공이라 진한 보통 크기 마커로 흐린 동선 위(뒤)에 그린다.
+      final candidates = scene.markers.where(_isCandidate).toList();
+      expect(candidates.every((m) => !m.secondary), isTrue);
+      expect(candidates.every((m) => !m.look.small), isTrue);
+      expect(candidates.every((m) => m.look.fill.a == 1), isTrue);
+      expect(scene.markers.skip(scene.markers.length - 2).map((m) => m.id), [
+        'udo',
+        'cafe',
+      ]);
       expect(scene.lines, isNotEmpty);
       expect(scene.lines.every((line) => line.color.a < 1), isTrue);
       expect(scene.arrows, isEmpty);
@@ -189,11 +210,18 @@ void main() {
       await tapChip(tester, '후보 목록');
 
       expect(_candidateMarkers(mapScene(tester)), ['udo', 'cafe']);
+      // "후보" 칩은 켜진 채로 고정이다(바꿔도 지도가 같다).
+      FilterChip filter() =>
+          tester.widget<FilterChip>(find.widgetWithText(FilterChip, '후보'));
+      expect(filter().selected, isTrue);
+      expect(filter().onSelected, isNull);
 
       // 다른 보기로 가면 꺼 둔 대로다.
       await tapChip(tester, '전체');
 
       expect(_candidateMarkers(mapScene(tester)), isEmpty);
+      expect(filter().selected, isFalse);
+      expect(filter().onSelected, isNotNull);
     });
 
     testWidgets('says there are no candidates yet', (tester) async {
@@ -232,8 +260,12 @@ void main() {
         },
       );
       await tapChip(tester, '후보 목록');
+      // 칸은 펼친 줄에만 있다.
+      expect(find.text('네이버 지도에서 영업시간과 리뷰 보기'), findsNothing);
+      await tester.tap(find.text('카페'));
+      await tester.pumpAndSettle();
 
-      await tester.tap(_inCandidate('카페', find.text('네이버 지도에서 영업시간·리뷰 보기')));
+      await tester.tap(_inCandidate('카페', find.text('네이버 지도에서 영업시간과 리뷰 보기')));
       await tester.pumpAndSettle();
 
       expect(opened, [naverMapSearchUri('카페', _cafe.position)]);

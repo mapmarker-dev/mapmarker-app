@@ -80,7 +80,7 @@ void main() {
 
     expect(find.text('부산 1박 2일 봄 여행'), findsOneWidget);
     // 상태와 기간·일정이 제목 아래에 있다.
-    expect(find.text('여행 전 · 날짜 미정 · 1박 2일'), findsOneWidget);
+    expect(find.text('여행 전, 날짜 미정, 1박 2일'), findsOneWidget);
   });
 
   testWidgets('renames the trip', (tester) async {
@@ -322,12 +322,16 @@ void main() {
 
       await tapChip(tester, '2일차');
 
-      expect(find.text('2일차 · 10월 21일 (수)'), findsOneWidget);
+      expect(find.text('2일차, 10월 21일 (수)'), findsOneWidget);
     });
 
     testWidgets('keeps the handle and title on top while the list scrolls', (
       tester,
     ) async {
+      // 목록이 넘어갈 만큼 낮은 화면이다.
+      tester.view.physicalSize =
+          const Size(800, 420) * tester.view.devicePixelRatio;
+      addTearDown(tester.view.reset);
       await _pumpJeju(tester);
       await tapChip(tester, '2일차');
       await _openSheet(tester);
@@ -508,8 +512,13 @@ void main() {
       );
       await tapChip(tester, '2일차');
       await _openSheet(tester);
+      // 칸은 펼친 줄에만 있다.
+      expect(find.text('네이버 지도에서 영업시간과 리뷰 보기'), findsNothing);
+      await tester.tap(find.text('d'));
+      await tester.pumpAndSettle();
+      expect(find.text('네이버 지도에서 영업시간과 리뷰 보기'), findsOneWidget);
 
-      await tester.tap(_inTile('d', find.text('네이버 지도에서 영업시간·리뷰 보기')));
+      await tester.tap(_inTile('d', find.text('네이버 지도에서 영업시간과 리뷰 보기')));
       await tester.pumpAndSettle();
 
       final d = _stops.singleWhere((s) => s.id == 'd');
@@ -522,8 +531,10 @@ void main() {
       await _pumpJeju(tester);
       await tapChip(tester, '2일차');
       await _openSheet(tester);
+      await tester.tap(find.text('d'));
+      await tester.pumpAndSettle();
 
-      await tester.tap(_inTile('d', find.text('네이버 지도에서 영업시간·리뷰 보기')));
+      await tester.tap(_inTile('d', find.text('네이버 지도에서 영업시간과 리뷰 보기')));
       await tester.pumpAndSettle();
 
       expect(find.text('네이버 지도를 열지 못했습니다.'), findsOneWidget);

@@ -37,4 +37,22 @@ void main() {
     expect(draft, isNot(CandidateDraft.of(udo)));
     expect(draft.applyTo(udo).position, const LatLng(33.45, 126.56));
   });
+
+  test('a new candidate goes where the address field found it, if it did', () {
+    const tapped = LatLng(33.51, 126.51);
+    const found = LatLng(33.45, 126.56);
+    const draft = CandidateDraft(name: '카페');
+
+    expect(
+      draft.toNewCandidate(id: 'n', tripId: 'jeju', position: tapped).position,
+      tapped,
+    );
+    expect(
+      draft
+          .copyWith(relocatedTo: () => found)
+          .toNewCandidate(id: 'n', tripId: 'jeju', position: tapped)
+          .position,
+      found,
+    );
+  });
 }

@@ -9,7 +9,7 @@ import 'place_fields.dart';
 
 /// 후보 입력 화면을 띄운다. 저장하면 고친 값을, 그냥 닫거나 지우면 null을 돌려준다.
 ///
-/// 장소 입력 화면과 같은 전체 화면이고 같은 칸(이름·종류·설명·메모)을 쓴다. 일차·넣을 자리·예정 시각은 없다.
+/// 장소 입력 화면과 같은 전체 화면이고 같은 칸(이름·종류·설명·메모)을 쓴다. 일차·예정 시각은 없다.
 /// [onSave]로 저장되면 닫히고, 저장하지 못하면 입력한 그대로 열려 있고 화면 안에 알린다([FormSaving]).
 /// [onDelete]가 있으면(고칠 때) 맨 아래에 "후보 지우기"가 있다. 확인을 받아 지우면 닫는다.
 Future<CandidateDraft?> showCandidateForm(
@@ -85,14 +85,6 @@ class _CandidateFormDialogState extends State<CandidateFormDialog>
     _address.addListener(
       () => setState(() => _draft = _draft.copyWith(address: _address.text)),
     );
-  }
-
-  /// [주소로 위치 다시 찾기]: 고르면 주소 칸을 바꾸고, 저장할 때 위치를 옮긴다.
-  Future<void> _relocate() async {
-    final found = await findNewPosition(context);
-    if (found == null || !mounted) return;
-    _address.text = found.address;
-    setState(() => _draft = _draft.copyWith(relocatedTo: () => found.position));
   }
 
   @override
@@ -187,13 +179,18 @@ class _CandidateFormDialogState extends State<CandidateFormDialog>
                   autofocus: widget.isNew && widget.initial.name.isEmpty,
                 ),
                 gap,
-                PlaceAddressField(controller: _address, enabled: !saving),
-                // 고칠 때만 있다. 새로 넣는 곳은 방금 찾았거나 지도에서 찍었다.
-                if (!widget.isNew)
-                  RelocateButton(
-                    relocated: _draft.relocatedTo != null,
-                    onPressed: saving ? null : _relocate,
+                PlaceAddressSearch(
+                  controller: _address,
+                  enabled: !saving,
+                  searchable: true,
+                  // 고르면 주소 칸은 그 주소가 되고(칸이 바꾼다), 저장할 때 위치를 옮긴다.
+                  // 새로 넣는 곳은 고른 위치에 넣는다(`toNewStop`·`toNewCandidate`).
+                  onPicked: (found) => setState(
+                    () => _draft = _draft.copyWith(
+                      relocatedTo: () => found.position,
+                    ),
                   ),
+                ),
                 gap,
                 PlaceKindChips(
                   kind: _draft.kind,
