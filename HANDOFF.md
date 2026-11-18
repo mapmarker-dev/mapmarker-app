@@ -15,13 +15,12 @@
 
 ## 다음에 할 첫 단계
 
-1. 제주 샘플 장소·후보 주소를 실제 키로 찾은 값으로 채운다(`sampleJeju…` ARB, 못 찾는 자연 명소는 비움).
-2. 설계 문서의 "문서에 반영할 것"을 OVERVIEW·PLAN에 한 번에 옮기고(특히 "넣을 자리" 칸을 없앤 것: OVERVIEW 45·174·175·188줄, PLAN 66·93줄), 작업 폴더의 설계·계획 문서를 지운 뒤 dev → main PR.
+1. 설계 문서의 "문서에 반영할 것"을 OVERVIEW·PLAN에 한 번에 옮기고(특히 "넣을 자리" 칸을 없앤 것: OVERVIEW 45·174·175·188줄, PLAN 66·93줄), 작업 폴더의 설계·계획 문서를 지운 뒤 dev → main PR.
    - 나중에 더할 경로: `/trips/:tripId/export`, `/settings`. 3단계에 `/shared/:shareId`(공유 링크 `/trip/<공유ID>`를 redirect로 연결).
 
 ## 현재 상태
 
-- `flutter analyze` 0건, `flutter test` 738개 통과. 장소·후보 입력 화면 맨 아래 버튼([후보로 빼기] [장소 지우기])은 한 줄에 놓고 폭이 모자랄 때만 넘긴다(`FormActionRow`).
+- `flutter analyze` 0건, `flutter test` 741개 통과. 장소·후보 입력 화면 맨 아래 버튼([후보로 빼기] [장소 지우기])은 한 줄에 놓고 폭이 모자랄 때만 넘긴다(`FormActionRow`).
 - 태블릿(카카오톡 없음, 네이버 앱 있음)에서 확인한 것: 카카오 계정·네이버 로그인, 다시 켜도 유지(서버가 꺼져도 묻지 않음), 로그아웃, 카카오 취소(안내 없음), 서버 끔 안내, 사용자를 지운 뒤 재가입, 여행·장소·구간 저장과 유지, 계정별 여행, 저장 중 표시와 실패 안내, 샘플과 여행 삭제, 휴지통 전체(남은 날, 되살린 뒤 원래 자리와 동선, 영구 삭제, 빈 휴지통, 당겨서 새로고침, 긴 제목, 서버를 끈 실패).
 - 코드 위치: `lib/data/api/`(`ApiClient` 토큰·재발급), `lib/data/auth/`(`AuthSession`, `Account`, `SocialSdk`), `lib/data/trips/`(`TripApi`, `trip_json.dart`, `ServerTripRepository`, `TripCache`), `lib/data/sample/`, `lib/features/login/`, `lib/features/trash/`. 값의 위치·실행 순서·`/login` 예외는 `CLAUDE.md`.
 - `tripRepositoryProvider`는 로그인·로그아웃마다(`authGenerationProvider`) `ServerTripRepository`를 새로 만들어 `SampleTripRepository`로 감싼다. 로그아웃 상태는 빈 메모리 저장소다.
@@ -69,6 +68,7 @@
   - 화면: `features/trash/`(`trashProvider`는 열 때마다 받는 autoDispose). 지우기 확인 창은 `core/widgets/ConfirmDeleteDialog`로 옮겨 여행 목록과 함께 쓴다(기능끼리 import 금지). 남은 날은 `purgeAt`과 기기 시각으로 올림한 "N일 뒤 삭제", 하루가 안 남으면 "하루 안에 삭제"("오늘"은 시각에 따라 틀린다). 되살리기가 404면 "휴지통에 없는 여행" 안내 뒤 다시 받는다. 되살렸다는 스낵바에 [보기] 같은 이동 버튼은 없다.
   - 저장소: `trashTrip`(예전 `deleteTrip`), `fetchTrash`(기억하지 않고 매번 받음), `restoreTrip`(목록 캐시에 넣음, 동선은 열 때 받음), `deleteTripForever`. 404는 옮기기·영구 삭제에서는 끝난 것으로 보고, 되살리기에서는 `notFound`로 던진다. 보관 기간은 서버가 준 `purgeAt`만 쓴다(메모리 저장소만 30일 상수가 있다). 샘플 복사 실패 정리는 휴지통을 거치지 않게 `trashTrip` → `deleteTripForever`.
 - **제주 샘플과 여행 삭제**(큰 결정은 OVERVIEW "앱 화면과 디자인")
+  - 샘플 주소(`sampleJeju…Address`)는 2026-11-18에 실제 행안부 검색으로 찾은 값이다(앱에서 찾아 고르면 나오는 글 그대로). 이름으로 안 나오는 명소는 매표소나 입구의 공식 주소를 넣었다(성산일출봉 일출로 284-12, 천지연폭포 남성중로 2-15, 영실 영실로 500). 찾지 못하는 곳(협재해수욕장, 우도, 애월 카페거리)과 이름뿐인 숙소는 빈칸이다. 좌표는 원래 값 그대로다(주소 좌표와 최대 800m쯤 차이, 명소 한가운데에 핀을 두려고). 실기기에서 펼친 줄의 주소를 확인했다.
   - `SampleTripRepository`가 샘플(`sample-jeju`)을 목록 맨 뒤에 붙이고, 고치려 하면 `StateError`다. 숨겼는지 아직 모르면 붙이지 않는다(보였다 사라지는 것보다 낫다).
   - 숨김은 `shared_preferences`(`PrefsSampleStore`)로 기기에 기억한다. 한 기기에서 계정을 바꿔도 숨긴 그대로다(사용자 확인, 계정을 바꿔 쓰는 일은 주로 테스트 때). 읽지 못하면 보이고, 기억하지 못하면 이번에만 숨는다. 다른 플러그인이 쓰던 패키지라 새 네이티브 코드는 없다.
   - 보기 전용: `isSampleTrip`이면 제목 바꾸기·지도 핀·곡선 핸들·연필·손잡이·"오늘 밤도 여기서 묵기"를 숨기고 안내와 [실제로 사용하기]를 띄운다. 카드는 "샘플" 표시가 붙고 상태를 고를 수 없다.
