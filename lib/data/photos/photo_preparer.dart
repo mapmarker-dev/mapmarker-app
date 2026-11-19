@@ -5,14 +5,33 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'photo_upload.dart';
-
-/// 사진을 올릴 수 있게 줄인다.
+/// 사진을 올릴 수 있게 만든다. 위치 정보(EXIF)가 없는 JPEG 두 개다.
+///
+/// 1. [shrink]: 고른 사진을 긴 변 1920px 원본으로 줄인다(비율 그대로).
+/// 2. 사용자가 원본에서 정사각형 자리를 고른다("사진 위치" 화면).
+/// 3. [squareThumbnail]: 그 자리로 400×400 썸네일을 만든다. 지도 마커, 장소 줄, 내보내기가 이것을 쓴다.
 ///
 /// 줄이기는 플랫폼 플러그인(`flutter_image_compress`)이 하고, 테스트는 가짜로 바꿔 끼운다.
 /// 읽을 수 없는 사진이면 [PhotoPrepareException]이다.
 abstract interface class PhotoPreparer {
-  Future<PreparedPhoto> prepare(Uint8List source, {required String id});
+  /// 고른 사진(아무 형식, EXIF 방향 포함)을 원본으로 줄인다.
+  Future<SizedJpeg> shrink(Uint8List source);
+
+  /// 이미 줄여 올린 원본(서버에서 받은 것)의 크기. 위치를 다시 고를 때 쓴다.
+  Future<SizedJpeg> measure(Uint8List original);
+
+  /// [original]에서 [area](원본 폭과 높이에 대한 비율, 정사각형)를 잘라 썸네일을 만든다.
+  Future<Uint8List> squareThumbnail(SizedJpeg original, ui.Rect area);
+}
+
+/// 크기를 아는 JPEG. 크기는 EXIF 방향을 적용한 뒤의 픽셀 수다(방향 정보는 지웠다).
+@immutable
+class SizedJpeg {
+  const SizedJpeg(this.bytes, {required this.width, required this.height});
+
+  final Uint8List bytes;
+  final int width;
+  final int height;
 }
 
 /// 고른 사진을 읽거나 줄이지 못했다(지원하지 않는 형식, 깨진 파일 등).
@@ -79,6 +98,19 @@ bool hasMetadataSegment(Uint8List jpeg) {
   throw const PhotoPrepareException('JPEG가 잘렸습니다');
 }
 
+/// [area](폭과 높이에 대한 비율)를 [width]×[height] 사진의 픽셀 정사각형으로 바꾼다.
+/// 한 변은 짧은 쪽에 맞추고, 사진 밖으로 나가지 않게 안으로 민다(고르는 화면의 반올림 오차).
+@visibleForTesting
+ui.Rect squarePixels(int width, int height, ui.Rect area) {
+  final side = math.min(
+    math.min(area.width * width, area.height * height),
+    math.min(width, height).toDouble(),
+  );
+  final left = (area.left * width).clamp(0.0, width - side);
+  final top = (area.top * height).clamp(0.0, height - side);
+  return ui.Rect.fromLTWH(left, top, side, side);
+}
+
 /// 줄인 두 파일이 올릴 수 있는지 본다. 위치 정보가 남았거나 서버 상한보다 크면 [PhotoPrepareException].
 @visibleForTesting
 void checkPrepared(Uint8List original, Uint8List thumbnail) {
@@ -111,7 +143,7 @@ class CompressPhotoPreparer implements PhotoPreparer {
   const CompressPhotoPreparer();
 
   @override
-  Future<PreparedPhoto> prepare(Uint8List source, {required String id}) async {
+  Future<SizedJpeg> shrink(Uint8List source) async {
     var input = source;
     var size = await readImageSize(input);
     if (size == null) {
@@ -125,21 +157,60 @@ class CompressPhotoPreparer implements PhotoPreparer {
       side: shortSideFor(size.width, size.height, photoLongEdge),
       quality: 85,
     );
-    final originalSize = await readImageSize(original);
-    if (originalSize == null) {
-      throw const PhotoPrepareException('줄인 사진을 읽지 못했습니다');
+    return measure(original);
+  }
+
+  @override
+  Future<SizedJpeg> measure(Uint8List original) async {
+    if (hasMetadataSegment(original)) {
+      throw const PhotoPrepareException('메타데이터가 남았습니다');
     }
-    final thumbnail = await _compress(
-      original,
-      side: shortSideFor(
-        originalSize.width,
-        originalSize.height,
-        thumbnailLongEdge,
-      ),
-      quality: 80,
-    );
-    checkPrepared(original, thumbnail);
-    return PreparedPhoto(id: id, original: original, thumbnail: thumbnail);
+    final size = await readImageSize(original);
+    if (size == null) throw const PhotoPrepareException('원본을 읽지 못했습니다');
+    return SizedJpeg(original, width: size.width, height: size.height);
+  }
+
+  @override
+  Future<Uint8List> squareThumbnail(SizedJpeg original, ui.Rect area) async {
+    final crop = squarePixels(original.width, original.height, area);
+    final side = math.min(thumbnailLongEdge, crop.width.floor());
+    final png = await _drawSquare(original.bytes, crop, side);
+    final thumbnail = await _compress(png, side: side, quality: 80);
+    checkPrepared(original.bytes, thumbnail);
+    return thumbnail;
+  }
+
+  /// 원본의 [crop] 부분을 [side]×[side]로 그려 PNG로 만든다(플러그인은 자르기가 없다).
+  Future<Uint8List> _drawSquare(Uint8List jpeg, ui.Rect crop, int side) async {
+    ui.Codec? codec;
+    ui.Image? image;
+    ui.Image? square;
+    try {
+      codec = await ui.instantiateImageCodec(jpeg);
+      image = (await codec.getNextFrame()).image;
+      final recorder = ui.PictureRecorder();
+      final target = ui.Rect.fromLTWH(0, 0, side.toDouble(), side.toDouble());
+      ui.Canvas(recorder, target).drawImageRect(
+        image,
+        crop,
+        target,
+        ui.Paint()..filterQuality = ui.FilterQuality.high,
+      );
+      square = await recorder.endRecording().toImage(side, side);
+      final data = await square.toByteData(format: ui.ImageByteFormat.png);
+      if (data == null) {
+        throw const PhotoPrepareException('썸네일을 그리지 못했습니다');
+      }
+      return data.buffer.asUint8List();
+    } on PhotoPrepareException {
+      rethrow;
+    } catch (error) {
+      throw PhotoPrepareException('썸네일을 그리지 못했습니다: $error');
+    } finally {
+      square?.dispose();
+      image?.dispose();
+      codec?.dispose();
+    }
   }
 
   /// EXIF 방향대로 돌린 뒤 메타데이터 없이 JPEG로 다시 쓴다.

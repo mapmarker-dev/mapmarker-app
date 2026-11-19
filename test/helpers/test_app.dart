@@ -161,6 +161,7 @@ Future<ProviderContainer> pumpTestApp(
   AddressApi? addressApi,
   PhotoSource? photoSource,
   PhotoPreparer? photoPreparer,
+  PhotoImages? photoImages,
 }) async {
   final container = ProviderContainer.test(
     overrides: [
@@ -173,7 +174,7 @@ Future<ProviderContainer> pumpTestApp(
       photoPreparerProvider.overrideWithValue(
         photoPreparer ?? FakePhotoPreparer(),
       ),
-      photoImagesProvider.overrideWithValue(fakePhotoImages()),
+      photoImagesProvider.overrideWithValue(photoImages ?? fakePhotoImages()),
       ...authOverrides(
         session: session,
         socialSdk: socialSdk,

@@ -734,6 +734,8 @@ void main() {
     final photo = PreparedPhoto(
       id: 'photo-1',
       original: Uint8List.fromList(List.filled(300, 1)),
+      originalWidth: 40,
+      originalHeight: 30,
       thumbnail: Uint8List.fromList(List.filled(30, 2)),
     );
 

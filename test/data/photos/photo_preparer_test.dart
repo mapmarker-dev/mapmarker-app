@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/data/photos/photo_preparer.dart';
@@ -39,6 +40,22 @@ void main() {
 
     test('아주 긴 사진도 1px보다 작게 만들지 않는다', () {
       expect(shortSideFor(100000, 10, 400), 1);
+    });
+  });
+
+  group('squarePixels', () {
+    test('비율로 받은 정사각형을 픽셀로 바꾼다', () {
+      expect(
+        squarePixels(1920, 1440, const Rect.fromLTWH(0.125, 0, 0.75, 1)),
+        const Rect.fromLTWH(240, 0, 1440, 1440),
+      );
+    });
+
+    test('반올림 오차로 사진 밖으로 나가거나 짧은 변보다 크면 안으로 맞춘다', () {
+      expect(
+        squarePixels(1440, 1920, const Rect.fromLTWH(-0.01, 0.3, 1.02, 0.77)),
+        const Rect.fromLTWH(0, 1920 - 1440, 1440, 1440),
+      );
     });
   });
 

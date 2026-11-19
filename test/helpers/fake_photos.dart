@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:mapmarker_app/data/photos/photo_images.dart';
 import 'package:mapmarker_app/data/photos/photo_preparer.dart';
 import 'package:mapmarker_app/data/photos/photo_source.dart';
-import 'package:mapmarker_app/data/photos/photo_upload.dart';
 
 /// 1×1 PNG. 이미지 위젯에 넣을 수 있는 가장 작은 그림이다.
 final testImageBytes = base64Decode(
@@ -28,19 +28,36 @@ class FakePhotoSource implements PhotoSource {
   }
 }
 
-/// 줄이기 대신. 받은 바이트를 그대로 원본과 썸네일로 쓴다.
+/// 줄이기 대신. 받은 바이트를 그대로 원본과 썸네일로 쓰고, 크기는 [width]×[height]로 본다.
 class FakePhotoPreparer implements PhotoPreparer {
   /// 있으면 줄이기가 이것으로 실패한다(예: 읽지 못하는 형식).
   Object? error;
 
-  final prepared = <PreparedPhoto>[];
+  int width = 400;
+  int height = 300;
+
+  /// 썸네일을 만든 정사각형(원본 폭과 높이에 대한 비율).
+  final areas = <Rect>[];
+
+  /// 크기를 잰 원본(위치를 다시 고를 때 받은 것).
+  final measured = <Uint8List>[];
 
   @override
-  Future<PreparedPhoto> prepare(Uint8List source, {required String id}) async {
+  Future<SizedJpeg> shrink(Uint8List source) async {
     if (error case final error?) throw error;
-    final photo = PreparedPhoto(id: id, original: source, thumbnail: source);
-    prepared.add(photo);
-    return photo;
+    return SizedJpeg(source, width: width, height: height);
+  }
+
+  @override
+  Future<SizedJpeg> measure(Uint8List original) async {
+    measured.add(original);
+    return SizedJpeg(original, width: width, height: height);
+  }
+
+  @override
+  Future<Uint8List> squareThumbnail(SizedJpeg original, Rect area) async {
+    areas.add(area);
+    return original.bytes;
   }
 }
 

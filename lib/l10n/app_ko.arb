@@ -385,6 +385,16 @@
     "description": "고른 사진을 줄이는 동안의 진행 표시 이름"
   },
   "placePhotoReadFailed": "이 사진을 읽지 못했습니다. 다른 사진을 골라 주세요.",
+  "placePhotoReposition": "위치 바꾸기",
+  "@placePhotoReposition": {
+    "description": "장소 입력 화면 사진 옆 버튼. 지도 마커와 목록에 보일 정사각형 부분을 다시 고른다"
+  },
+  "placePhotoFetchFailed": "사진을 받지 못했습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.",
+  "photoPositionTitle": "사진 위치",
+  "@photoPositionTitle": {
+    "description": "사진을 고른 뒤 뜨는 화면의 제목. 정사각형 틀 안에 보일 부분을 고른다(지도 마커, 장소 줄, 내보내기 이미지에 쓰인다)"
+  },
+  "photoPositionHint": "끌거나 두 손가락으로 늘려서 보일 부분을 고르세요.",
   "stopPhotoLabel": "{name} 사진",
   "@stopPhotoLabel": {
     "description": "장소 줄의 사진(누르면 크게 본다)과 크게 보기 화면의 이름",

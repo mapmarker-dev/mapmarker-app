@@ -8,9 +8,11 @@ import 'package:mapmarker_app/core/theme/app_theme.dart';
 import 'package:mapmarker_app/data/api/api_exception.dart';
 import 'package:mapmarker_app/data/models/photo.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
+import 'package:mapmarker_app/data/photos/photo_images.dart';
 import 'package:mapmarker_app/data/photos/photo_preparer.dart';
 import 'package:mapmarker_app/features/trip_detail/trip_detail_controller.dart';
 import 'package:mapmarker_app/features/trip_detail/widgets/itinerary_tiles.dart';
+import 'package:mapmarker_app/features/trip_detail/widgets/photo_position_screen.dart';
 import 'package:mapmarker_app/features/trip_detail/widgets/place_photo_field.dart';
 import 'package:mapmarker_app/features/trip_detail/widgets/stop_form_dialog.dart';
 import 'package:mapmarker_app/features/trip_detail/widgets/stop_photo.dart';
@@ -96,6 +98,17 @@ Future<void> _tapInForm(WidgetTester tester, Finder finder) async {
   await tester.pumpAndSettle();
 }
 
+Finder _inPosition(Finder finder) =>
+    find.descendant(of: find.byType(PhotoPositionView), matching: finder);
+
+/// [finder](사진 넣기, 바꾸기)를 눌러 사진을 고르고, "사진 위치" 화면에서 그대로 [확인]한다.
+Future<void> _pickPhoto(WidgetTester tester, Finder finder) async {
+  await _tapInForm(tester, finder);
+  expect(find.byType(PhotoPositionView), findsOneWidget);
+  await tester.tap(_inPosition(find.text('확인')));
+  await tester.pumpAndSettle();
+}
+
 Finder get _save => _inDialog<StopFormDialog>(find.text('저장'));
 
 Stop _stop(ProviderContainer container, String id) =>
@@ -113,7 +126,7 @@ void main() {
       );
       await _openStopForm(tester, 'a');
 
-      await _tapInForm(tester, _inPhotoField(find.text('사진 넣기')));
+      await _pickPhoto(tester, _inPhotoField(find.text('사진 넣기')));
 
       expect(_inPhotoField(find.byType(Image)), findsOneWidget);
       expect(_inPhotoField(find.text('바꾸기')), findsOneWidget);
@@ -123,7 +136,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(StopFormDialog), findsNothing);
-      expect(_stop(container, 'a').photo?.id, preparer.prepared.single.id);
+      expect(_stop(container, 'a').photo, isNotNull);
+      expect(preparer.areas, hasLength(1));
       expect(_inStopTile('a', find.byType(StopPhotoThumbnail)), findsOneWidget);
       expect(_inStopTile('b', find.byType(StopPhotoThumbnail)), findsNothing);
     });
@@ -177,11 +191,12 @@ void main() {
       );
       await _openStopForm(tester, 'a');
 
-      await _tapInForm(tester, _inPhotoField(find.text('바꾸기')));
+      await _pickPhoto(tester, _inPhotoField(find.text('바꾸기')));
       await tester.tap(_save);
       await tester.pumpAndSettle();
 
-      expect(_stop(container, 'a').photo?.id, preparer.prepared.single.id);
+      expect(_stop(container, 'a').photo?.id, isNot(_savedPhoto.id));
+      expect(_stop(container, 'a').photo, isNotNull);
     });
 
     testWidgets('사진만 저장하지 못하면 입력 화면에서 알리고, 다시 저장하면 사진만 다시 보낸다', (tester) async {
@@ -198,7 +213,7 @@ void main() {
         '성산',
       );
       await tester.pump();
-      await _tapInForm(tester, _inPhotoField(find.text('사진 넣기')));
+      await _pickPhoto(tester, _inPhotoField(find.text('사진 넣기')));
 
       await tester.tap(_save);
       await tester.pumpAndSettle();
@@ -217,7 +232,107 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(StopFormDialog), findsNothing);
-      expect(_stop(container, 'a').photo?.id, preparer.prepared.single.id);
+      expect(_stop(container, 'a').photo, isNotNull);
+    });
+
+    testWidgets('사진을 고르면 사진 위치 화면이 가운데 정사각형으로 열리고, 그 자리로 썸네일을 만든다', (
+      tester,
+    ) async {
+      // 400×300 가로 사진: 짧은 변(높이)에 맞춘 정사각형은 폭의 3/4이고 가운데다.
+      final preparer = FakePhotoPreparer();
+      await _openDayOne(tester, _repository(), preparer: preparer);
+      await _openStopForm(tester, 'a');
+
+      await _tapInForm(tester, _inPhotoField(find.text('사진 넣기')));
+      expect(_inPosition(find.text('사진 위치')), findsOneWidget);
+      await tester.tap(_inPosition(find.text('확인')));
+      await tester.pumpAndSettle();
+
+      final area = preparer.areas.single;
+      expect(area.left, closeTo(0.125, 1e-6));
+      expect(area.top, closeTo(0, 1e-6));
+      expect(area.width, closeTo(0.75, 1e-6));
+      expect(area.height, closeTo(1, 1e-6));
+    });
+
+    testWidgets('사진 위치 화면에서 사진을 끌면 정사각형이 따라 움직이고, 사진 밖으로는 못 나간다', (
+      tester,
+    ) async {
+      final preparer = FakePhotoPreparer();
+      await _openDayOne(tester, _repository(), preparer: preparer);
+      await _openStopForm(tester, 'a');
+      await _tapInForm(tester, _inPhotoField(find.text('사진 넣기')));
+
+      // 사진을 왼쪽으로 조금 끌면 오른쪽 부분이 보인다.
+      await tester.drag(find.byType(PhotoPositionView), const Offset(-40, 0));
+      await tester.pumpAndSettle();
+      await tester.tap(_inPosition(find.text('확인')));
+      await tester.pumpAndSettle();
+      expect(preparer.areas.last.left, greaterThan(0.125));
+
+      // 다시 골라 끝까지 끌어도 사진 오른쪽 끝에서 멈춘다.
+      await _tapInForm(tester, _inPhotoField(find.text('위치 바꾸기')));
+      await tester.drag(find.byType(PhotoPositionView), const Offset(-2000, 0));
+      await tester.pumpAndSettle();
+      await tester.tap(_inPosition(find.text('확인')));
+      await tester.pumpAndSettle();
+      expect(preparer.areas.last.right, closeTo(1, 1e-6));
+    });
+
+    testWidgets('사진 위치 화면을 닫으면 사진을 고르지 않은 것이다', (tester) async {
+      final preparer = FakePhotoPreparer();
+      await _openDayOne(tester, _repository(), preparer: preparer);
+      await _openStopForm(tester, 'a');
+
+      await _tapInForm(tester, _inPhotoField(find.text('사진 넣기')));
+      await tester.tap(_inPosition(find.byTooltip('닫기')));
+      await tester.pumpAndSettle();
+
+      expect(preparer.areas, isEmpty);
+      expect(_inPhotoField(find.text('사진 넣기')), findsOneWidget);
+    });
+
+    testWidgets('저장된 사진의 위치를 바꾸면 원본을 받아 새 썸네일의 사진으로 저장한다', (tester) async {
+      final preparer = FakePhotoPreparer();
+      final container = await _openDayOne(
+        tester,
+        _repository(withPhoto: true),
+        preparer: preparer,
+      );
+      await _openStopForm(tester, 'a');
+
+      await _tapInForm(tester, _inPhotoField(find.text('위치 바꾸기')));
+      await tester.tap(_inPosition(find.text('확인')));
+      await tester.pumpAndSettle();
+      await tester.tap(_save);
+      await tester.pumpAndSettle();
+
+      expect(preparer.measured, hasLength(1));
+      final photo = _stop(container, 'a').photo;
+      expect(photo, isNotNull);
+      expect(photo!.id, isNot(_savedPhoto.id));
+    });
+
+    testWidgets('저장된 사진의 원본을 받지 못하면 칸 아래에 알린다', (tester) async {
+      tester.view.physicalSize =
+          const Size(1280, 800) * tester.view.devicePixelRatio;
+      addTearDown(tester.view.reset);
+      await pumpTestApp(
+        tester,
+        repository: _repository(withPhoto: true),
+        location: Routes.trip('jeju'),
+        photoImages: PhotoImages((_) async => throw Exception('연결 끊김')),
+      );
+      await tapChip(tester, '1일차');
+      await _openStopForm(tester, 'a');
+
+      await _tapInForm(tester, _inPhotoField(find.text('위치 바꾸기')));
+
+      expect(find.byType(PhotoPositionView), findsNothing);
+      expect(
+        _inPhotoField(find.text(testL10n.placePhotoFetchFailed)),
+        findsOneWidget,
+      );
     });
 
     testWidgets('사진이 있는 장소를 지울 때 사진도 사라진다고 알린다', (tester) async {
@@ -277,7 +392,7 @@ void main() {
     await tapMap(tester, const LatLng(35.2, 129.2), placeName: '오름');
     await tester.tap(find.widgetWithText(FilledButton, '동선에 넣기'));
     await tester.pumpAndSettle();
-    await _tapInForm(tester, _inPhotoField(find.text('사진 넣기')));
+    await _pickPhoto(tester, _inPhotoField(find.text('사진 넣기')));
 
     await tester.tap(_save);
     await tester.pumpAndSettle();
@@ -294,7 +409,7 @@ void main() {
     final stops = container.read(tripRouteProvider('jeju')).value!.stops;
     final added = stops.where((s) => s.name == '오름').toList();
     expect(added, hasLength(1));
-    expect(added.single.photo?.id, preparer.prepared.single.id);
+    expect(added.single.photo, isNotNull);
   });
 
   testWidgets('사진이 있는 장소는 지도에 사진 마커로 그린다', (tester) async {

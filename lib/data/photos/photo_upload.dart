@@ -12,15 +12,21 @@ class PreparedPhoto {
   const PreparedPhoto({
     required this.id,
     required this.original,
+    required this.originalWidth,
+    required this.originalHeight,
     required this.thumbnail,
   });
 
   final String id;
 
-  /// 긴 변 1920px 이하.
+  /// 긴 변 1920px 이하, 비율 그대로.
   final Uint8List original;
 
-  /// 긴 변 400px 이하. 입력 화면의 미리보기에도 쓴다.
+  /// [original]의 픽셀 크기. 위치를 다시 고를 때 쓴다.
+  final int originalWidth;
+  final int originalHeight;
+
+  /// 사용자가 고른 정사각형(400×400 이하). 입력 화면의 미리보기에도 쓴다.
   final Uint8List thumbnail;
 
   @override
