@@ -13,6 +13,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/time/today.dart';
 import '../../data/api/api_exception.dart';
+import '../../data/photos/photo_images.dart';
 import '../../data/models/candidate.dart';
 import '../../data/models/map_provider_type.dart';
 import '../../data/models/new_id.dart';
@@ -332,6 +333,20 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   TripRoute _latestRoute(TripRoute fallback) =>
       ref.read(tripRouteProvider(trip.id)).value ?? fallback;
 
+  /// 새 장소를 넣고([add]) 고른 사진이 있으면 올린다.
+  /// 사진만 실패하고 다시 저장하면 장소는 이미 들어가 있어서 사진만 다시 보낸다.
+  Future<void> _saveNewStop(
+    String stopId,
+    StopDraft draft,
+    Future<Object?> Function() add,
+  ) async {
+    final controller = ref.read(tripDetailProvider(trip.id).notifier);
+    if (_latestRoute(TripRoute()).stopById(stopId) == null) await add();
+    if (draft.newPhoto case final photo?) {
+      await controller.setStopPhoto(stopId, photo);
+    }
+  }
+
   /// 임시 핀 자리에 장소를 넣는다. 입력 화면에서 이름과 일차 등을 받는다(자리는 기본 자리).
   ///
   /// 넣어서 지워질 이동 수단은 입력 화면이 일차 칸 아래에 미리 보여 준다. 그걸 보고 저장한 것이라 따로 묻지 않는다.
@@ -356,8 +371,13 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
         name: place.placeName ?? '',
         day: defaultDayForNewStop(route, viewDay: viewDay),
       ),
-      onSave: (draft) =>
-          ref.read(tripDetailProvider(trip.id).notifier).addStop(stopOf(draft)),
+      onSave: (draft) => _saveNewStop(
+        id,
+        draft,
+        () => ref
+            .read(tripDetailProvider(trip.id).notifier)
+            .addStop(stopOf(draft)),
+      ),
     );
     if (draft == null || !mounted) return;
     setState(() => _draftPlace = null);
@@ -426,16 +446,20 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
         day: day,
         slotOrder: index >= 0 ? before!.order : null,
       ),
-      onSave: (draft) => ref
-          .read(tripDetailProvider(trip.id).notifier)
-          .addStop(
-            draft.toNewStop(
-              id: id,
-              tripId: trip.id,
-              position: found.position,
-              order: placedOrder(_latestRoute(route), draft),
+      onSave: (draft) => _saveNewStop(
+        id,
+        draft,
+        () => ref
+            .read(tripDetailProvider(trip.id).notifier)
+            .addStop(
+              draft.toNewStop(
+                id: id,
+                tripId: trip.id,
+                position: found.position,
+                order: placedOrder(_latestRoute(route), draft),
+              ),
             ),
-          ),
+      ),
     );
     if (draft == null || !mounted) return;
     _showPlaced(
@@ -504,16 +528,20 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
         memo: candidate.memo,
         address: candidate.address,
       ),
-      onSave: (draft) => ref
-          .read(tripDetailProvider(trip.id).notifier)
-          .promoteCandidate(
-            draft.toNewStop(
-              id: candidate.id,
-              tripId: trip.id,
-              position: candidate.position,
-              order: placedOrder(_latestRoute(route), draft),
+      onSave: (draft) => _saveNewStop(
+        candidate.id,
+        draft,
+        () => ref
+            .read(tripDetailProvider(trip.id).notifier)
+            .promoteCandidate(
+              draft.toNewStop(
+                id: candidate.id,
+                tripId: trip.id,
+                position: candidate.position,
+                order: placedOrder(_latestRoute(route), draft),
+              ),
             ),
-          ),
+      ),
     );
     if (draft == null || !mounted) return;
     final hidden = _hidesLodging(draft.kind);
@@ -578,15 +606,22 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       initial: initial,
       onSave: (draft) async {
         if (draft == initial) return;
-        // 고치기와 옮기기는 따로 저장한다. 옮기기만 실패해도 입력 화면이 열려 있어서,
-        // 다시 저장하면 둘 다 다시 보낸다(고치기는 같은 값을 또 써도 된다).
-        await controller.updateStop(draft.applyTo(stop));
-        if (draft.day != stop.day) {
-          await controller.moveStop(
-            stop.id,
-            day: draft.day,
-            order: placedOrder(_latestRoute(route), draft, stopId: stop.id),
-          );
+        // 고치기, 옮기기, 사진은 따로 저장한다. 하나만 실패해도 입력 화면이 열려 있어서,
+        // 다시 저장하면 모두 다시 보낸다(고치기는 같은 값을 또 써도 되고, 같은 사진은 저장소가 건너뛴다).
+        if (!draft.sameFieldsAs(initial)) {
+          await controller.updateStop(draft.applyTo(stop));
+          if (draft.day != stop.day) {
+            await controller.moveStop(
+              stop.id,
+              day: draft.day,
+              order: placedOrder(_latestRoute(route), draft, stopId: stop.id),
+            );
+          }
+        }
+        if (draft.newPhoto case final photo?) {
+          await controller.setStopPhoto(stop.id, photo);
+        } else if (draft.removePhoto) {
+          await controller.deleteStopPhoto(stop.id);
         }
       },
       onDelete: canDelete ? () => controller.deleteStop(stop.id) : null,
@@ -1380,6 +1415,7 @@ class _RouteMap extends ConsumerWidget {
       curveSegmentId: curveSegmentId,
       savingSegmentId: savingSegmentId,
       faded: candidateView,
+      photoOf: ref.watch(photoImagesProvider).thumbnailOf,
     );
     final draft = this.draft;
     final candidates = route.candidates;

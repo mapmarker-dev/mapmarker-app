@@ -8,6 +8,7 @@ import '../models/stop.dart';
 import '../models/trashed_trip.dart';
 import '../models/trip.dart';
 import '../models/trip_route.dart';
+import '../photos/photo_upload.dart';
 import '../sample/sample_store.dart';
 import '../sample/sample_trip_repository.dart';
 import 'memory_trip_repository.dart';
@@ -92,6 +93,13 @@ abstract interface class TripRepository {
   /// 일차·순서·예정 시각·방문과 닿은 구간의 이동 수단은 사라진다.
   Future<Candidate> demoteStop(String stopId);
 
+  /// 장소에 사진을 올려 등록하고 사진이 든 장소를 돌려준다. 사진이 있었으면 바뀐다(장소마다 1장).
+  /// 같은 [photo]로 다시 불러도 된다(이미 그 사진이면 올리지 않는다).
+  Future<Stop> setStopPhoto(String stopId, PreparedPhoto photo);
+
+  /// 장소의 사진을 지운다. 사진이 없어도 된다.
+  Future<void> deleteStopPhoto(String stopId);
+
   /// 여행 목록을 다시 받는다(당겨서 새로고침). 실패하면 던지고, 보이던 목록은 그대로 둔다.
   Future<void> refreshTrips();
 
@@ -116,6 +124,7 @@ final tripRepositoryProvider = Provider<TripRepository>((ref) {
   }
   final server = ServerTripRepository(
     api: ref.watch(tripApiProvider),
+    uploader: ref.watch(photoUploaderProvider),
     clock: clock,
   );
   ref.onDispose(server.dispose);

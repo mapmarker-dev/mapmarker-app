@@ -219,7 +219,12 @@ void main() {
     final delete = _inDialog<StopFormDialog>(
       find.widgetWithText(OutlinedButton, '장소 지우기'),
     );
-    await tester.ensureVisible(delete);
+    // 사진 칸 아래라 목록을 내려야 만들어진다.
+    await tester.scrollUntilVisible(
+      delete,
+      200,
+      scrollable: _inDialog<StopFormDialog>(find.byType(Scrollable)).first,
+    );
     await tester.pumpAndSettle();
     await tester.tap(delete);
     await tester.pumpAndSettle();

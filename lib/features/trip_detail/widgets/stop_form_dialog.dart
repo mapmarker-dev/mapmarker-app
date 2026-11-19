@@ -14,6 +14,8 @@ import '../stop_draft.dart';
 import '../stop_placement.dart';
 import 'dropped_transport_list.dart';
 import 'place_fields.dart';
+import 'place_photo_field.dart';
+import 'stop_photo.dart';
 import 'time_wheel_sheet.dart';
 
 /// 장소 입력 화면을 띄운다. 저장하면 고친 값을, 그냥 닫으면 null을 돌려준다.
@@ -118,6 +120,16 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
   /// 처음 값에서 고친 것이 있는지. 있으면 닫기 전에 버릴지 묻는다.
   bool get _dirty => _draft != widget.initial;
 
+  /// 고른 사진을 줄이는 중. 그동안은 저장하지 않는다(고른 사진이 빠진 채 저장되지 않게).
+  bool _preparingPhoto = false;
+
+  /// 후보로 빼면 함께 사라질 사진의 썸네일. 화면에 보이는 사진(새로 고른 것이 먼저)이고, 없으면 null이다.
+  Widget? get _demotedPhoto => switch ((_draft.newPhoto, widget.stop?.photo)) {
+    (final picked?, _) => Image.memory(picked.thumbnail, fit: BoxFit.cover),
+    (null, final saved?) when !_draft.removePhoto => StopPhotoImage(saved),
+    _ => null,
+  };
+
   @override
   void initState() {
     super.initState();
@@ -160,7 +172,14 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
     final confirmed = await confirmDelete(
       context,
       title: l10n.deleteStopTitle(widget.stop?.name ?? _draft.name),
-      message: l10n.deleteStopMessage,
+      message: widget.stop?.photo != null
+          ? l10n.deleteStopMessageWithPhoto
+          : l10n.deleteStopMessage,
+      // 장소를 지우면 저장된 사진이 사라진다(입력 화면에서 고친 것은 함께 버린다).
+      detail: switch (widget.stop?.photo) {
+        final photo? => LostPhotoLine(image: StopPhotoImage(photo)),
+        null => null,
+      },
     );
     if (!confirmed || !mounted) return;
     setState(() => _deleting = true);
@@ -181,11 +200,13 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
       segmentsDroppedByRemove(segments: widget.route.segments, stopId: stop.id),
     );
     final time = draft.plannedTime;
-    if (dropped.isNotEmpty || time != null) {
+    final photo = _demotedPhoto;
+    if (dropped.isNotEmpty || time != null || photo != null) {
       final confirmed = await _confirmDemote(
         name: stop.name,
         dropped: dropped,
         time: time,
+        photo: photo,
       );
       if (!confirmed || !mounted) return;
     }
@@ -198,6 +219,7 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
     required String name,
     required List<Segment> dropped,
     required LocalTime? time,
+    required Widget? photo,
   }) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -224,6 +246,7 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                   ),
+                if (photo != null) LostPhotoLine(image: photo),
                 DroppedTransportList(route: widget.route, segments: dropped),
               ],
             ),
@@ -308,7 +331,9 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
                 SavingIndicator(label: l10n.saving)
               else
                 TextButton(
-                  onPressed: _draft.isValid && !saving ? _save : null,
+                  onPressed: _draft.isValid && !saving && !_preparingPhoto
+                      ? _save
+                      : null,
                   child: Text(material.saveButtonLabel),
                 ),
             ],
@@ -389,8 +414,33 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
                   memo: _memo,
                   enabled: !saving,
                 ),
+                gap,
+                PlacePhotoField(
+                  current: widget.stop?.photo,
+                  picked: _draft.newPhoto,
+                  removed: _draft.removePhoto,
+                  enabled: !saving,
+                  onPicked: (photo) => setState(
+                    () => _draft = _draft.copyWith(
+                      newPhoto: () => photo,
+                      removePhoto: false,
+                    ),
+                  ),
+                  onRemoved: () => setState(
+                    () => _draft = _draft.copyWith(
+                      newPhoto: () => null,
+                      // 저장된 사진이 없으면(새로 고른 것만 버림) 지울 것이 없다.
+                      removePhoto: widget.stop?.photo != null,
+                    ),
+                  ),
+                  onPreparing: (preparing) =>
+                      setState(() => _preparingPhoto = preparing),
+                ),
                 if (widget.onDemote != null || widget.onDelete != null) ...[
+                  // 위는 장소의 내용, 아래는 장소에 하는 동작이라 선으로 나눈다.
                   const SizedBox(height: AppSpace.xl),
+                  const Divider(height: 1),
+                  const SizedBox(height: AppSpace.lg),
                   FormActionRow(
                     children: [
                       if (widget.onDemote case final onDemote?)
@@ -398,7 +448,8 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
                           icon: Icons.bookmark_border,
                           label: l10n.stopFormDemote,
                           // 고친 이름·종류·설명·메모로 빼므로, 저장할 수 없는 값이면 뺄 수도 없다.
-                          onPressed: saving || !_draft.isValid
+                          onPressed:
+                              saving || !_draft.isValid || _preparingPhoto
                               ? null
                               : () => _demote(onDemote),
                           busy: _demoting,

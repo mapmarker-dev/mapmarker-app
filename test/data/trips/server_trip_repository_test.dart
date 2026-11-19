@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,13 +9,14 @@ import 'package:mapmarker_app/data/models/candidate.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
 import 'package:mapmarker_app/data/models/trip_route.dart';
+import 'package:mapmarker_app/data/photos/photo_upload.dart';
 import 'package:mapmarker_app/data/trips/server_trip_repository.dart';
 import 'package:mapmarker_app/data/trips/trip_api.dart';
 
 import '../../helpers/fake_auth.dart';
 import '../../helpers/fake_http.dart';
 import 'trip_json_test.dart'
-    show serverCandidate, serverSegment, serverStop, serverTrip;
+    show serverCandidate, serverPhoto, serverSegment, serverStop, serverTrip;
 
 /// 서버 대신 답한다. 경로마다 답을 바꿀 수 있다.
 class _Server {
@@ -62,12 +64,17 @@ void main() {
   late _Server server;
   late ServerTripRepository repository;
 
+  /// S3 대신 답한다. 받은 PUT을 기억한다.
+  late FakeHttp s3;
+
   setUp(() {
     server = _Server();
+    s3 = FakeHttp((_) => FakeReply.raw(200, ''));
     final session = testSession();
     addTearDown(session.dispose);
     repository = ServerTripRepository(
       api: TripApi(ApiClient(fakeDio(server.http), session)),
+      uploader: PhotoUploader(Dio()..httpClientAdapter = s3),
       clock: () => _now,
     );
     addTearDown(repository.dispose);
@@ -720,6 +727,134 @@ void main() {
       await pumpEventQueue();
 
       expect(server.calls.skip(before), isEmpty);
+    });
+  });
+
+  group('photos', () {
+    final photo = PreparedPhoto(
+      id: 'photo-1',
+      original: Uint8List.fromList(List.filled(300, 1)),
+      thumbnail: Uint8List.fromList(List.filled(30, 2)),
+    );
+
+    Map<String, Object?> target(String url, int size) => {
+      'url': url,
+      'headers': {
+        'Content-Type': 'image/jpeg',
+        'Content-Length': '$size',
+        'x-amz-tagging': 'upload=pending',
+      },
+    };
+
+    /// 여행을 받아 둔다(쓰기는 기억한 동선을 고친다).
+    Future<List<Object?>> watched() async {
+      final events = _collect(repository.watchRoute('trip-1'));
+      await pumpEventQueue();
+      return events;
+    }
+
+    void replyUpload() {
+      server.replies['POST /stops/stop-1/photo-uploads'] = (_) =>
+          FakeReply.json(201, {
+            'photoId': 'photo-1',
+            'original': target('https://s3.test/original', 300),
+            'thumbnail': target('https://s3.test/thumbnail', 30),
+            'expiresAt': '2026-11-01T09:10:00.000Z',
+          });
+      server.replies['PUT /stops/stop-1/photo'] = (_) =>
+          FakeReply.json(200, serverStop(photo: serverPhoto()));
+    }
+
+    test(
+      'asks for upload addresses, puts both files on S3, then registers',
+      () async {
+        final events = await watched();
+        replyUpload();
+
+        final saved = await repository.setStopPhoto('stop-1', photo);
+        await pumpEventQueue();
+
+        expect(server.calls, [
+          'GET /trips/trip-1',
+          'POST /stops/stop-1/photo-uploads',
+          'PUT /stops/stop-1/photo',
+        ]);
+        expect(server.http.requestsTo('/photo-uploads').single.data, {
+          'photoId': 'photo-1',
+          'size': 300,
+          'thumbnailSize': 30,
+        });
+        expect(server.http.requestsTo('/photo').single.data, {'id': 'photo-1'});
+        expect(
+          [for (final r in s3.requests) '${r.method} ${r.uri}'],
+          ['PUT https://s3.test/original', 'PUT https://s3.test/thumbnail'],
+        );
+        final put = s3.requests.first;
+        expect(put.headers['x-amz-tagging'], 'upload=pending');
+        expect(put.headers['Content-Type'], 'image/jpeg');
+        // 우리 서버의 토큰을 S3로 보내지 않는다.
+        expect(put.headers['Authorization'], isNull);
+        expect(saved.photo?.id, 'photo-1');
+        final route = events.last! as TripRoute;
+        expect(route.stopById('stop-1')!.photo?.id, 'photo-1');
+      },
+    );
+
+    test(
+      'skips everything when the stop already has that photo (saved again after a lost reply)',
+      () async {
+        server.replies['GET /trips/trip-1'] = (_) => FakeReply.json(
+          200,
+          _detail(stops: [serverStop(photo: serverPhoto())]),
+        );
+        await watched();
+
+        final saved = await repository.setStopPhoto('stop-1', photo);
+
+        expect(saved.photo?.id, 'photo-1');
+        expect(server.calls, ['GET /trips/trip-1']);
+        expect(s3.requests, isEmpty);
+      },
+    );
+
+    test(
+      'does not register when S3 refuses the file and reloads the trip',
+      () async {
+        await watched();
+        replyUpload();
+        s3.handler = (_) => FakeReply.raw(403, '');
+
+        await expectLater(
+          repository.setStopPhoto('stop-1', photo),
+          throwsA(
+            isA<ApiException>().having((e) => e.statusCode, 'statusCode', 403),
+          ),
+        );
+        await pumpEventQueue();
+
+        expect(server.calls, [
+          'GET /trips/trip-1',
+          'POST /stops/stop-1/photo-uploads',
+          'GET /trips/trip-1',
+        ]);
+      },
+    );
+
+    test('deletes the photo and clears it from the stop', () async {
+      server.replies['GET /trips/trip-1'] = (_) => FakeReply.json(
+        200,
+        _detail(stops: [serverStop(photo: serverPhoto())]),
+      );
+      final events = await watched();
+      server.replies['DELETE /stops/stop-1/photo'] = (_) =>
+          FakeReply.raw(204, '');
+
+      await repository.deleteStopPhoto('stop-1');
+      await pumpEventQueue();
+
+      final route = events.last! as TripRoute;
+      expect(route.stopById('stop-1')!.photo, isNull);
+      expect(server.calls.last, 'DELETE /stops/stop-1/photo');
     });
   });
 }

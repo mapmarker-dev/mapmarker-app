@@ -1,11 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/api/api_exception.dart';
 import '../../data/models/candidate.dart';
 import '../../data/models/segment.dart';
 import '../../data/models/stop.dart';
 import '../../data/models/trip.dart';
 import '../../data/models/trip_route.dart';
+import '../../data/photos/photo_save_exception.dart';
+import '../../data/photos/photo_upload.dart';
 import '../../data/trips/trip_repository.dart';
 import '../../l10n/l10n.dart';
 
@@ -74,8 +77,27 @@ class TripDetailController extends StreamNotifier<Trip?> {
       ref.read(tripRepositoryProvider).promoteCandidate(stop);
 
   /// 장소를 같은 ID의 후보로 바꿔 후보 맨 뒤에 넣는다. 앞뒤 장소는 저장소가 새 구간으로 잇는다.
+  /// 사진은 서버가 지운다(후보에는 사진이 없다).
   Future<Candidate> demoteStop(String stopId) =>
       ref.read(tripRepositoryProvider).demoteStop(stopId);
+
+  /// 장소에 사진을 올려 등록한다(있던 사진은 바뀐다). 실패는 [PhotoSaveException]이다.
+  Future<void> setStopPhoto(String stopId, PreparedPhoto photo) => _photo(
+    () => ref.read(tripRepositoryProvider).setStopPhoto(stopId, photo),
+  );
+
+  /// 장소의 사진을 지운다. 실패는 [PhotoSaveException]이다.
+  Future<void> deleteStopPhoto(String stopId) =>
+      _photo(() => ref.read(tripRepositoryProvider).deleteStopPhoto(stopId));
+
+  /// 장소는 저장한 뒤라서, 사진 실패를 따로 알린다("사진을 저장하지 못했습니다").
+  Future<void> _photo(Future<Object?> Function() write) async {
+    try {
+      await write();
+    } on ApiException catch (error) {
+      throw PhotoSaveException(error);
+    }
+  }
 }
 
 /// 여행의 장소와 구간.

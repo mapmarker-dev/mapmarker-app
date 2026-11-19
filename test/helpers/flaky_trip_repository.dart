@@ -7,6 +7,7 @@ import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trashed_trip.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
 import 'package:mapmarker_app/data/models/trip_route.dart';
+import 'package:mapmarker_app/data/photos/photo_upload.dart';
 import 'package:mapmarker_app/data/trips/memory_trip_repository.dart';
 import 'package:mapmarker_app/data/trips/trip_repository.dart';
 
@@ -22,6 +23,9 @@ class FlakyTripRepository implements TripRepository {
 
   /// 쓰기가 이 실패로 끝난다.
   ApiFailure? failWrites;
+
+  /// 사진 쓰기(올리기, 지우기)만 이 실패로 끝난다. 장소는 저장되고 사진만 실패할 때를 본다.
+  ApiFailure? failPhotos;
 
   /// 있으면 쓰기가 이것이 끝날 때까지 기다린다. 저장을 기다리는 동안의 화면을 볼 때 쓴다.
   Completer<void>? holdWrites;
@@ -120,6 +124,19 @@ class FlakyTripRepository implements TripRepository {
   @override
   Future<Candidate> demoteStop(String stopId) =>
       _write(() => inner.demoteStop(stopId));
+
+  @override
+  Future<Stop> setStopPhoto(String stopId, PreparedPhoto photo) =>
+      _write(() => _photo(() => inner.setStopPhoto(stopId, photo)));
+
+  @override
+  Future<void> deleteStopPhoto(String stopId) =>
+      _write(() => _photo(() => inner.deleteStopPhoto(stopId)));
+
+  Future<T> _photo<T>(Future<T> Function() write) async {
+    if (failPhotos case final failure?) throw ApiException(failure);
+    return write();
+  }
 
   @override
   Future<void> refreshTrips() async {

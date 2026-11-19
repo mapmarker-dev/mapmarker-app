@@ -130,6 +130,8 @@ class MapMarker {
 }
 
 /// 마커 그림. 테두리 있는 원 가운데에 번호나 아이콘이 있고, 오른쪽 위에 작은 배지가 붙을 수 있다.
+/// [photo]가 있으면 사진 마커다: 일차 색 테두리의 둥근 사각 사진 아래에 꼬리가 있고(꼬리 끝이 장소 자리),
+/// 번호나 아이콘은 왼쪽 위 작은 원에 들어간다. 종류 배지는 없다(사진이 대신한다).
 ///
 /// 같은 그림은 지도 구현이 한 번만 만들어 다시 쓴다.
 @immutable
@@ -143,6 +145,8 @@ class MarkerLook {
     this.badge,
     this.ring,
     this.small = false,
+    this.photo,
+    this.photoFrame,
   });
 
   /// 원 바탕색.
@@ -167,7 +171,41 @@ class MarkerLook {
   /// 작은 마커. 동선의 장소보다 덜 눈에 띄어야 하는 것(예: 후보)에 쓴다.
   final bool small;
 
+  /// 사진(썸네일). 지도 구현은 이미지를 미리 받은 뒤 그림을 만들고, 받지 못하면 사진 없이 그린다.
+  /// 같은 사진이면 같다고 보는 이미지여야 한다(주소가 바뀌어도 그림을 다시 만들지 않게).
+  final ImageProvider? photo;
+
+  /// 사진 마커의 테두리와 꼬리 색. 없으면 [fill]이다. 번호 원은 [fill] 그대로다(원 마커와 같게).
+  final Color? photoFrame;
+
+  /// 사진 없는 그림. 사진을 받지 못했을 때 쓴다.
+  MarkerLook withoutPhoto() => MarkerLook(
+    fill: fill,
+    foreground: foreground,
+    halo: halo,
+    ring: ring,
+    label: label,
+    icon: icon,
+    badge: badge,
+    small: small,
+  );
+
+  /// [photo]를 넣은 그림. [frame]은 테두리와 꼬리 색이다.
+  MarkerLook withPhoto(ImageProvider photo, {Color? frame}) => MarkerLook(
+    fill: fill,
+    foreground: foreground,
+    halo: halo,
+    ring: ring,
+    label: label,
+    icon: icon,
+    badge: badge,
+    small: small,
+    photo: photo,
+    photoFrame: frame,
+  );
+
   /// 모든 색을 [opacity]만큼 흐리게 한 그림. 다른 것을 보려고 뒤로 물린 동선에 쓴다.
+  /// 사진은 빼서 보통 원 마커로 그린다(뒤로 물린 동선이 눈에 띄지 않게).
   MarkerLook faded(double opacity) {
     Color dim(Color color) => color.withValues(alpha: color.a * opacity);
     return MarkerLook(
@@ -192,11 +230,23 @@ class MarkerLook {
       other.label == label &&
       other.icon == icon &&
       other.badge == badge &&
-      other.small == small;
+      other.small == small &&
+      other.photo == photo &&
+      other.photoFrame == photoFrame;
 
   @override
-  int get hashCode =>
-      Object.hash(fill, foreground, halo, ring, label, icon, badge, small);
+  int get hashCode => Object.hash(
+    fill,
+    foreground,
+    halo,
+    ring,
+    label,
+    icon,
+    badge,
+    small,
+    photo,
+    photoFrame,
+  );
 }
 
 /// 선 모양. 무늬 길이는 지도 구현이 정한다.

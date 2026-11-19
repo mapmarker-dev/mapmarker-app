@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../core/map/geo.dart';
 import '../../core/time/local_time.dart';
 import 'map_provider_type.dart';
+import 'photo.dart';
 
 /// 장소 종류. 화면 글자는 `l10n/model_texts.dart`에 있다.
 ///
@@ -44,6 +45,7 @@ class Stop {
     this.timeZone = defaultTimeZone,
     this.placeProvider,
     this.placeId,
+    this.photo,
   }) : assert(day >= 1),
        assert(order >= 0);
 
@@ -90,6 +92,9 @@ class Stop {
 
   final String? placeId;
 
+  /// 사진. 없으면 null이다. 사진은 사진 API로만 바꾼다(`TripRepository.setStopPhoto`).
+  final Photo? photo;
+
   bool get isLodging => kind == StopKind.lodging;
 
   LatLng get position => LatLng(latitude, longitude);
@@ -110,6 +115,7 @@ class Stop {
     String? memo,
     // 예정 시각은 지울 수도 있어서 함수로 받는다.
     LocalTime? Function()? plannedTime,
+    Photo? Function()? photo,
   }) => Stop(
     id: id,
     tripId: tripId,
@@ -128,6 +134,7 @@ class Stop {
     timeZone: timeZone,
     placeProvider: placeProvider,
     placeId: placeId,
+    photo: photo == null ? this.photo : photo(),
   );
 
   @override

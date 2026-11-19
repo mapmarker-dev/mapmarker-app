@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_tokens.dart';
 import 'saving.dart';
 import '../../data/api/api_exception.dart';
+import '../../data/photos/photo_save_exception.dart';
 import '../../l10n/l10n.dart';
 
 /// 입력 화면이 저장하는 동안의 상태.
@@ -32,6 +33,8 @@ mixin FormSaving<T extends StatefulWidget> on State<T> {
       if (mounted) {
         setState(() => saveError = context.l10n.saveFailureText(error.failure));
       }
+    } on PhotoSaveException {
+      if (mounted) setState(() => saveError = context.l10n.photoSaveFailed);
     } finally {
       if (mounted) setState(() => saving = false);
     }

@@ -5,7 +5,9 @@ import '../models/segment.dart';
 import '../models/stop.dart';
 import '../models/trashed_trip.dart';
 import '../models/trip.dart';
+import '../models/photo.dart';
 import '../models/trip_route.dart';
+import '../photos/photo_upload.dart';
 import 'route_links.dart';
 import 'trip_repository.dart';
 
@@ -106,7 +108,12 @@ class MemoryTripRepository implements TripRepository {
     if (stop.tripId != saved.tripId) {
       throw ArgumentError.value(stop.tripId, 'tripId', '다른 여행의 장소입니다');
     }
-    _stops[stop.id] = stop.copyWith(day: saved.day, order: saved.order);
+    // 사진은 사진 메서드로만 바뀐다(서버도 장소 고치기에서 사진을 받지 않는다).
+    _stops[stop.id] = stop.copyWith(
+      day: saved.day,
+      order: saved.order,
+      photo: () => saved.photo,
+    );
     _touch(saved.tripId);
     _changes.add(null);
     return _stops[stop.id]!;
@@ -267,6 +274,31 @@ class MemoryTripRepository implements TripRepository {
     _candidates[stopId] = candidate;
     _changeRoute(trip, days);
     return candidate;
+  }
+
+  /// 파일은 두지 않고 사진 정보만 둔다. 주소는 `memory://`라 받을 수 없다(테스트는 이미지 받기를 바꿔 끼운다).
+  @override
+  Future<Stop> setStopPhoto(String stopId, PreparedPhoto photo) async {
+    final saved = _stopOf(stopId);
+    final stop = saved.copyWith(
+      photo: () => Photo(
+        id: photo.id,
+        url: 'memory://photos/${photo.id}.jpg',
+        thumbnailUrl: 'memory://photos/${photo.id}_thumb.jpg',
+      ),
+    );
+    _stops[stopId] = stop;
+    _touch(saved.tripId);
+    _changes.add(null);
+    return stop;
+  }
+
+  @override
+  Future<void> deleteStopPhoto(String stopId) async {
+    final saved = _stopOf(stopId);
+    _stops[stopId] = saved.copyWith(photo: () => null);
+    _touch(saved.tripId);
+    _changes.add(null);
   }
 
   /// 메모리에 있는 것이 전부라서 다시 받을 것이 없다.

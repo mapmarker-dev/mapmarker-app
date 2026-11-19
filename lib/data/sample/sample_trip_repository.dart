@@ -9,6 +9,7 @@ import '../models/stop.dart';
 import '../models/trashed_trip.dart';
 import '../models/trip.dart';
 import '../models/trip_route.dart';
+import '../photos/photo_upload.dart';
 import '../trips/trip_repository.dart';
 import 'jeju_sample.dart';
 import 'sample_store.dart';
@@ -163,6 +164,14 @@ class SampleTripRepository implements TripRepository {
   @override
   Future<Candidate> demoteStop(String stopId) async =>
       _inner.demoteStop(_mineStop(stopId));
+
+  @override
+  Future<Stop> setStopPhoto(String stopId, PreparedPhoto photo) async =>
+      _inner.setStopPhoto(_mineStop(stopId), photo);
+
+  @override
+  Future<void> deleteStopPhoto(String stopId) async =>
+      _inner.deleteStopPhoto(_mineStop(stopId));
 
   @override
   Future<void> refreshTrips() => _inner.refreshTrips();

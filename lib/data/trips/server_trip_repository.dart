@@ -7,6 +7,7 @@ import '../models/stop.dart';
 import '../models/trashed_trip.dart';
 import '../models/trip.dart';
 import '../models/trip_route.dart';
+import '../photos/photo_upload.dart';
 import 'trip_api.dart';
 import 'trip_cache.dart';
 import 'trip_json.dart';
@@ -23,11 +24,14 @@ import 'trip_repository.dart';
 class ServerTripRepository implements TripRepository {
   ServerTripRepository({
     required this._api,
+    PhotoUploader? uploader,
     this.clock = DateTime.now,
     TripCache? cache,
-  }) : _cache = cache ?? TripCache();
+  }) : _cache = cache ?? TripCache(),
+       _uploader = uploader ?? PhotoUploader(createPhotoDio());
 
   final TripApi _api;
+  final PhotoUploader _uploader;
   final TripCache _cache;
 
   /// 장소·구간 고치기 응답에는 여행이 없어서, 여행의 고친 시각을 이 시각으로 맞춘다.
@@ -161,14 +165,7 @@ class ServerTripRepository implements TripRepository {
   @override
   Future<Stop> updateStop(Stop stop) => _write(stop.tripId, () async {
     final saved = await _api.updateStop(stop);
-    _replaceInRoute(
-      saved.tripId,
-      (route) => route.copyWith(
-        stops: [
-          for (final old in route.stops) old.id == saved.id ? saved : old,
-        ],
-      ),
-    );
+    _replaceStop(saved);
     return saved;
   });
 
@@ -274,7 +271,45 @@ class ServerTripRepository implements TripRepository {
             (throw const ApiException(ApiFailure.server));
       });
 
+  /// 업로드 주소 받기 → S3에 원본과 썸네일 올리기 → 등록. 여행의 다른 쓰기와 차례로 보낸다.
+  /// 실패하면 그 여행을 다시 받으므로, 등록까지 됐는데 응답만 잃었으면 다시 부를 때 올리지 않는다.
+  @override
+  Future<Stop> setStopPhoto(String stopId, PreparedPhoto photo) {
+    final tripId = _cache.tripOfStop(stopId);
+    return _write(tripId ?? stopId, () async {
+      final known = tripId == null
+          ? null
+          : _cache.routes[tripId]?.stopById(stopId);
+      if (known != null && known.photo?.id == photo.id) return known;
+      final ticket = await _api.createPhotoUpload(stopId, photo);
+      await _uploader.upload(ticket.original, photo.original);
+      await _uploader.upload(ticket.thumbnail, photo.thumbnail);
+      final saved = await _api.registerPhoto(stopId, photo.id);
+      _replaceStop(saved);
+      return saved;
+    });
+  }
+
+  @override
+  Future<void> deleteStopPhoto(String stopId) {
+    final tripId = _cache.tripOfStop(stopId);
+    return _write(tripId ?? stopId, () async {
+      await _api.deletePhoto(stopId);
+      final known = tripId == null
+          ? null
+          : _cache.routes[tripId]?.stopById(stopId);
+      if (known != null) _replaceStop(known.copyWith(photo: () => null));
+    });
+  }
+
   void dispose() => _changes.close();
+
+  void _replaceStop(Stop saved) => _replaceInRoute(
+    saved.tripId,
+    (route) => route.copyWith(
+      stops: [for (final old in route.stops) old.id == saved.id ? saved : old],
+    ),
+  );
 
   Stop _putDetail(TripDetail detail, String stopId) {
     _cache.putTrip(detail.trip, route: detail.route);

@@ -2,11 +2,13 @@ import '../../core/time/local_date.dart';
 import '../../core/time/local_time.dart';
 import '../models/candidate.dart';
 import '../models/map_provider_type.dart';
+import '../models/photo.dart';
 import '../models/segment.dart';
 import '../models/stop.dart';
 import '../models/trashed_trip.dart';
 import '../models/trip.dart';
 import '../models/trip_route.dart';
+import '../photos/photo_upload.dart';
 
 /// 서버 JSON과 앱 모델 사이의 변환. 필드 이름과 enum 값은 서버 DTO와 같다(`mapmarker-server/src/trips/dto/`).
 ///
@@ -90,6 +92,45 @@ Stop stopFromJson(Object? json) {
     timeZone: _field(map, 'timeZone'),
     placeProvider: _optionalEnum(MapProviderType.values, map, 'placeProvider'),
     placeId: _field(map, 'placeId'),
+    // 사진(1-3) 전 서버·기기 저장(2-2)에는 없다.
+    photo: switch (map['photo']) {
+      null => null,
+      final Object value => photoFromJson(value),
+    },
+  );
+}
+
+Photo photoFromJson(Object? json) {
+  final map = _map(json);
+  return Photo(
+    id: _field(map, 'id'),
+    url: _field(map, 'url'),
+    thumbnailUrl: _field(map, 'thumbnailUrl'),
+  );
+}
+
+/// 업로드 주소 받기의 응답.
+PhotoUploadTicket photoUploadFromJson(Object? json) {
+  final map = _map(json);
+  UploadTarget target(String name) {
+    final part = _map(map[name]);
+    final headers = _map(part['headers']);
+    return UploadTarget(
+      url: _field(part, 'url'),
+      headers: {
+        for (final MapEntry(:key, :value) in headers.entries)
+          key: switch (value) {
+            final String text => text,
+            _ => throw FormatException('headers: 글자가 아닙니다', value),
+          },
+      },
+    );
+  }
+
+  return PhotoUploadTicket(
+    photoId: _field(map, 'photoId'),
+    original: target('original'),
+    thumbnail: target('thumbnail'),
   );
 }
 
