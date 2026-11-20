@@ -13,7 +13,6 @@ import 'package:mapmarker_app/data/models/candidate.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
 import 'package:mapmarker_app/data/trips/trip_repository.dart';
-import 'package:mapmarker_app/features/trip_detail/route_scene.dart';
 import 'package:mapmarker_app/features/trip_detail/trip_detail_controller.dart';
 import 'package:mapmarker_app/features/trip_detail/widgets/itinerary_tiles.dart';
 
@@ -69,10 +68,16 @@ Future<void> _expand(WidgetTester tester, String name) async {
   await tester.pumpAndSettle();
 }
 
-Finder _button(String label) => find.ancestor(
-  of: find.text(label),
-  matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
-);
+/// 장소 줄 오른쪽의 방문 동그라미.
+Finder _check(String name) => find.byTooltip('$name 방문');
+
+bool _checked(WidgetTester tester, String name) =>
+    tester
+        .widget<IconButton>(
+          find.ancestor(of: _check(name), matching: find.byType(IconButton)),
+        )
+        .isSelected ==
+    true;
 
 Finder get _dialog => find.byType(AlertDialog);
 
@@ -109,9 +114,8 @@ void _visitTests() {
     tester,
   ) async {
     final container = await _pump(tester, dates: _during);
-    await _expand(tester, '교리김밥');
 
-    await tester.tap(_button('방문 완료'));
+    await tester.tap(_check('교리김밥'));
     await tester.pumpAndSettle();
 
     final now = testNow.toUtc();
@@ -128,21 +132,20 @@ void _visitTests() {
     final saved = _saved(container, '교리김밥');
     expect(saved.visited, isTrue);
     expect(saved.visitedAt, now);
-    // 줄은 방문 시각을 보여 주고 버튼은 방문 취소로 바뀐다. 마커는 번호 대신 ✓다.
+    // 줄은 방문 시각을 보여 주고 동그라미가 채워진다. 지도 마커는 번호 그대로다.
     expect(find.text('기타, ${_seoulTime(now)} 방문'), findsOneWidget);
-    expect(_button('방문 취소'), findsOneWidget);
+    expect(_checked(tester, '교리김밥'), isTrue);
     final marker = mapScene(tester).markers.firstWhere((m) => m.id == '교리김밥');
-    expect(marker.look.icon, visitedIcon);
-    expect(marker.look.label, isNull);
+    expect(marker.look.icon, isNull);
+    expect(marker.look.label, isNotNull);
   });
 
   testWidgets('cancelling the dialog keeps the place unvisited', (
     tester,
   ) async {
     final container = await _pump(tester, dates: _during);
-    await _expand(tester, '교리김밥');
 
-    await tester.tap(_button('방문 완료'));
+    await tester.tap(_check('교리김밥'));
     await tester.pumpAndSettle();
     await tester.tap(_inDialog(find.text('취소')));
     await tester.pumpAndSettle();
@@ -165,9 +168,8 @@ void _visitTests() {
       ],
     );
     expect(find.text('기타, 오전 9:30 예정, ${_seoulTime(at)} 방문'), findsOneWidget);
-    await _expand(tester, '대릉원');
 
-    await tester.tap(_button('방문 취소'));
+    await tester.tap(_check('대릉원'));
     await tester.pumpAndSettle();
     expect(_inDialog(find.text('대릉원 방문 취소')), findsOneWidget);
     expect(
@@ -181,7 +183,7 @@ void _visitTests() {
     await tester.pumpAndSettle();
     expect(_saved(container, '대릉원').visitedAt, at);
 
-    await tester.tap(_button('방문 취소'));
+    await tester.tap(_check('대릉원'));
     await tester.pumpAndSettle();
     await tester.tap(_inDialog(find.text('방문 취소')));
     await tester.pumpAndSettle();
@@ -189,7 +191,7 @@ void _visitTests() {
     final saved = _saved(container, '대릉원');
     expect(saved.visited, isFalse);
     expect(saved.visitedAt, isNull);
-    expect(_button('방문 완료'), findsOneWidget);
+    expect(_checked(tester, '대릉원'), isFalse);
   });
 
   testWidgets('keeps the dialog open and says so when saving fails', (
@@ -205,10 +207,9 @@ void _visitTests() {
       dates: _during,
       repository: repository,
     );
-    await _expand(tester, '교리김밥');
     repository.failWrites = ApiFailure.network;
 
-    await tester.tap(_button('방문 완료'));
+    await tester.tap(_check('교리김밥'));
     await tester.pumpAndSettle();
     await tester.tap(_inDialog(find.text('방문 완료')));
     await tester.pumpAndSettle();
@@ -218,12 +219,13 @@ void _visitTests() {
     expect(_saved(container, '교리김밥').visited, isFalse);
   });
 
-  testWidgets('has no visit buttons before the trip', (tester) async {
+  testWidgets('has no visit check before the trip', (tester) async {
     await _pump(tester, dates: _before);
     await tapChip(tester, '2일차');
     await _expand(tester, '교리김밥');
 
-    expect(find.text('방문 완료'), findsNothing);
+    expect(find.text('교리김밥'), findsWidgets);
+    expect(_check('교리김밥'), findsNothing);
   });
 
   testWidgets('records the planned day after the trip ended', (tester) async {
@@ -231,7 +233,7 @@ void _visitTests() {
     await tapChip(tester, '2일차');
     await _expand(tester, '대릉원');
 
-    await tester.tap(_button('방문 완료'));
+    await tester.tap(_check('대릉원'));
     await tester.pumpAndSettle();
     expect(
       _inDialog(find.textContaining('10월 2일 (금) 오전 9:30에')),

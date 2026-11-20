@@ -549,13 +549,22 @@
       "visit": {"type": "String", "example": "오후 12:41"}
     }
   },
+  "visitCheckTooltip": "{name} 방문",
+  "@visitCheckTooltip": {
+    "description": "장소 줄 오른쪽 방문 동그라미의 설명(길게 누를 때, 화면 읽기). 방문했는지는 동그라미 모양과 화면 읽기의 체크 상태로 알린다",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "visitDone": "방문 완료",
   "@visitDone": {
-    "description": "펼친 장소 줄의 버튼(여행 중과 여행 후, 방문 전 장소)과 확인 창의 버튼. 누르면 확인 창을 거쳐 방문 시각을 기록한다"
+    "description": "방문 확인 창의 기록 버튼(방문 전 장소의 동그라미를 눌렀을 때)"
   },
   "visitUndo": "방문 취소",
   "@visitUndo": {
-    "description": "펼친 장소 줄의 버튼(방문한 장소)과 확인 창의 버튼. 누르면 확인 창을 거쳐 방문 기록을 지운다"
+    "description": "방문 확인 창의 지우기 버튼(방문한 장소의 동그라미를 눌렀을 때)"
   },
   "visitDoneTitle": "{name} 방문 완료",
   "@visitDoneTitle": {

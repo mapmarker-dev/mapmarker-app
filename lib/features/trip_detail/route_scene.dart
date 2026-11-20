@@ -24,7 +24,6 @@ IconData? kindBadge(StopKind kind) => switch (kind) {
 ///
 /// - 숙소가 아닌 장소: 일차 색 원에 일차 안 번호, 오른쪽 위에 종류 배지.
 /// - 숙소: 숙소 색 원에 침대 아이콘.
-/// - 방문한 장소: 번호(숙소는 침대) 대신 ✓([markerLookOf]).
 /// - 같은 자리에 여러 번 넣은 장소(연박한 숙소, 처음과 끝이 같은 공항)는 종류와 상관없이 마커 하나로 합친다.
 ///   마커는 동선에서 먼저 오는 장소의 것이다. 누르면 [stopsAtMarker]로 그 자리의 장소를 모두 찾는다.
 /// - 선: 도착 장소의 일차 색. 일차를 넘는 구간은 다음 날 아침의 이동이라 다음 날 색이다.
@@ -65,15 +64,12 @@ routeOverlays({
   for (final stop in view.stops) {
     if (drawn.any(stop.isSamePlaceAs)) continue;
     drawn.add(stop);
-    final here = view.stops.where(stop.isSamePlaceAs);
-    // 합친 마커(연박한 숙소 등)는 그 자리의 장소를 모두 방문했을 때만 ✓다.
-    var look = markerLookOf(
-      route,
-      stop,
-      colors,
-      visited: here.every((s) => s.visited),
-    );
-    final photo = here.map((s) => s.photo).nonNulls.firstOrNull;
+    var look = markerLookOf(route, stop, colors);
+    final photo = view.stops
+        .where(stop.isSamePlaceAs)
+        .map((s) => s.photo)
+        .nonNulls
+        .firstOrNull;
     if (photo != null && photoOf != null) {
       // 테두리를 일차 색보다 조금 어둡게 해서 선과 붙어 보이지 않게 한다. 숙소 색은 이미 어둡다.
       look = look.withPhoto(
@@ -196,29 +192,17 @@ MapMarker draftMarker(MapTap place, ColorScheme scheme, AppColors colors) =>
       ),
     );
 
-/// 방문한 장소의 마커 가운데 아이콘. 번호(숙소는 침대) 자리에 들어간다.
-const visitedIcon = Icons.check;
-
 /// 장소의 마커 그림. 일차 동선 시트의 장소 줄도 같은 그림을 쓴다.
-///
-/// 방문한 장소([visited], 기본은 [Stop.visited])는 번호 대신 ✓다. 색은 그대로라 일차 구분은 남고,
-/// 순서는 화살표와 목록으로 본다.
-MarkerLook markerLookOf(
-  TripRoute route,
-  Stop stop,
-  AppColors colors, {
-  bool? visited,
-}) {
+MarkerLook markerLookOf(TripRoute route, Stop stop, AppColors colors) {
   final dayColors = stop.isLodging
       ? colors.routeLodging
       : colors.routeDay(stop.day);
-  final done = visited ?? stop.visited;
   return MarkerLook(
     fill: dayColors.background,
     foreground: dayColors.foreground,
     halo: colors.routeHalo,
-    label: done ? null : route.numberOf(stop)?.toString(),
-    icon: done ? visitedIcon : (stop.isLodging ? lodgingIcon : null),
+    label: route.numberOf(stop)?.toString(),
+    icon: stop.isLodging ? lodgingIcon : null,
     badge: kindBadge(stop.kind),
   );
 }

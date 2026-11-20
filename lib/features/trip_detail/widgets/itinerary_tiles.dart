@@ -18,7 +18,7 @@ import 'stop_photo.dart';
 /// 이름 쪽을 누르면 고르고 펼쳐져서 설명 전체와 메모, 주소, 외부 지도 칸이 나온다.
 /// 오른쪽 연필 아이콘을 누르면 장소 입력 화면이 열린다. 지우기도 그 화면 안에 있다
 /// 외부 지도 칸을 누르면 네이버 지도에서 장소를 연다. 영업시간, 리뷰는 거기서 본다.
-/// 그 칸과 [방문 완료]나 [방문 취소]는 펼친 줄에만 둔다
+/// 그 칸은 펼친 줄에만 둔다. 방문 동그라미는 여행 중과 후에 연필 앞에 늘 있다
 class ItineraryStopTile extends StatelessWidget {
   const ItineraryStopTile({
     super.key,
@@ -60,8 +60,8 @@ class ItineraryStopTile extends StatelessWidget {
   /// 끌어 옮기고 저장을 기다리는 중. 흐리게 보이고, 연필과 손잡이 자리에 진행 표시가 뜬다.
   final bool saving;
 
-  /// 펼친 줄의 [방문 완료](방문 전)나 [방문 취소](방문한 장소)를 눌렀다. 확인 창은 부른 쪽이 띄운다.
-  /// null이면 버튼이 없다(여행 전, 샘플, 출발 장소).
+  /// 방문 동그라미를 눌렀다(방문 전이면 기록, 방문했으면 지우기). 확인 창은 부른 쪽이 띄운다.
+  /// null이면 동그라미가 없다(여행 전, 샘플, 출발 장소).
   final VoidCallback? onVisit;
 
   /// 사진 썸네일 크기. 누르면 크게 본다(줄 누르기와 따로).
@@ -180,6 +180,12 @@ class ItineraryStopTile extends StatelessWidget {
                     if (saving)
                       SavingIndicator(label: l10n.saving)
                     else ...[
+                      if (onVisit case final onVisit?)
+                        _VisitCheck(
+                          visited: stop.visited,
+                          tooltip: l10n.visitCheckTooltip(stop.name),
+                          onPressed: onVisit,
+                        ),
                       if (onEdit case final onEdit?)
                         _EditButton(
                           tooltip: l10n.stopFormEditTitle,
@@ -201,18 +207,7 @@ class ItineraryStopTile extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: Opacity(
                     opacity: opacity,
-                    child: Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: AppSpace.sm,
-                      children: [
-                        _OpenMapLink(onTap: onOpenMap),
-                        if (onVisit case final onVisit?)
-                          _VisitButton(
-                            visited: stop.visited,
-                            onPressed: saving ? null : onVisit,
-                          ),
-                      ],
-                    ),
+                    child: _OpenMapLink(onTap: onOpenMap),
                   ),
                 ),
               ),
@@ -223,30 +218,34 @@ class ItineraryStopTile extends StatelessWidget {
   }
 }
 
-/// 펼친 장소 줄의 [방문 완료]와 [방문 취소]. 방문 전에는 눈에 띄는 버튼, 방문한 뒤에는 덜 띄는 테두리 버튼이다.
-class _VisitButton extends StatelessWidget {
-  const _VisitButton({required this.visited, required this.onPressed});
+/// 장소 줄 오른쪽의 방문 동그라미. 방문 전에는 빈 원, 방문하면 채운 ✓다.
+///
+/// 펼치지 않아도 보이고 누를 수 있다. 누르면 부른 쪽이 확인 창을 띄운다.
+class _VisitCheck extends StatelessWidget {
+  const _VisitCheck({
+    required this.visited,
+    required this.tooltip,
+    required this.onPressed,
+  });
 
   final bool visited;
-  final VoidCallback? onPressed;
+  final String tooltip;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return visited
-        ? OutlinedButton(
-            onPressed: onPressed,
-            style: OutlinedButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-            ),
-            child: Text(l10n.visitUndo),
-          )
-        : FilledButton.tonalIcon(
-            onPressed: onPressed,
-            style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
-            icon: const Icon(Icons.check, size: 18),
-            label: Text(l10n.visitDone),
-          );
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      checked: visited,
+      child: IconButton(
+        tooltip: tooltip,
+        visualDensity: VisualDensity.compact,
+        isSelected: visited,
+        icon: Icon(Icons.radio_button_unchecked, color: scheme.outline),
+        selectedIcon: Icon(Icons.check_circle, color: scheme.primary),
+        onPressed: onPressed,
+      ),
+    );
   }
 }
 

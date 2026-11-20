@@ -79,10 +79,6 @@
                 android:name="photopicker_activity:0:required"
                 android:value="" />
         </service>
-        <!-- geolocator의 백그라운드 위치 서비스는 쓰지 않는다. 남겨 두면 위치 포그라운드 서비스를 쓰는 앱으로 보인다. -->
-        <service
-            android:name="com.baseflow.geolocator.GeolocatorLocationService"
-            tools:node="remove" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

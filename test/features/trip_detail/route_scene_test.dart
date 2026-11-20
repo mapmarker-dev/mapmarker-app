@@ -108,47 +108,23 @@ void main() {
     expect(day2.arrows, isEmpty);
   });
 
-  group('visited places', () {
-    DateTime at(int hour) => DateTime.utc(2026, 10, 15, hour);
-    final visited = _route([
-      testStop('sight', kind: StopKind.tour).copyWith(visitedAt: () => at(1)),
+  test('visited places keep their number on the map', () {
+    final route = _route([
+      testStop(
+        'sight',
+        kind: StopKind.tour,
+      ).copyWith(visitedAt: () => DateTime.utc(2026, 10, 15, 1)),
       testStop('lunch', order: 1, kind: StopKind.food),
-      testLodging('hotel', order: 2).copyWith(visitedAt: () => at(9)),
-      testLodging('hotel2', day: 2),
     ]);
-    final markers = routeOverlays(
-      route: visited,
-      view: visited.view(),
+    final [sight, lunch] = routeOverlays(
+      route: route,
+      view: route.view(),
       colors: _colors,
     ).markers;
 
-    test('show a check instead of the number and keep the day color', () {
-      final [sight, lunch, _] = markers;
-
-      expect(sight.look.label, isNull);
-      expect(sight.look.icon, visitedIcon);
-      expect(sight.look.badge, Icons.photo_camera);
-      expect(sight.look.fill, _colors.routeDay(1).background);
-      expect(lunch.look.label, '2');
-      expect(lunch.look.icon, isNull);
-    });
-
-    test('check a merged marker only when every place under it is visited', () {
-      expect(markers[2].id, 'hotel');
-      expect(markers[2].look.icon, lodgingIcon);
-
-      final oneNight = routeOverlays(
-        route: visited,
-        view: visited.view(day: 1),
-        colors: _colors,
-      ).markers;
-      expect(oneNight.last.look.icon, visitedIcon);
-    });
-
-    test('use the same look in the list', () {
-      final sight = visited.stops.first;
-      expect(markerLookOf(visited, sight, _colors).icon, visitedIcon);
-    });
+    expect(sight.look.label, '1');
+    expect(sight.look.icon, isNull);
+    expect(lunch.look.label, '2');
   });
 
   group('same place twice', () {
