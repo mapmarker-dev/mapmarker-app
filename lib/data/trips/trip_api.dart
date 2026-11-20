@@ -7,9 +7,10 @@ import '../models/segment.dart';
 import '../models/stop.dart';
 import '../models/trashed_trip.dart';
 import '../models/trip.dart';
+import '../photos/photo_upload.dart';
 import 'trip_json.dart';
 
-/// 여행·장소·구간·후보·휴지통 API(`/v1/trips`, `/v1/stops`, `/v1/segments`, `/v1/candidates`, `/v1/trash`).
+/// 여행·장소·구간·후보·사진·휴지통 API(`/v1/trips`, `/v1/stops`, `/v1/segments`, `/v1/candidates`, `/v1/trash`).
 ///
 /// 실패는 [ApiException]이다. 읽을 수 없는 응답은 [ApiFailure.server]로 바꾼다.
 /// 동선을 바꾸는 요청(장소 넣기·옮기기·지우기, 동선에 넣기·후보로 빼기)은 여행과 새 동선(후보 포함) 전체를 돌려준다.
@@ -121,6 +122,32 @@ class TripApi {
   /// 장소를 같은 ID의 후보로 뺀다. 앞뒤 장소는 새로 이어진다. 새 동선을 돌려준다.
   Future<TripDetail> demoteStop(String stopId) =>
       _read(_client.post('/stops/$stopId/candidate'), tripDetailFromJson);
+
+  /// [photo]를 올릴 S3 주소(원본과 썸네일, 10분). 바이트 수가 서명에 들어간다.
+  Future<PhotoUploadTicket> createPhotoUpload(
+    String stopId,
+    PreparedPhoto photo,
+  ) => _read(
+    _client.post(
+      '/stops/$stopId/photo-uploads',
+      data: {
+        'photoId': photo.id,
+        'size': photo.original.length,
+        'thumbnailSize': photo.thumbnail.length,
+      },
+    ),
+    photoUploadFromJson,
+  );
+
+  /// 올린 사진을 장소에 등록한다. 있던 사진은 서버가 지운다. 사진이 든 장소를 돌려준다.
+  Future<Stop> registerPhoto(String stopId, String photoId) => _read(
+    _client.put('/stops/$stopId/photo', data: {'id': photoId}),
+    stopFromJson,
+  );
+
+  /// 장소의 사진을 지운다(S3 파일도). 사진이 없어도 된다.
+  Future<void> deletePhoto(String stopId) =>
+      _client.delete('/stops/$stopId/photo');
 
   Future<T> _read<T>(
     Future<Object?> response,

@@ -3,6 +3,7 @@ import 'package:mapmarker_app/core/time/local_date.dart';
 import 'package:mapmarker_app/core/time/local_time.dart';
 import 'package:mapmarker_app/data/models/candidate.dart';
 import 'package:mapmarker_app/data/models/map_provider_type.dart';
+import 'package:mapmarker_app/data/models/photo.dart';
 import 'package:mapmarker_app/data/models/segment.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
@@ -34,6 +35,7 @@ Map<String, Object?> serverStop({
   String id = 'stop-1',
   int day = 1,
   int order = 0,
+  Map<String, Object?>? photo,
 }) => {
   'id': id,
   'tripId': 'trip-1',
@@ -52,6 +54,14 @@ Map<String, Object?> serverStop({
   'timeZone': 'Asia/Seoul',
   'placeProvider': 'naver',
   'placeId': '12345',
+  'photo': photo,
+};
+
+/// 서버 응답(PhotoResponse)과 같은 모양.
+Map<String, Object?> serverPhoto({String id = 'photo-1'}) => {
+  'id': id,
+  'url': 'https://s3.test/$id.jpg?sig',
+  'thumbnailUrl': 'https://s3.test/${id}_thumb.jpg?sig',
 };
 
 /// 서버 응답(SegmentResponse)과 같은 모양.
@@ -196,6 +206,32 @@ void main() {
       expect(stop.timeZone, 'Asia/Seoul');
       expect(stop.placeProvider, MapProviderType.naver);
       expect(stop.placeId, '12345');
+      expect(stop.photo, isNull);
+    });
+
+    test('reads the photo with its signed addresses', () {
+      final stop = stopFromJson(serverStop(photo: serverPhoto()));
+
+      expect(
+        stop.photo,
+        const Photo(
+          id: 'photo-1',
+          url: 'https://s3.test/photo-1.jpg?sig',
+          thumbnailUrl: 'https://s3.test/photo-1_thumb.jpg?sig',
+        ),
+      );
+    });
+
+    test('reads a stop without the photo field as having no photo', () {
+      // 사진(1-3) 전 서버나 기기에 저장한 여행(2-2).
+      expect(stopFromJson({...serverStop()}..remove('photo')).photo, isNull);
+    });
+
+    test('rejects a photo without its addresses', () {
+      expect(
+        () => stopFromJson(serverStop(photo: {'id': 'p'})),
+        throwsFormatException,
+      );
     });
 
     test('reads a stop and a candidate without an address as empty', () {
@@ -252,6 +288,49 @@ void main() {
         expect(json['address'], '부산 해운대구 우동');
       },
     );
+  });
+
+  group('photo upload', () {
+    Map<String, Object?> target(String url, int size) => {
+      'url': url,
+      'headers': {
+        'Content-Type': 'image/jpeg',
+        'Content-Length': '$size',
+        'x-amz-tagging': 'upload=pending',
+      },
+    };
+
+    test('reads both upload addresses with the headers to send', () {
+      final ticket = photoUploadFromJson({
+        'photoId': 'photo-1',
+        'original': target('https://s3.test/o', 300),
+        'thumbnail': target('https://s3.test/t', 30),
+        'expiresAt': '2026-11-19T00:10:00.000Z',
+      });
+
+      expect(ticket.photoId, 'photo-1');
+      expect(ticket.original.url, 'https://s3.test/o');
+      expect(ticket.original.headers, {
+        'Content-Type': 'image/jpeg',
+        'Content-Length': '300',
+        'x-amz-tagging': 'upload=pending',
+      });
+      expect(ticket.thumbnail.headers['Content-Length'], '30');
+    });
+
+    test('rejects headers that are not text', () {
+      expect(
+        () => photoUploadFromJson({
+          'photoId': 'p',
+          'original': {
+            'url': 'u',
+            'headers': {'Content-Length': 300},
+          },
+          'thumbnail': target('t', 1),
+        }),
+        throwsFormatException,
+      );
+    });
   });
 
   group('segment', () {

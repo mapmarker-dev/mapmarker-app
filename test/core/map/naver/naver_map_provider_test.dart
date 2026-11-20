@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -92,6 +94,54 @@ void main() {
     // 선 아이콘(150000)·장소 마커(200000)보다 아래, 화살표(100000)보다 위.
     expect(payload['globalZIndex'], inExclusiveRange(100000, 150000));
     expect(marker.size, MarkerIcon.smallSize);
+  });
+
+  test('sends photo markers with the tail tip on the place', () {
+    final look = MarkerLook(
+      fill: Colors.orange,
+      foreground: Colors.black,
+      halo: Colors.white,
+      label: '1',
+      photo: MemoryImage(Uint8List.fromList(const [0])),
+    );
+    final marker = naverMarkerOf(
+      MapMarker(
+        id: 'stop',
+        position: const LatLng(33.5, 126.5),
+        caption: '성산일출봉',
+        look: look,
+      ),
+      icon: null,
+      captionColor: Colors.black,
+    );
+
+    expect(() => marker.payload, returnsNormally);
+    expect(marker.size, MarkerIcon.photoSize);
+    expect(marker.anchor, const NPoint(0.5, 1));
+  });
+
+  test('draws a photo marker without the photo when the photo failed', () {
+    final look = MarkerLook(
+      fill: Colors.orange,
+      foreground: Colors.black,
+      halo: Colors.white,
+      label: '1',
+      photo: MemoryImage(Uint8List.fromList(const [0])),
+    );
+    final marker = naverMarkerOf(
+      MapMarker(
+        id: 'stop',
+        position: const LatLng(33.5, 126.5),
+        caption: '성산일출봉',
+        look: look,
+      ),
+      look: look.withoutPhoto(),
+      icon: null,
+      captionColor: Colors.black,
+    );
+
+    expect(marker.size, MarkerIcon.size);
+    expect(marker.anchor, const NPoint(0.5, 0.5));
   });
 
   test('sends arrows the SDK can read, turned flat on the map', () {

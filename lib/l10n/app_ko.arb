@@ -24,6 +24,10 @@
   },
   "saveFailedNetwork": "인터넷에 연결되지 않아 저장하지 못했습니다.",
   "saveFailed": "저장하지 못했습니다. 다시 시도해 주세요.",
+  "photoSaveFailed": "사진을 저장하지 못했습니다. 다시 저장해 주세요.",
+  "@photoSaveFailed": {
+    "description": "장소 입력 화면. 장소는 저장했지만 사진을 올리거나 지우지 못했을 때. 다시 저장하면 사진만 다시 보낸다"
+  },
   "searchFailedNetwork": "인터넷에 연결되지 않아 찾지 못했습니다.",
   "searchUnavailable": "주소 검색이 잠시 되지 않습니다. 잠시 후 다시 시도해 주세요.",
   "searchFailed": "찾지 못했습니다. 다시 시도해 주세요.",
@@ -363,6 +367,41 @@
   "@candidatePromote": {
     "description": "펼친 후보 줄의 버튼과, 그 버튼이 여는 장소 입력 화면의 제목. 후보를 동선의 장소로 넣는다"
   },
+  "placePhotoLabel": "사진",
+  "@placePhotoLabel": {
+    "description": "장소 입력 화면의 사진 칸 이름"
+  },
+  "placePhotoAdd": "사진 넣기",
+  "placePhotoChange": "바꾸기",
+  "@placePhotoChange": {
+    "description": "장소 입력 화면 사진 옆 버튼. 다른 사진을 고른다"
+  },
+  "placePhotoRemove": "지우기",
+  "@placePhotoRemove": {
+    "description": "장소 입력 화면 사진 옆 버튼. 저장하면 사진이 지워진다"
+  },
+  "placePhotoPreparing": "사진을 준비하는 중",
+  "@placePhotoPreparing": {
+    "description": "고른 사진을 줄이는 동안의 진행 표시 이름"
+  },
+  "placePhotoReadFailed": "이 사진을 읽지 못했습니다. 다른 사진을 골라 주세요.",
+  "placePhotoReposition": "위치 바꾸기",
+  "@placePhotoReposition": {
+    "description": "장소 입력 화면 사진 옆 버튼. 지도 마커와 목록에 보일 정사각형 부분을 다시 고른다"
+  },
+  "placePhotoFetchFailed": "사진을 받지 못했습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.",
+  "photoPositionTitle": "사진 위치",
+  "@photoPositionTitle": {
+    "description": "사진을 고른 뒤 뜨는 화면의 제목. 정사각형 틀 안에 보일 부분을 고른다(지도 마커, 장소 줄, 내보내기 이미지에 쓰인다)"
+  },
+  "photoPositionHint": "끌거나 두 손가락으로 늘려서 보일 부분을 고르세요.",
+  "stopPhotoLabel": "{name} 사진",
+  "@stopPhotoLabel": {
+    "description": "장소 줄의 사진(누르면 크게 본다)과 크게 보기 화면의 이름",
+    "placeholders": {
+      "name": {"type": "String", "example": "성산일출봉"}
+    }
+  },
   "stopFormDemote": "후보로 빼기",
   "@stopFormDemote": {
     "description": "장소 편집 화면의 버튼(장소 지우기 위). 장소를 동선에서 빼서 후보로 둔다"
@@ -376,6 +415,10 @@
   "demoteStopMessage": "후보로 빼면 아래 내용이 사라집니다. 앞뒤 장소는 바로 이어집니다.",
   "@demoteStopMessage": {
     "description": "후보로 빼기 확인 대화상자. 아래에 사라지는 예정 시각과 이동 수단이 나온다"
+  },
+  "lostStopPhoto": "사진",
+  "@lostStopPhoto": {
+    "description": "후보로 빼기와 장소 지우기 확인 대화상자에서 사라지는 사진(썸네일 옆 글자)"
   },
   "demoteStopPlannedTime": "예정 시각 {time}",
   "@demoteStopPlannedTime": {
@@ -493,6 +536,7 @@
     }
   },
   "deleteStopMessage": "앞뒤 장소는 바로 이어집니다. 이 장소에 닿은 구간의 이동 수단은 사라집니다.",
+  "deleteStopMessageWithPhoto": "앞뒤 장소는 바로 이어집니다. 이 장소의 사진과, 닿은 구간의 이동 수단은 사라집니다.",
   "moveStopDropsTransportTitle": "이동 수단이 사라집니다",
   "@moveStopDropsTransportTitle": {
     "description": "장소를 끌어 옮기거나 연박 숙소를 넣으면 이웃이 바뀌는 구간에 적어 둔 이동 수단이 있을 때 묻는 대화상자 제목"

@@ -9,6 +9,7 @@ import '../../../data/models/segment.dart';
 import '../../../data/models/stop.dart';
 import '../../../l10n/l10n.dart';
 import '../transport_look.dart';
+import 'stop_photo.dart';
 
 /// 일차 동선 시트의 장소 줄.
 ///
@@ -55,6 +56,9 @@ class ItineraryStopTile extends StatelessWidget {
 
   /// 끌어 옮기고 저장을 기다리는 중. 흐리게 보이고, 연필과 손잡이 자리에 진행 표시가 뜬다.
   final bool saving;
+
+  /// 사진 썸네일 크기. 누르면 크게 본다(줄 누르기와 따로).
+  static const _photoSize = 48.0;
 
   @override
   Widget build(BuildContext context) {
@@ -145,6 +149,23 @@ class ItineraryStopTile extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (stop.photo case final photo?)
+                      Padding(
+                        padding: const EdgeInsets.only(left: AppSpace.sm),
+                        child: Opacity(
+                          opacity: opacity,
+                          child: StopPhotoThumbnail(
+                            photo,
+                            size: _photoSize,
+                            label: l10n.stopPhotoLabel(stop.name),
+                            onTap: () => showStopPhoto(
+                              context,
+                              photo: photo,
+                              label: l10n.stopPhotoLabel(stop.name),
+                            ),
+                          ),
+                        ),
+                      ),
                     if (saving)
                       SavingIndicator(label: l10n.saving)
                     else ...[

@@ -323,16 +323,24 @@ Future<bool> confirmDiscardChanges(BuildContext context) async {
 }
 
 /// 지울지 묻는다([title], [message]). 지우면 true다. 지우기 버튼은 오류 색이다.
+/// [detail]은 문장 아래에 보일 것이다(예: 함께 사라질 사진).
 Future<bool> confirmDelete(
   BuildContext context, {
   required String title,
   required String message,
+  Widget? detail,
 }) async {
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
       title: Text(title),
-      content: Text(message),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [Text(message), ?detail],
+        ),
+      ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),

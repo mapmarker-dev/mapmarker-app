@@ -291,11 +291,14 @@ class _NaverMapViewState extends State<NaverMapView> {
     final scheme = Theme.of(context).colorScheme;
     final markers = <NMarker>[];
     for (final marker in scene.markers) {
-      final icon = await _iconOf(marker.look);
+      final look = await _drawableLook(marker.look);
+      if (!mounted || version != _overlayVersion) return;
+      final icon = await _iconOf(look);
       if (!mounted || version != _overlayVersion) return;
       markers.add(
         naverMarkerOf(
           marker,
+          look: look,
           icon: icon,
           captionColor: marker.secondary
               ? scheme.onSurfaceVariant
@@ -366,6 +369,16 @@ class _NaverMapViewState extends State<NaverMapView> {
         size: LineIconBadge.size,
         context: context,
       );
+
+  /// 사진 마커면 사진을 먼저 받아 둔다. 위젯을 그림으로 바꿀 때는 기다리지 않고 한 번에 그려서,
+  /// 받아 둔 이미지만 들어간다. 받지 못하면 사진 없는 원 마커로 그린다(다음 장면에서 다시 받는다).
+  Future<MarkerLook> _drawableLook(MarkerLook look) async {
+    final photo = look.photo;
+    if (photo == null || _icons.containsKey(look)) return look;
+    var failed = false;
+    await precacheImage(photo, context, onError: (_, _) => failed = true);
+    return failed ? look.withoutPhoto() : look;
+  }
 
   Future<NOverlayImage> _iconOf(MarkerLook look) async =>
       _icons[look] ??= await NOverlayImage.fromWidget(
@@ -655,16 +668,20 @@ NPathOverlay? naverPathOf(MapLine line, {VoidCallback? onTap}) {
 @visibleForTesting
 NMarker naverMarkerOf(
   MapMarker marker, {
+  MarkerLook? look,
   required NOverlayImage? icon,
   required Color captionColor,
   VoidCallback? onTap,
 }) {
+  // 사진을 받지 못하면 [look]은 사진 없는 그림이다.
+  final drawn = look ?? marker.look;
+  final anchor = MarkerIcon.anchorOf(drawn);
   final nMarker = NMarker(
     id: marker.id,
     position: _nLatLng(marker.position),
     icon: icon,
-    size: MarkerIcon.sizeOf(marker.look),
-    anchor: const NPoint(0.5, 0.5),
+    size: MarkerIcon.sizeOf(drawn),
+    anchor: NPoint(anchor.dx, anchor.dy),
     caption: NOverlayCaption(
       text: marker.caption,
       color: captionColor,

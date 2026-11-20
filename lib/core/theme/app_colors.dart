@@ -33,11 +33,14 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.routeLodging,
     required this.routeHalo,
     required this.routeViaOpacity,
+    required this.routePhotoFrameShade,
     required this.routeCandidate,
     required this.routeCandidateRing,
     required this.routeCandidateFocus,
     required this.kakaoLogin,
     required this.naverLogin,
+    required this.photoViewer,
+    required this.photoPlaceholder,
   });
 
   factory AppColors.light(ColorScheme scheme) => AppColors(
@@ -56,6 +59,7 @@ class AppColors extends ThemeExtension<AppColors> {
     routeLodging: ChipColors(AppPalette.ink700, scheme.surfaceContainerLowest),
     routeHalo: scheme.surfaceContainerLowest,
     routeViaOpacity: 0.5,
+    routePhotoFrameShade: 0.25,
     routeCandidate: ChipColors(
       scheme.surfaceContainerLowest,
       scheme.onSurfaceVariant,
@@ -67,6 +71,11 @@ class AppColors extends ThemeExtension<AppColors> {
     ),
     kakaoLogin: const ChipColors(AppPalette.kakaoYellow, AppPalette.kakaoLabel),
     naverLogin: const ChipColors(AppPalette.naverGreen, AppPalette.naverLabel),
+    photoViewer: ChipColors(scheme.scrim, scheme.surfaceContainerLowest),
+    photoPlaceholder: ChipColors(
+      scheme.surfaceContainerHighest,
+      scheme.onSurfaceVariant,
+    ),
   );
 
   /// 상태 칩: 여행 전(민트), 여행 중(코랄), 여행 후(모래).
@@ -92,21 +101,41 @@ class AppColors extends ThemeExtension<AppColors> {
   /// "숙소를 거침" 선(숙소를 끈 보기에서 낮에 들른 숙소 앞뒤를 바로 잇는 선)의 불투명도. [routeVia]로 읽는다.
   final double routeViaOpacity;
 
+  /// 사진 마커 테두리와 꼬리를 일차 색에서 그날 글자색(같은 색 계열의 어두운 색) 쪽으로 옮기는 정도. [routePhotoFrame]으로 읽는다.
+  /// 선과 같은 색이면 마커가 선에 붙어 보여서 조금 어둡게 한다.
+  final double routePhotoFrameShade;
+
   /// 후보 장소 마커. 바탕은 원, 글자는 종류 아이콘이다. 일차 색을 쓰지 않아 동선과 구분된다.
   final ChipColors routeCandidate;
 
   /// 후보 장소 마커의 테두리. 흰 바탕이 지도에 묻히지 않게 한다.
   final Color routeCandidateRing;
 
-  /// "후보 목록" 보기의 후보 마커. 
+  /// "후보 목록" 보기의 후보 마커.
   final ChipColors routeCandidateFocus;
 
   /// 로그인 버튼. 다크 모드에서도 브랜드 색 그대로다.
   final ChipColors kakaoLogin;
   final ChipColors naverLogin;
 
+  /// 사진 크게 보기. 바탕은 사진 둘레, 글자는 닫기 버튼이다. 다크 모드에서도 어둡다.
+  final ChipColors photoViewer;
+
+  /// 사진을 받는 중이거나 받지 못했을 때의 자리. 글자는 그 안의 아이콘이다.
+  final ChipColors photoPlaceholder;
+
   /// [day]일차의 색. 일차가 색 수보다 많으면 처음 색부터 다시 쓴다.
   ChipColors routeDay(int day) => routeDays[(day - 1) % routeDays.length];
+
+  /// [day]일차 사진 마커의 테두리와 꼬리 색.
+  Color routePhotoFrame(int day) {
+    final colors = routeDay(day);
+    return Color.lerp(
+      colors.background,
+      colors.foreground,
+      routePhotoFrameShade,
+    )!;
+  }
 
   /// [day]일차로 가는 "숙소를 거침" 선의 색. 일차 색을 흐리게 해서 실제 구간의 선과 구분한다.
   Color routeVia(int day) =>
@@ -123,11 +152,14 @@ class AppColors extends ThemeExtension<AppColors> {
     ChipColors? routeLodging,
     Color? routeHalo,
     double? routeViaOpacity,
+    double? routePhotoFrameShade,
     ChipColors? routeCandidate,
     Color? routeCandidateRing,
     ChipColors? routeCandidateFocus,
     ChipColors? kakaoLogin,
     ChipColors? naverLogin,
+    ChipColors? photoViewer,
+    ChipColors? photoPlaceholder,
   }) => AppColors(
     phaseBefore: phaseBefore ?? this.phaseBefore,
     phaseDuring: phaseDuring ?? this.phaseDuring,
@@ -138,11 +170,14 @@ class AppColors extends ThemeExtension<AppColors> {
     routeLodging: routeLodging ?? this.routeLodging,
     routeHalo: routeHalo ?? this.routeHalo,
     routeViaOpacity: routeViaOpacity ?? this.routeViaOpacity,
+    routePhotoFrameShade: routePhotoFrameShade ?? this.routePhotoFrameShade,
     routeCandidate: routeCandidate ?? this.routeCandidate,
     routeCandidateRing: routeCandidateRing ?? this.routeCandidateRing,
     routeCandidateFocus: routeCandidateFocus ?? this.routeCandidateFocus,
     kakaoLogin: kakaoLogin ?? this.kakaoLogin,
     naverLogin: naverLogin ?? this.naverLogin,
+    photoViewer: photoViewer ?? this.photoViewer,
+    photoPlaceholder: photoPlaceholder ?? this.photoPlaceholder,
   );
 
   @override
@@ -161,6 +196,11 @@ class AppColors extends ThemeExtension<AppColors> {
       routeLodging: ChipColors.lerp(routeLodging, other.routeLodging, t),
       routeHalo: Color.lerp(routeHalo, other.routeHalo, t)!,
       routeViaOpacity: lerpDouble(routeViaOpacity, other.routeViaOpacity, t)!,
+      routePhotoFrameShade: lerpDouble(
+        routePhotoFrameShade,
+        other.routePhotoFrameShade,
+        t,
+      )!,
       routeCandidate: ChipColors.lerp(routeCandidate, other.routeCandidate, t),
       routeCandidateRing: Color.lerp(
         routeCandidateRing,
@@ -174,6 +214,12 @@ class AppColors extends ThemeExtension<AppColors> {
       ),
       kakaoLogin: ChipColors.lerp(kakaoLogin, other.kakaoLogin, t),
       naverLogin: ChipColors.lerp(naverLogin, other.naverLogin, t),
+      photoViewer: ChipColors.lerp(photoViewer, other.photoViewer, t),
+      photoPlaceholder: ChipColors.lerp(
+        photoPlaceholder,
+        other.photoPlaceholder,
+        t,
+      ),
     );
   }
 }

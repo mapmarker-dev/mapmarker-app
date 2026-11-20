@@ -4,6 +4,7 @@ import '../../core/map/geo.dart';
 import '../../core/time/local_time.dart';
 import '../../data/addresses/address_api.dart';
 import '../../data/models/stop.dart';
+import '../../data/photos/photo_upload.dart';
 
 /// 장소 입력 화면에서 고치는 값. 추가와 편집이 함께 쓴다.
 /// 좌표는 [relocatedTo]로만 바꾼다(주소 칸의 글자만 고치면 지도의 자리는 그대로다).
@@ -19,6 +20,8 @@ class StopDraft {
     this.address = '',
     this.relocatedTo,
     this.slotOrder,
+    this.newPhoto,
+    this.removePhoto = false,
   });
 
   factory StopDraft.of(Stop stop) => StopDraft(
@@ -57,6 +60,20 @@ class StopDraft {
   /// (`stop_placement.dart`의 `insertionOrder`). 기본 자리는 종류에 따라 바뀌어서 저장할 때 정한다.
   final int? slotOrder;
 
+  /// 새로 고른 사진(줄여 둔 것). 저장하면 올려서 있던 사진과 바꾼다.
+  final PreparedPhoto? newPhoto;
+
+  /// 있던 사진을 지운다. [newPhoto]가 있으면 무시한다(바꾸기다).
+  final bool removePhoto;
+
+  /// 사진을 바꾸거나 지우는지.
+  bool get changesPhoto => newPhoto != null || removePhoto;
+
+  /// 사진을 뺀 나머지 값이 [other]와 같은지. 사진만 바꿨으면 장소는 다시 저장하지 않는다.
+  bool sameFieldsAs(StopDraft other) =>
+      copyWith(newPhoto: () => null, removePhoto: false) ==
+      other.copyWith(newPhoto: () => null, removePhoto: false);
+
   /// 저장할 수 있는지. 이름은 앞뒤 공백을 빼고 1자 이상이어야 한다.
   bool get isValid {
     final trimmed = name.trim();
@@ -77,6 +94,8 @@ class StopDraft {
     String? address,
     LatLng? Function()? relocatedTo,
     int? Function()? slotOrder,
+    PreparedPhoto? Function()? newPhoto,
+    bool? removePhoto,
   }) => StopDraft(
     name: name ?? this.name,
     kind: kind ?? this.kind,
@@ -87,6 +106,8 @@ class StopDraft {
     address: address ?? this.address,
     relocatedTo: relocatedTo == null ? this.relocatedTo : relocatedTo(),
     slotOrder: slotOrder == null ? this.slotOrder : slotOrder(),
+    newPhoto: newPhoto == null ? this.newPhoto : newPhoto(),
+    removePhoto: removePhoto ?? this.removePhoto,
   );
 
   /// 새 장소. 일차 안 순서는 [order]다.
@@ -133,7 +154,10 @@ class StopDraft {
       other.memo == memo &&
       other.address == address &&
       other.relocatedTo == relocatedTo &&
-      other.slotOrder == slotOrder;
+      other.slotOrder == slotOrder &&
+      // 같은 사진을 다시 골라도 새로 줄인 것이라 다른 값으로 본다.
+      identical(other.newPhoto, newPhoto) &&
+      other.removePhoto == removePhoto;
 
   @override
   int get hashCode => Object.hash(
@@ -146,5 +170,7 @@ class StopDraft {
     address,
     relocatedTo,
     slotOrder,
+    newPhoto,
+    removePhoto,
   );
 }
