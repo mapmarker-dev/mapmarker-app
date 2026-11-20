@@ -387,6 +387,49 @@ void main() {
       expect(tester.getRect(find.text('장소 3곳')).top, greaterThan(title.top));
     });
 
+    testWidgets(
+      'lifts the map buttons with the sheet, hides them near the top',
+      (tester) async {
+        usePortraitPhone(tester);
+        await _pumpJeju(tester);
+        await tapChip(tester, '2일차');
+        final me = find.byTooltip('내 위치');
+        double opacity() => tester
+            .widget<AnimatedOpacity>(
+              find.ancestor(of: me, matching: find.byType(AnimatedOpacity)),
+            )
+            .opacity;
+        final collapsed = tester.getRect(me);
+        final title = tester.getRect(find.text('장소 3곳'));
+        expect(collapsed.bottom, lessThan(title.top));
+
+        // 지도에서 장소를 누르면 시트가 가운데 높이로 올라오고 버튼도 시트 위로 따라간다.
+        await tapMarker(tester, 'c');
+        final mid = tester.getRect(me);
+        expect(mid.top, lessThan(collapsed.top));
+        expect(mid.bottom, lessThan(tester.getRect(find.text('장소 3곳')).top));
+        expect(opacity(), 1);
+
+        // 끝까지 올리면 지도가 띠만 남아 버튼을 숨긴다.
+        await tester.drag(find.text('장소 3곳'), const Offset(0, -1600));
+        await tester.pumpAndSettle();
+        expect(opacity(), 0);
+
+        // 다시 접으면 접힌 시트 바로 위로 돌아온다.
+        await tester.drag(find.text('장소 3곳'), const Offset(0, 1600));
+        await tester.pumpAndSettle();
+        expect(opacity(), 1);
+        final back = tester.getRect(me);
+        final sheetTop = tester.getRect(find.text('장소 3곳')).top;
+        expect(back.top, greaterThan(mid.top));
+        expect(back.bottom, lessThan(sheetTop));
+        expect(
+          sheetTop - back.bottom,
+          closeTo(title.top - collapsed.bottom, 8),
+        );
+      },
+    );
+
     testWidgets('highlights one row picked in the sheet', (tester) async {
       _tallScreen(tester);
       await _pumpJeju(tester);

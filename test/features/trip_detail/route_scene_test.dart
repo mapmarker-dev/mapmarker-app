@@ -108,6 +108,25 @@ void main() {
     expect(day2.arrows, isEmpty);
   });
 
+  test('visited places keep their number on the map', () {
+    final route = _route([
+      testStop(
+        'sight',
+        kind: StopKind.tour,
+      ).copyWith(visitedAt: () => DateTime.utc(2026, 10, 15, 1)),
+      testStop('lunch', order: 1, kind: StopKind.food),
+    ]);
+    final [sight, lunch] = routeOverlays(
+      route: route,
+      view: route.view(),
+      colors: _colors,
+    ).markers;
+
+    expect(sight.look.label, '1');
+    expect(sight.look.icon, isNull);
+    expect(lunch.look.label, '2');
+  });
+
   group('same place twice', () {
     // 공항에서 시작해 공항에서 끝나는 여행. 공항은 숙소가 아니다.
     Stop airport(String id, {required int day, int order = 0}) => testStop(

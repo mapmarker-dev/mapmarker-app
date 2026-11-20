@@ -156,11 +156,13 @@ class _NaverMapViewState extends State<NaverMapView> {
       _showOverlays(controller);
     }
     if (old.curveHandle != scene.curveHandle) _refreshHandle();
+    if (old.myLocation != scene.myLocation) _showMyLocation(controller);
     _moveCamera(controller);
   }
 
   Future<void> _onMapReady(NaverMapController controller) async {
     _controller = controller;
+    _showMyLocation(controller);
     _moveCamera(controller, animate: false);
     await _showOverlays(controller);
     await _refreshHandle();
@@ -396,6 +398,15 @@ class _NaverMapViewState extends State<NaverMapView> {
         size: ArrowIcon.size,
         context: context,
       );
+
+  /// 현재 위치는 SDK의 위치 오버레이(파란 점)로 그린다. 위치는 앱이 받아 넘기고, SDK의 위치 추적은 쓰지 않는다
+  /// (권한과 안내를 앱이 정하고, 구글 지도로 바꿔도 같은 위치를 쓰려고).
+  void _showMyLocation(NaverMapController controller) {
+    final overlay = controller.getLocationOverlay();
+    final position = widget.scene.myLocation;
+    if (position != null) overlay.setPosition(_nLatLng(position));
+    overlay.setIsVisible(position != null);
+  }
 
   void _moveCamera(NaverMapController controller, {bool animate = true}) {
     final camera = widget.scene.camera;

@@ -93,3 +93,30 @@ const minCameraSpan = 0.005;
 LatLngBounds? cameraBoundsFor(Iterable<LatLng> points) => points.isEmpty
     ? null
     : LatLngBounds.around(points).widenedTo(minCameraSpan);
+
+/// 지구 평균 반지름(m).
+const _earthRadiusMeters = 6371008.8;
+
+/// 두 점 사이의 직선(대권) 거리(m). 길 따라 걷는 거리가 아니다.
+double distanceMeters(LatLng a, LatLng b) {
+  double rad(double degrees) => degrees * math.pi / 180;
+  final dLat = rad(b.latitude - a.latitude);
+  final dLng = rad(b.longitude - a.longitude);
+  final h =
+      math.pow(math.sin(dLat / 2), 2) +
+      math.cos(rad(a.latitude)) *
+          math.cos(rad(b.latitude)) *
+          math.pow(math.sin(dLng / 2), 2);
+  return 2 * _earthRadiusMeters * math.asin(math.min(1, math.sqrt(h)));
+}
+
+/// [center]에서 사방으로 [meters]만큼 담는 범위. 내 위치 주변을 보여 줄 때 쓴다.
+LatLngBounds boundsAround(LatLng center, double meters) {
+  final latSpan = meters / _earthRadiusMeters * 180 / math.pi;
+  final lngSpan =
+      latSpan / math.max(math.cos(center.latitude * math.pi / 180), 0.01);
+  return LatLngBounds(
+    southWest: LatLng(center.latitude - latSpan, center.longitude - lngSpan),
+    northEast: LatLng(center.latitude + latSpan, center.longitude + lngSpan),
+  );
+}

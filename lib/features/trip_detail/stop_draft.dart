@@ -22,6 +22,7 @@ class StopDraft {
     this.slotOrder,
     this.newPhoto,
     this.removePhoto = false,
+    this.visitedAt,
   });
 
   factory StopDraft.of(Stop stop) => StopDraft(
@@ -32,6 +33,7 @@ class StopDraft {
     description: stop.description,
     memo: stop.memo,
     address: stop.address,
+    visitedAt: stop.visitedAt,
   );
 
   /// 이름 최대 글자 수. 지도 마커 이름과 시트 한 줄에 들어갈 만큼이다.
@@ -66,6 +68,10 @@ class StopDraft {
   /// 있던 사진을 지운다. [newPhoto]가 있으면 무시한다(바꾸기다).
   final bool removePhoto;
 
+  /// 방문 시각(순간). 방문한 장소만 있고, 입력 화면에서는 날짜와 시각을 고치기만 한다
+  /// (방문 완료와 취소는 펼친 장소 줄의 버튼이다). 새 장소에는 넣지 않는다.
+  final DateTime? visitedAt;
+
   /// 사진을 바꾸거나 지우는지.
   bool get changesPhoto => newPhoto != null || removePhoto;
 
@@ -96,6 +102,7 @@ class StopDraft {
     int? Function()? slotOrder,
     PreparedPhoto? Function()? newPhoto,
     bool? removePhoto,
+    DateTime? visitedAt,
   }) => StopDraft(
     name: name ?? this.name,
     kind: kind ?? this.kind,
@@ -108,6 +115,7 @@ class StopDraft {
     slotOrder: slotOrder == null ? this.slotOrder : slotOrder(),
     newPhoto: newPhoto == null ? this.newPhoto : newPhoto(),
     removePhoto: removePhoto ?? this.removePhoto,
+    visitedAt: visitedAt ?? this.visitedAt,
   );
 
   /// 새 장소. 일차 안 순서는 [order]다.
@@ -132,7 +140,9 @@ class StopDraft {
   );
 
   /// [stop]에 고친 값을 넣는다. 일차는 바꾸지 않는다(옮기기는 저장소의 `moveStop`이다).
+  /// 방문 시각은 입력 화면을 열 때의 값이거나 고친 값이다.
   Stop applyTo(Stop stop) => stop.copyWith(
+    visitedAt: () => visitedAt,
     latitude: relocatedTo?.latitude,
     longitude: relocatedTo?.longitude,
     name: name.trim(),
@@ -157,7 +167,8 @@ class StopDraft {
       other.slotOrder == slotOrder &&
       // 같은 사진을 다시 골라도 새로 줄인 것이라 다른 값으로 본다.
       identical(other.newPhoto, newPhoto) &&
-      other.removePhoto == removePhoto;
+      other.removePhoto == removePhoto &&
+      other.visitedAt == visitedAt;
 
   @override
   int get hashCode => Object.hash(
@@ -172,5 +183,6 @@ class StopDraft {
     slotOrder,
     newPhoto,
     removePhoto,
+    visitedAt,
   );
 }

@@ -41,6 +41,7 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.naverLogin,
     required this.photoViewer,
     required this.photoPlaceholder,
+    required this.myLocation,
   });
 
   factory AppColors.light(ColorScheme scheme) => AppColors(
@@ -76,6 +77,7 @@ class AppColors extends ThemeExtension<AppColors> {
       scheme.surfaceContainerHighest,
       scheme.onSurfaceVariant,
     ),
+    myLocation: AppPalette.locationBlue,
   );
 
   /// 상태 칩: 여행 전(민트), 여행 중(코랄), 여행 후(모래).
@@ -124,6 +126,10 @@ class AppColors extends ThemeExtension<AppColors> {
   /// 사진을 받는 중이거나 받지 못했을 때의 자리. 글자는 그 안의 아이콘이다.
   final ChipColors photoPlaceholder;
 
+  /// 현재 위치를 받는 중인 [내 위치] 버튼. 지도의 파란 점(지도 SDK)과 같은 계열의 파랑이다.
+  /// 주 색(코랄)과 나눠서 파랑은 현재 위치에만 쓴다.
+  final Color myLocation;
+
   /// [day]일차의 색. 일차가 색 수보다 많으면 처음 색부터 다시 쓴다.
   ChipColors routeDay(int day) => routeDays[(day - 1) % routeDays.length];
 
@@ -160,6 +166,7 @@ class AppColors extends ThemeExtension<AppColors> {
     ChipColors? naverLogin,
     ChipColors? photoViewer,
     ChipColors? photoPlaceholder,
+    Color? myLocation,
   }) => AppColors(
     phaseBefore: phaseBefore ?? this.phaseBefore,
     phaseDuring: phaseDuring ?? this.phaseDuring,
@@ -178,6 +185,7 @@ class AppColors extends ThemeExtension<AppColors> {
     naverLogin: naverLogin ?? this.naverLogin,
     photoViewer: photoViewer ?? this.photoViewer,
     photoPlaceholder: photoPlaceholder ?? this.photoPlaceholder,
+    myLocation: myLocation ?? this.myLocation,
   );
 
   @override
@@ -220,6 +228,7 @@ class AppColors extends ThemeExtension<AppColors> {
         other.photoPlaceholder,
         t,
       ),
+      myLocation: Color.lerp(myLocation, other.myLocation, t)!,
     );
   }
 }

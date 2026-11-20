@@ -286,8 +286,30 @@ void main() {
         expect(json.containsKey('plannedTime'), isTrue);
         expect(json['name'], '해운대');
         expect(json['address'], '부산 해운대구 우동');
+        // 방문 전이면 null로 보내 방문을 지운다.
+        expect(json['visitedAt'], isNull);
+        expect(json.containsKey('visitedAt'), isTrue);
       },
     );
+
+    test('updates the visit time as a UTC instant', () {
+      final json = updateStopJson(
+        _stop().copyWith(
+          visitedAt: () => DateTime.utc(2026, 10, 21, 3, 42).toLocal(),
+        ),
+      );
+
+      expect(json['visitedAt'], '2026-10-21T03:42:00.000Z');
+      expect(json.containsKey('visited'), isFalse);
+    });
+
+    test('does not send a visit time when creating', () {
+      final json = createStopJson(
+        _stop().copyWith(visitedAt: () => DateTime.utc(2026, 10, 21)),
+      );
+
+      expect(json.containsKey('visitedAt'), isFalse);
+    });
   });
 
   group('photo upload', () {

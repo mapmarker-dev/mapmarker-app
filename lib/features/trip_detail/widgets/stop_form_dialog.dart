@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/time/local_date.dart';
 import '../../../core/time/local_time.dart';
+import '../../../core/time/zoned_time.dart';
 import '../../../core/widgets/form_saving.dart';
 import '../../../core/widgets/saving.dart';
 import '../../../data/models/segment.dart';
@@ -12,6 +14,7 @@ import '../../../data/trips/route_links.dart';
 import '../../../l10n/l10n.dart';
 import '../stop_draft.dart';
 import '../stop_placement.dart';
+import '../stop_visit.dart';
 import 'dropped_transport_list.dart';
 import 'place_fields.dart';
 import 'place_photo_field.dart';
@@ -40,6 +43,7 @@ Future<StopDraft?> showStopForm(
   Future<void> Function()? onDelete,
   Future<void> Function(StopDraft draft)? onDemote,
   bool relocatable = true,
+  LocalDate? today,
 }) => showDialog<StopDraft>(
   context: context,
   useSafeArea: false,
@@ -53,6 +57,7 @@ Future<StopDraft?> showStopForm(
     onDelete: onDelete,
     onDemote: onDemote,
     relocatable: relocatable,
+    today: today,
   ),
 );
 
@@ -68,6 +73,7 @@ class StopFormDialog extends StatefulWidget {
     this.onDelete,
     this.onDemote,
     this.relocatable = true,
+    this.today,
   });
 
   final Trip trip;
@@ -101,6 +107,9 @@ class StopFormDialog extends StatefulWidget {
 
   /// 주소 칸에서 찾아 위치를 바꿀 수 있는지. [동선에 넣기]는 좌표를 후보 것으로 써서 false다.
   final bool relocatable;
+
+  /// 오늘(기기 날짜). 방문 날짜는 오늘까지만 고른다. null이면 기기 시계로 읽는다.
+  final LocalDate? today;
 
   bool get isNew => stop == null;
 
@@ -299,6 +308,55 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
     setState(() => _draft = _draft.copyWith(plannedTime: () => picked));
   }
 
+  /// 방문 시각의 시간대. 장소의 것이고, 새 장소는 기본 시간대다(방문 칸이 없다).
+  String get _timeZone => widget.stop?.timeZone ?? Stop.defaultTimeZone;
+
+  /// 방문 날짜를 달력으로 고친다. 시각은 그대로다. 고를 수 있는 날은 [visitDateRange]다.
+  Future<void> _pickVisitDate() async {
+    final at = _draft.visitedAt;
+    if (at == null) return;
+    final parts = zonedParts(at, _timeZone);
+    final range = visitDateRange(
+      widget.trip,
+      widget.today ?? LocalDate.fromDateTime(DateTime.now()),
+    );
+    var initial = parts.date;
+    if (initial.isBefore(range.first)) initial = range.first;
+    if (initial.isAfter(range.last)) initial = range.last;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial.toDateTime(),
+      firstDate: range.first.toDateTime(),
+      lastDate: range.last.toDateTime(),
+      helpText: context.l10n.stopVisitDateHelp,
+    );
+    if (picked == null || !mounted) return;
+    final date = LocalDate.fromDateTime(picked);
+    setState(
+      () => _draft = _draft.copyWith(
+        visitedAt: zonedInstant(date, parts.time, _timeZone),
+      ),
+    );
+  }
+
+  /// 방문 시각을 휠(1분 단위)로 고친다. 날짜는 그대로다.
+  Future<void> _pickVisitTime() async {
+    final at = _draft.visitedAt;
+    if (at == null) return;
+    final parts = zonedParts(at, _timeZone);
+    final picked = await showTimeWheel(
+      context,
+      initial: parts.time,
+      title: context.l10n.stopVisitLabel,
+    );
+    if (picked == null || !mounted) return;
+    setState(
+      () => _draft = _draft.copyWith(
+        visitedAt: zonedInstant(parts.date, picked, _timeZone),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -408,6 +466,14 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
                     () => _draft = _draft.copyWith(plannedTime: () => null),
                   ),
                 ),
+                if (_draft.visitedAt case final visitedAt?) ...[
+                  gap,
+                  _VisitField(
+                    parts: zonedParts(visitedAt, _timeZone),
+                    onPickDate: _pickVisitDate,
+                    onPickTime: _pickVisitTime,
+                  ),
+                ],
                 gap,
                 PlaceNotesFields(
                   description: _description,
@@ -526,6 +592,69 @@ class _DroppedTransportNotice extends StatelessWidget {
                 ),
                 DroppedTransportList(route: route, segments: dropped),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 방문 시각 칸. 방문한 장소에만 있다. 왼쪽 날짜를 누르면 달력, 오른쪽 시각을 누르면 휠로 고친다.
+/// 날짜와 시각은 장소 현지 것이다. 지우기(방문 취소)는 펼친 장소 줄의 [방문 취소]다.
+class _VisitField extends StatelessWidget {
+  const _VisitField({
+    required this.parts,
+    required this.onPickDate,
+    required this.onPickTime,
+  });
+
+  final ({LocalDate date, LocalTime time}) parts;
+  final VoidCallback onPickDate;
+  final VoidCallback onPickTime;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final style = Theme.of(context).textTheme.bodyLarge;
+    final iconColor = Theme.of(context).colorScheme.onSurfaceVariant;
+    Widget part({
+      required String text,
+      required IconData icon,
+      required VoidCallback onTap,
+    }) => InkWell(
+      onTap: onTap,
+      borderRadius: AppRadius.sm,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
+        child: Row(
+          children: [
+            Flexible(child: Text(text, style: style)),
+            const SizedBox(width: AppSpace.xs),
+            Icon(icon, size: 18, color: iconColor),
+          ],
+        ),
+      ),
+    );
+    return InputDecorator(
+      decoration: InputDecoration(labelText: l10n.stopVisitLabel),
+      child: Row(
+        children: [
+          Expanded(
+            child: part(
+              text: l10n.stopVisitDate(parts.date.toDateTime()),
+              icon: Icons.calendar_today_outlined,
+              onTap: onPickDate,
+            ),
+          ),
+          const SizedBox(width: AppSpace.md),
+          Expanded(
+            child: part(
+              text: MaterialLocalizations.of(context).formatTimeOfDay(
+                TimeOfDay(hour: parts.time.hour, minute: parts.time.minute),
+              ),
+              icon: Icons.schedule,
+              onTap: onPickTime,
             ),
           ),
         ],

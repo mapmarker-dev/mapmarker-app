@@ -1,25 +1,84 @@
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mapmarker_app/core/time/local_time.dart';
 import 'package:mapmarker_app/features/trip_detail/widgets/time_wheel_sheet.dart';
 
+import '../../../helpers/test_app.dart';
+
 void main() {
-  group('roundToMinuteStep', () {
-    test('keeps times already on 5 minutes', () {
-      expect(roundToMinuteStep(const LocalTime(9, 30)), const LocalTime(9, 30));
-      expect(roundToMinuteStep(const LocalTime(0, 0)), const LocalTime(0, 0));
-    });
+  Future<void> open(
+    WidgetTester tester, {
+    LocalTime? initial,
+    String? title,
+    void Function(LocalTime?)? onResult,
+  }) async {
+    await tester.pumpWidget(
+      testMaterialApp(
+        GoRouter(
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (context, _) => Scaffold(
+                body: TextButton(
+                  onPressed: () async {
+                    final time = await showTimeWheel(
+                      context,
+                      initial: initial,
+                      title: title,
+                    );
+                    onResult?.call(time);
+                  },
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+  }
 
-    test('rounds to the nearest 5 minutes', () {
-      expect(roundToMinuteStep(const LocalTime(9, 32)), const LocalTime(9, 30));
-      expect(roundToMinuteStep(const LocalTime(9, 33)), const LocalTime(9, 35));
-      expect(roundToMinuteStep(const LocalTime(9, 58)), const LocalTime(10, 0));
-    });
+  testWidgets('shows minutes one by one and keeps an off-5 time', (
+    tester,
+  ) async {
+    LocalTime? result;
+    await open(
+      tester,
+      initial: const LocalTime(12, 41),
+      onResult: (time) => result = time,
+    );
 
-    test('does not run into the next day', () {
-      expect(
-        roundToMinuteStep(const LocalTime(23, 58)),
-        const LocalTime(23, 55),
-      );
-    });
+    final wheel = tester.widget<CupertinoDatePicker>(
+      find.byType(CupertinoDatePicker),
+    );
+    expect(wheel.minuteInterval, 1);
+    expect(wheel.initialDateTime.minute, 41);
+
+    await tester.tap(find.widgetWithText(TextButton, '확인'));
+    await tester.pumpAndSettle();
+    expect(result, const LocalTime(12, 41));
+  });
+
+  testWidgets('uses the planned time title unless given another', (
+    tester,
+  ) async {
+    await open(tester);
+    expect(find.text('예정 시각'), findsOneWidget);
+    expect(
+      tester
+          .widget<CupertinoDatePicker>(find.byType(CupertinoDatePicker))
+          .initialDateTime
+          .hour,
+      12,
+    );
+  });
+
+  testWidgets('shows the given title', (tester) async {
+    await open(tester, title: '방문 시각');
+    expect(find.text('방문 시각'), findsOneWidget);
   });
 }

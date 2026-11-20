@@ -53,6 +53,10 @@ dependencies:
   naver_login_flutter: 4.1.0
   shared_preferences: ^2.5.6
   flutter_image_compress: ^2.5.1
+  # 현재 위치("앱 사용 중"만). 백그라운드 서비스는 AndroidManifest.xml에서 뺀다.
+  geolocator: ^14.1.2
+  # 방문 시각을 장소의 시간대(IANA)로 바꾼다. 순수 Dart다.
+  timezone: ^0.11.2
 
 dev_dependencies:
   flutter_test:

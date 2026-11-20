@@ -513,7 +513,7 @@ void main() {
       expect(edited.position, before);
     });
 
-    testWidgets('picks the planned time on a 5-minute wheel', (tester) async {
+    testWidgets('picks the planned time on a 1-minute wheel', (tester) async {
       await _pumpJeju(tester);
       await tapChip(tester, '2일차');
       await _openSheet(tester);
@@ -521,13 +521,13 @@ void main() {
 
       await _tapInForm(tester, _inForm(find.text('오후 2:30')));
 
-      // 원형 시계가 아니라 휠이고, 분은 5분 단위다. 지금 시각에서 시작한다.
+      // 휠이고, 분은 1분 단위다. 지금 시각에서 시작한다.
       expect(find.byType(TimePickerDialog), findsNothing);
       final wheel = tester.widget<CupertinoDatePicker>(
         find.byType(CupertinoDatePicker),
       );
       expect(wheel.mode, CupertinoDatePickerMode.time);
-      expect(wheel.minuteInterval, 5);
+      expect(wheel.minuteInterval, 1);
       expect(wheel.initialDateTime.hour, 14);
       expect(wheel.initialDateTime.minute, 30);
 

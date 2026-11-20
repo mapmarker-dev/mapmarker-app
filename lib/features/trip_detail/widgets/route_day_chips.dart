@@ -12,6 +12,8 @@ import '../../../l10n/l10n.dart';
 /// 둘째 줄은 "함께 보기" 뒤에 켜고 끄는 필터 숙소·후보다. 숙소는 지도와 목록에서 숙소를 숨기고,
 /// 후보는 전체·일차 보기의 지도에 후보 점을 보인다. 보기와 필터를 한 줄에 두었더니 "후보"(보기)와
 /// "후보 보기"(필터)가 헷갈려서 줄을 나눴다.
+///
+/// [onCollapse]가 있으면 첫 줄 맨 앞에 접기 버튼이 있다. 접으면 같은 자리에 [RouteChipsSummary] 하나만 남는다.
 class RouteDayChips extends StatelessWidget {
   const RouteDayChips({
     super.key,
@@ -24,6 +26,7 @@ class RouteDayChips extends StatelessWidget {
     required this.onCandidatesSelected,
     required this.onShowLodgingChanged,
     required this.onShowCandidatesChanged,
+    this.onCollapse,
     this.padding = EdgeInsets.zero,
   });
 
@@ -42,9 +45,16 @@ class RouteDayChips extends StatelessWidget {
   final VoidCallback onCandidatesSelected;
   final ValueChanged<bool> onShowLodgingChanged;
   final ValueChanged<bool> onShowCandidatesChanged;
+
+  /// 칩 두 줄을 접는다. null이면 접기 버튼이 없다.
+  final VoidCallback? onCollapse;
+
   final EdgeInsets padding;
 
   static const _dot = 12.0;
+
+  /// 첫 줄 보기 칩의 보이는 높이. 접기 버튼도 이 크기이고 누르는 영역도 같다.
+  static const _chipHeight = 32.0;
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +87,24 @@ class RouteDayChips extends StatelessWidget {
       child: Row(
         spacing: AppSpace.sm,
         children: [
+          // 접으면 이 자리에 요약 알약이 생겨서, 같은 곳을 다시 누르면 펼친다.
+          if (onCollapse case final onCollapse?)
+            IconButton(
+              tooltip: l10n.routeChipsCollapse,
+              onPressed: onCollapse,
+              icon: const Icon(Icons.expand_less, size: 20),
+              style: IconButton.styleFrom(
+                backgroundColor: background,
+                foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                side: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+                fixedSize: const Size.square(_chipHeight),
+                minimumSize: const Size.square(_chipHeight),
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
           dayChip(null, l10n.routeAllDays),
           for (var day = 1; day <= days; day++)
             dayChip(day, l10n.routeDay(day)),
@@ -113,44 +141,45 @@ class RouteDayChips extends StatelessWidget {
           backgroundColor: background,
           onSelected: onChanged,
         );
+    final filterPill = DecoratedBox(
+      decoration: ShapeDecoration(
+        color: background,
+        shape: const StadiumBorder(),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpace.xs,
+          vertical: 2,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: AppSpace.xs,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs),
+              child: Text(
+                l10n.routeAlsoShow,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            filter(l10n.routeShowLodging, showLodging, onShowLodgingChanged),
+            // "후보 목록" 보기는 후보가 늘 보여서 "후보" 칩은 켜진 채로 고정한다.
+            // 다른 보기로 가면 사용자가 켜고 끈 대로다.
+            filter(
+              l10n.routeShowCandidates,
+              showCandidates || candidateView,
+              candidateView ? null : onShowCandidatesChanged,
+            ),
+          ],
+        ),
+      ),
+    );
     final filters = SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: padding,
-      child: DecoratedBox(
-        decoration: ShapeDecoration(
-          color: background,
-          shape: const StadiumBorder(),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpace.xs,
-            vertical: 2,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            spacing: AppSpace.xs,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs),
-                child: Text(
-                  l10n.routeAlsoShow,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              filter(l10n.routeShowLodging, showLodging, onShowLodgingChanged),
-              // "후보 목록" 보기는 후보가 늘 보여서 "후보" 칩은 켜진 채로 고정한다.
-              // 다른 보기로 가면 사용자가 켜고 끈 대로다.
-              filter(
-                l10n.routeShowCandidates,
-                showCandidates || candidateView,
-                candidateView ? null : onShowCandidatesChanged,
-              ),
-            ],
-          ),
-        ),
-      ),
+      child: filterPill,
     );
 
     return Column(
@@ -161,6 +190,87 @@ class RouteDayChips extends StatelessWidget {
         views,
         Align(alignment: AlignmentDirectional.centerStart, child: filters),
       ],
+    );
+  }
+}
+
+/// 접은 칩 두 줄 대신 남는 알약. 지금 보기(전체, N일차, 후보 목록)와 켜 둔 함께 보기("숙소와 후보 보기")를
+/// 보여 주고, 누르면 칩 두 줄을 다시 펼친다.
+///
+/// 아이콘만 남기면 필터 상태가 보이지 않아 숙소나 후보가 왜 안 보이는지 알 수 없어서 요약을 남긴다.
+class RouteChipsSummary extends StatelessWidget {
+  const RouteChipsSummary({
+    super.key,
+    required this.selectedDay,
+    required this.candidateView,
+    required this.showLodging,
+    required this.showCandidates,
+    required this.onExpand,
+  });
+
+  final int? selectedDay;
+  final bool candidateView;
+  final bool showLodging;
+  final bool showCandidates;
+  final VoidCallback onExpand;
+
+  static const _dot = 12.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final appColors = context.appColors;
+    final scheme = Theme.of(context).colorScheme;
+    final day = selectedDay;
+    final view = candidateView
+        ? l10n.routeCandidates
+        : day == null
+        ? l10n.routeAllDays
+        : l10n.routeDay(day);
+    // 켜 둔 함께 보기만 말한다(둘 다 끄면 보기 이름만).
+    final candidates = showCandidates && !candidateView;
+    final shown = switch ((showLodging, candidates)) {
+      (true, true) => l10n.routeChipsShowBoth,
+      (true, false) => l10n.routeChipsShowLodging,
+      (false, true) => l10n.routeChipsShowCandidates,
+      (false, false) => null,
+    };
+    final label = [view, ?shown].join(', ');
+    final Widget? dot = candidateView
+        ? Container(
+            width: _dot,
+            height: _dot,
+            decoration: BoxDecoration(
+              color: appColors.routeCandidate.background,
+              shape: BoxShape.circle,
+              border: Border.all(color: appColors.routeCandidateRing),
+            ),
+          )
+        : day == null
+        ? null
+        : Container(
+            width: _dot,
+            height: _dot,
+            decoration: BoxDecoration(
+              color: appColors.routeDay(day).background,
+              shape: BoxShape.circle,
+            ),
+          );
+    return Tooltip(
+      message: l10n.routeChipsExpand,
+      child: ActionChip(
+        avatar: dot,
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: AppSpace.xs,
+          children: [
+            Text(label),
+            Icon(Icons.expand_more, size: 18, color: scheme.onSurfaceVariant),
+          ],
+        ),
+        backgroundColor: scheme.surfaceContainerLowest,
+        onPressed: onExpand,
+      ),
     );
   }
 }
