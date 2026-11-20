@@ -56,6 +56,7 @@ class MapScene {
     this.arrows = const [],
     this.lineIcons = const [],
     this.curveHandle,
+    this.myLocation,
     required this.camera,
     this.padding = EdgeInsets.zero,
     this.logoLift = 0,
@@ -68,6 +69,10 @@ class MapScene {
 
   /// 곡률을 고치는 핸들. 한 번에 한 구간에만 있다. 없으면 null이다.
   final MapCurveHandle? curveHandle;
+
+  /// 기기의 현재 위치. 지도 구현은 지도 SDK의 현재 위치 표시(파란 점)로 그리고, 누를 수 없다.
+  /// null이면 숨긴다. 파란색은 현재 위치에만 쓴다(OVERVIEW "앱 화면과 디자인").
+  final LatLng? myLocation;
 
   final MapCameraRequest camera;
 

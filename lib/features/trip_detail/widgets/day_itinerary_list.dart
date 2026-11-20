@@ -103,6 +103,7 @@ class DayItineraryList extends StatefulWidget {
     this.stayingLodgingId,
     this.readOnly = false,
     this.savingSegmentId,
+    this.onVisit,
     this.padding = EdgeInsets.zero,
   });
 
@@ -166,6 +167,10 @@ class DayItineraryList extends StatefulWidget {
 
   /// 곡선을 끌어 놓고 저장을 기다리는 구간. 그 줄이 흐려지고 진행 표시가 뜬다.
   final String? savingSegmentId;
+
+  /// 펼친 장소 줄의 [방문 완료]나 [방문 취소]를 눌렀다. null이면 버튼이 없다(여행 전).
+  /// 출발 장소는 앞 일차의 장소라서 그 일차에서 체크한다. 보기 전용이면 없다.
+  final ValueChanged<Stop>? onVisit;
 
   /// 목록 바깥 여백. 아래 시트는 시스템 여백을 더한다.
   final EdgeInsets padding;
@@ -284,6 +289,10 @@ class _DayItineraryListState extends State<DayItineraryList> {
         saving: stop.id == widget.savingStopId,
         onToggle: () => selection.tapStop(stop.id),
         onOpenMap: () => widget.onOpenMap(stop),
+        onVisit: switch (widget.onVisit) {
+          final onVisit? when !fixed && !widget.readOnly => () => onVisit(stop),
+          _ => null,
+        },
         // 목록에서 누른 줄에만 연필과 손잡이가 보인다.
         onEdit: active && !widget.readOnly
             ? () => widget.onEdit(stop, canDelete: !fixed)

@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
+import '../../../core/map/geo.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../data/models/candidate.dart';
@@ -10,7 +13,7 @@ import '../route_scene.dart';
 import 'day_itinerary_list.dart';
 import 'itinerary_tiles.dart';
 
-/// "후보 목록" 보기의 후보 목록. 넣은 순서다. 아래 시트와 오른쪽 패널이 함께 쓴다.
+/// "후보 목록" 보기의 후보 목록. 넣은 순서이고, 현재 위치를 알면 가까운 순이다. 아래 시트와 오른쪽 패널이 함께 쓴다.
 ///
 /// 줄을 누르면 고르고 펼친다(일차 동선 목록과 같은 [ItinerarySelection]을 쓴다).
 /// 지도에서 누른 후보([focus])는 [onReveal]로 틀을 연 뒤 그 줄로 넘기고 펼친다.
@@ -26,11 +29,16 @@ class CandidateList extends StatefulWidget {
     this.onEdit,
     this.onPromote,
     this.onAdd,
+    this.myLocation,
     this.padding = EdgeInsets.zero,
   });
 
   final TripRoute route;
   final ItinerarySelection selection;
+
+  /// 현재 위치. 있으면 후보가 가까운 순(직선거리)으로 늘어서고 줄마다 거리가 붙는다.
+  /// 없으면 넣은 순서다.
+  final LatLng? myLocation;
 
   /// 지도에서 눌러서 보여 줄 후보. [focusCount]가 바뀔 때 보여 준다.
   final List<String> focus;
@@ -129,7 +137,19 @@ class _CandidateListState extends State<CandidateList> {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     final selection = widget.selection;
-    final candidates = widget.route.candidates;
+    final me = widget.myLocation;
+    final distances = {
+      if (me != null)
+        for (final candidate in widget.route.candidates)
+          candidate.id: distanceMeters(me, candidate.position),
+    };
+    // 같은 거리면 넣은 순서 그대로다(정렬이 안정적이다).
+    final candidates = me == null
+        ? widget.route.candidates
+        : mergeSortedBy(
+            widget.route.candidates,
+            (candidate) => distances[candidate.id]!,
+          );
     final onEdit = widget.onEdit;
     final onPromote = widget.onPromote;
     final side = EdgeInsets.only(
@@ -176,6 +196,10 @@ class _CandidateListState extends State<CandidateList> {
                 CandidateTile(
                   key: _keys[candidate.id] ??= GlobalKey(),
                   candidate: candidate,
+                  distance: switch (distances[candidate.id]) {
+                    final meters? => distanceText(context.l10n, meters),
+                    null => null,
+                  },
                   // 목록은 "후보 목록" 보기에만 있어서 그 보기의 지도 마커와 같은 그림이다.
                   look: candidateLookOf(candidate.kind, colors, focused: true),
                   expanded: selection.expanded == candidate.id,
@@ -205,6 +229,27 @@ class _CandidateListState extends State<CandidateList> {
   }
 }
 
+/// [items]를 [keyOf] 작은 순으로. 같으면 원래 순서다.
+List<T> mergeSortedBy<T>(List<T> items, double Function(T item) keyOf) {
+  final indexed = [for (final (i, item) in items.indexed) (i, keyOf(item))];
+  indexed.sort((a, b) {
+    final byKey = a.$2.compareTo(b.$2);
+    return byKey != 0 ? byKey : a.$1.compareTo(b.$1);
+  });
+  return [for (final (i, _) in indexed) items[i]];
+}
+
+/// 직선거리 글자. 1km 미만은 10m 단위, 10km 미만은 소수 한 자리 km, 그 위는 정수 km다.
+String distanceText(AppLocalizations l10n, double meters) {
+  if (meters < 995) {
+    return l10n.distanceMeters(math.max(10, (meters / 10).round() * 10));
+  }
+  final km = meters / 1000;
+  return l10n.distanceKilometers(
+    km < 9.95 ? km.toStringAsFixed(1) : km.round().toString(),
+  );
+}
+
 /// 후보 목록의 제목 줄: "후보 장소"와 후보 수.
 ///
 /// 아래 시트는 위에 끌기 손잡이를([showHandle]), 오른쪽 패널은 끝에 닫기 버튼을([onClose]) 단다.
@@ -214,9 +259,13 @@ class CandidateHeader extends StatelessWidget {
     required this.count,
     this.showHandle = false,
     this.onClose,
+    this.nearestFirst = false,
   });
 
   final int count;
+
+  /// 현재 위치를 알아서 가까운 순으로 늘어섰다. 후보 수 앞에 "가까운 순"을 붙인다.
+  final bool nearestFirst;
   final bool showHandle;
   final VoidCallback? onClose;
 
@@ -267,6 +316,15 @@ class CandidateHeader extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (nearestFirst && count > 1) ...[
+                Text(
+                  l10n.candidateNearestFirst,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colors.myLocation,
+                  ),
+                ),
+                const SizedBox(width: AppSpace.sm),
+              ],
               Text(
                 l10n.candidateCount(count),
                 style: textTheme.bodySmall?.copyWith(

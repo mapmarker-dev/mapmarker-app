@@ -134,15 +134,16 @@ PhotoUploadTicket photoUploadFromJson(Object? json) {
   );
 }
 
-/// 장소 넣기. 방문 체크는 1-4단계에서 보낸다.
+/// 장소 넣기. 새 장소는 방문 전이라 방문 시각은 보내지 않는다(서버도 넣기에서는 받지 않는다).
 Map<String, Object?> createStopJson(Stop stop) => {
   'id': stop.id,
   'day': stop.day,
   'order': stop.order,
-  ...updateStopJson(stop),
+  ...updateStopJson(stop)..remove('visitedAt'),
 };
 
-/// 장소 고치기. 일차·순서는 옮기기로 바꾼다. 지운 예정 시각·장소 서비스 ID는 null로 보낸다.
+/// 장소 고치기. 일차·순서는 옮기기로 바꾼다. 지운 예정 시각·방문 시각·장소 서비스 ID는 null로 보낸다.
+/// 방문 여부는 서버가 방문 시각으로 맞춘다(방문 시각이 null이면 방문 취소다).
 Map<String, Object?> updateStopJson(Stop stop) => {
   'latitude': stop.latitude,
   'longitude': stop.longitude,
@@ -152,6 +153,7 @@ Map<String, Object?> updateStopJson(Stop stop) => {
   'description': stop.description,
   'memo': stop.memo,
   'plannedTime': stop.plannedTime?.toString(),
+  'visitedAt': stop.visitedAt?.toUtc().toIso8601String(),
   'timeZone': stop.timeZone,
   'placeProvider': stop.placeProvider?.name,
   'placeId': stop.placeId,

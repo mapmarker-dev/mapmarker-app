@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/map/map_provider.dart';
 import '../../../core/map/marker_icon.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/time/local_time.dart';
+import '../../../core/time/zoned_time.dart';
 import '../../../core/widgets/saving.dart';
 import '../../../data/models/candidate.dart';
 import '../../../data/models/segment.dart';
@@ -16,7 +18,7 @@ import 'stop_photo.dart';
 /// 이름 쪽을 누르면 고르고 펼쳐져서 설명 전체와 메모, 주소, 외부 지도 칸이 나온다.
 /// 오른쪽 연필 아이콘을 누르면 장소 입력 화면이 열린다. 지우기도 그 화면 안에 있다
 /// 외부 지도 칸을 누르면 네이버 지도에서 장소를 연다. 영업시간, 리뷰는 거기서 본다.
-/// 그 칸은 펼친 줄에만 둔다
+/// 그 칸과 [방문 완료]나 [방문 취소]는 펼친 줄에만 둔다
 class ItineraryStopTile extends StatelessWidget {
   const ItineraryStopTile({
     super.key,
@@ -30,6 +32,7 @@ class ItineraryStopTile extends StatelessWidget {
     this.caption,
     this.reorderHandle,
     this.saving = false,
+    this.onVisit,
   });
 
   final Stop stop;
@@ -57,6 +60,10 @@ class ItineraryStopTile extends StatelessWidget {
   /// 끌어 옮기고 저장을 기다리는 중. 흐리게 보이고, 연필과 손잡이 자리에 진행 표시가 뜬다.
   final bool saving;
 
+  /// 펼친 줄의 [방문 완료](방문 전)나 [방문 취소](방문한 장소)를 눌렀다. 확인 창은 부른 쪽이 띄운다.
+  /// null이면 버튼이 없다(여행 전, 샘플, 출발 장소).
+  final VoidCallback? onVisit;
+
   /// 사진 썸네일 크기. 누르면 크게 본다(줄 누르기와 따로).
   static const _photoSize = 48.0;
 
@@ -67,7 +74,26 @@ class ItineraryStopTile extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final muted = textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant);
     final kind = l10n.stopKindName(stop.kind);
+    final material = MaterialLocalizations.of(context);
+    String format(LocalTime time) => material.formatTimeOfDay(
+      TimeOfDay(hour: time.hour, minute: time.minute),
+    );
     final time = stop.plannedTime;
+    // 방문 시각은 장소 현지 시각이다(기기 시간대가 아니다).
+    final visit = switch (stop.visitedAt) {
+      final at? => format(zonedParts(at, stop.timeZone).time),
+      null => null,
+    };
+    final kindLine = switch ((time, visit)) {
+      (null, null) => kind,
+      (final time?, null) => l10n.itineraryKindAndTime(kind, format(time)),
+      (null, final visit?) => l10n.itineraryKindAndVisit(kind, visit),
+      (final time?, final visit?) => l10n.itineraryKindTimeAndVisit(
+        kind,
+        format(time),
+        visit,
+      ),
+    };
     final description = stop.description.trim();
     final memo = stop.memo.trim();
     final address = stop.address.trim();
@@ -108,22 +134,7 @@ class ItineraryStopTile extends StatelessWidget {
                               maxLines: expanded ? null : 1,
                               overflow: expanded ? null : TextOverflow.ellipsis,
                             ),
-                            Text(
-                              time == null
-                                  ? kind
-                                  : l10n.itineraryKindAndTime(
-                                      kind,
-                                      MaterialLocalizations.of(
-                                        context,
-                                      ).formatTimeOfDay(
-                                        TimeOfDay(
-                                          hour: time.hour,
-                                          minute: time.minute,
-                                        ),
-                                      ),
-                                    ),
-                              style: muted,
-                            ),
+                            Text(kindLine, style: muted),
                             if (description.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(
@@ -190,7 +201,18 @@ class ItineraryStopTile extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: Opacity(
                     opacity: opacity,
-                    child: _OpenMapLink(onTap: onOpenMap),
+                    child: Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: AppSpace.sm,
+                      children: [
+                        _OpenMapLink(onTap: onOpenMap),
+                        if (onVisit case final onVisit?)
+                          _VisitButton(
+                            visited: stop.visited,
+                            onPressed: saving ? null : onVisit,
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -198,6 +220,33 @@ class ItineraryStopTile extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// 펼친 장소 줄의 [방문 완료]와 [방문 취소]. 방문 전에는 눈에 띄는 버튼, 방문한 뒤에는 덜 띄는 테두리 버튼이다.
+class _VisitButton extends StatelessWidget {
+  const _VisitButton({required this.visited, required this.onPressed});
+
+  final bool visited;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return visited
+        ? OutlinedButton(
+            onPressed: onPressed,
+            style: OutlinedButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+            ),
+            child: Text(l10n.visitUndo),
+          )
+        : FilledButton.tonalIcon(
+            onPressed: onPressed,
+            style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
+            icon: const Icon(Icons.check, size: 18),
+            label: Text(l10n.visitDone),
+          );
   }
 }
 
@@ -216,9 +265,13 @@ class CandidateTile extends StatelessWidget {
     required this.onOpenMap,
     this.onEdit,
     this.actions,
+    this.distance,
   });
 
   final Candidate candidate;
+
+  /// 현재 위치에서의 직선거리 글자(예: 350m). 줄 오른쪽에 작게 보인다. 위치를 모르면 null이다.
+  final String? distance;
 
   /// 지도의 후보 마커와 같은 그림.
   final MarkerLook look;
@@ -305,6 +358,11 @@ class CandidateTile extends StatelessWidget {
                         ],
                       ),
                     ),
+                    if (distance case final distance?)
+                      Padding(
+                        padding: const EdgeInsets.only(left: AppSpace.sm),
+                        child: Text(distance, style: muted),
+                      ),
                     if (onEdit case final onEdit?)
                       _EditButton(
                         tooltip: l10n.candidateEditTooltip,

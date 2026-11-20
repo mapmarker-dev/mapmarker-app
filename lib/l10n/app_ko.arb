@@ -325,6 +325,24 @@
   "@candidateListTitle": {
     "description": "후보 보기의 시트·패널 제목"
   },
+  "candidateNearestFirst": "가까운 순",
+  "@candidateNearestFirst": {
+    "description": "후보 목록 제목 줄 끝. 현재 위치를 알 때 후보가 가까운 순(직선거리)으로 늘어선다"
+  },
+  "distanceMeters": "{meters}m",
+  "@distanceMeters": {
+    "description": "후보 줄 오른쪽의 현재 위치에서 직선거리(1km 미만, 10m 단위)",
+    "placeholders": {
+      "meters": {"type": "int"}
+    }
+  },
+  "distanceKilometers": "{kilometers}km",
+  "@distanceKilometers": {
+    "description": "후보 줄 오른쪽의 현재 위치에서 직선거리(1km 이상, 10km 미만은 소수 한 자리)",
+    "placeholders": {
+      "kilometers": {"type": "String", "example": "1.2"}
+    }
+  },
   "candidateCount": "{count, plural, =0{없음} other{{count}곳}}",
   "@candidateCount": {
     "description": "후보 목록 제목 옆의 후보 수",
@@ -443,6 +461,30 @@
   "@routeFitTooltip": {
     "description": "지금 보이는 장소가 모두 들어오게 지도를 다시 맞추는 버튼"
   },
+  "myLocationTooltip": "내 위치",
+  "@myLocationTooltip": {
+    "description": "지도 오른쪽 아래, 맞추기 버튼 위의 버튼. 누르면 위치 권한을 묻고(처음만) 현재 위치 주변을 보여 준다"
+  },
+  "myLocationDenied": "위치 권한이 없어 현재 위치를 보여 줄 수 없습니다.",
+  "@myLocationDenied": {
+    "description": "내 위치 버튼을 눌러 위치 권한을 거부했을 때(다시 물을 수 있다)"
+  },
+  "myLocationDeniedForever": "위치 권한이 꺼져 있습니다. 설정에서 허용하면 현재 위치를 볼 수 있습니다.",
+  "@myLocationDeniedForever": {
+    "description": "다시 묻지 않음으로 거부해서 권한 창이 뜨지 않을 때. 버튼(설정)을 누르면 앱 설정을 연다"
+  },
+  "myLocationServiceOff": "휴대폰의 위치 서비스가 꺼져 있습니다.",
+  "@myLocationServiceOff": {
+    "description": "기기 위치(GPS)가 꺼져 있을 때. 버튼(설정)을 누르면 위치 설정을 연다"
+  },
+  "myLocationTimeout": "현재 위치를 찾지 못했습니다. 잠시 후 다시 눌러 주세요.",
+  "@myLocationTimeout": {
+    "description": "권한은 있지만 10초 안에 위치를 받지 못했을 때(실내, 지하)"
+  },
+  "myLocationSettings": "설정",
+  "@myLocationSettings": {
+    "description": "위치 권한, 위치 서비스 안내 스낵바의 버튼"
+  },
   "routeEmpty": "아직 장소가 없습니다.\n지도를 눌러 첫 장소를 넣어 보세요.",
   "routeDayEmpty": "{day}일차에는 장소가 없습니다.",
   "@routeDayEmpty": {
@@ -489,6 +531,78 @@
       "kind": {"type": "String", "example": "음식"},
       "time": {"type": "String", "example": "오후 12:30"}
     }
+  },
+  "itineraryKindAndVisit": "{kind}, {visit} 방문",
+  "@itineraryKindAndVisit": {
+    "description": "방문한 장소 줄의 종류와 방문 시각(장소 현지 시각). 예정 시각이 없을 때. 예: 음식, 오후 12:41 방문",
+    "placeholders": {
+      "kind": {"type": "String", "example": "음식"},
+      "visit": {"type": "String", "example": "오후 12:41"}
+    }
+  },
+  "itineraryKindTimeAndVisit": "{kind}, {time} 예정, {visit} 방문",
+  "@itineraryKindTimeAndVisit": {
+    "description": "방문한 장소 줄의 종류, 예정 시각, 방문 시각. 예: 음식, 오후 12:30 예정, 오후 12:41 방문",
+    "placeholders": {
+      "kind": {"type": "String", "example": "음식"},
+      "time": {"type": "String", "example": "오후 12:30"},
+      "visit": {"type": "String", "example": "오후 12:41"}
+    }
+  },
+  "visitDone": "방문 완료",
+  "@visitDone": {
+    "description": "펼친 장소 줄의 버튼(여행 중과 여행 후, 방문 전 장소)과 확인 창의 버튼. 누르면 확인 창을 거쳐 방문 시각을 기록한다"
+  },
+  "visitUndo": "방문 취소",
+  "@visitUndo": {
+    "description": "펼친 장소 줄의 버튼(방문한 장소)과 확인 창의 버튼. 누르면 확인 창을 거쳐 방문 기록을 지운다"
+  },
+  "visitDoneTitle": "{name} 방문 완료",
+  "@visitDoneTitle": {
+    "placeholders": {
+      "name": {"type": "String", "example": "교리김밥"}
+    }
+  },
+  "visitDoneMessage": "{date} {time}에 방문한 것으로 기록합니다. 날짜와 시각은 장소 편집에서 고칠 수 있습니다.",
+  "@visitDoneMessage": {
+    "description": "방문 완료 확인 창. 날짜와 시각은 장소 현지 시각이다",
+    "placeholders": {
+      "date": {"type": "DateTime", "format": "MMMEd"},
+      "time": {"type": "String", "example": "오후 12:41"}
+    }
+  },
+  "visitUndoTitle": "{name} 방문 취소",
+  "@visitUndoTitle": {
+    "placeholders": {
+      "name": {"type": "String", "example": "교리김밥"}
+    }
+  },
+  "visitUndoMessage": "{date} {time} 방문 기록이 지워집니다.",
+  "@visitUndoMessage": {
+    "description": "방문 취소 확인 창. 닫는 버튼은 [방문 취소]와 헷갈리지 않게 '취소' 대신 '닫기'다",
+    "placeholders": {
+      "date": {"type": "DateTime", "format": "MMMEd"},
+      "time": {"type": "String", "example": "오후 12:41"}
+    }
+  },
+  "visitUndoMessageNoTime": "방문 기록이 지워집니다.",
+  "@visitUndoMessageNoTime": {
+    "description": "방문 취소 확인 창. 시각 없이 방문만 기록된 장소(지금 API로는 생기지 않는다, 나중 회고용)"
+  },
+  "stopVisitLabel": "방문 시각",
+  "@stopVisitLabel": {
+    "description": "장소 편집 화면의 칸(방문한 장소에만 있다)과 시각 휠의 제목. 왼쪽은 날짜, 오른쪽은 시각"
+  },
+  "stopVisitDate": "{date}",
+  "@stopVisitDate": {
+    "description": "장소 편집 화면 방문 시각 칸의 날짜(장소 현지 날짜). 예: 10월 21일 (수)",
+    "placeholders": {
+      "date": {"type": "DateTime", "format": "MMMEd"}
+    }
+  },
+  "stopVisitDateHelp": "방문한 날짜",
+  "@stopVisitDateHelp": {
+    "description": "장소 편집 화면에서 방문 날짜를 고르는 달력의 제목"
   },
   "itineraryOpenNaverMap": "네이버 지도에서 영업시간과 리뷰 보기",
   "@itineraryOpenNaverMap": {

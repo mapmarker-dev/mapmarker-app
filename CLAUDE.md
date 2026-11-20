@@ -77,6 +77,18 @@ lib/
 - 후보로 빼기와 장소 지우기 확인 창은 사라질 사진을 썸네일로 보여 준다(`LostPhotoLine`).
 - `AndroidManifest.xml`의 `ModuleDependencies` 서비스는 시스템 사진 선택기가 없는 기기에 Google Play 서비스가 선택기를 받게 한다.
 
+## 여행 중 (현재 위치, 방문)
+
+- **현재 위치**는 `core/location/LocationSource`(geolocator 구현, `locationSourceProvider`)로만 받는다. 권한은 "앱 사용 중"만이고, geolocator의 백그라운드 서비스는 매니페스트에서 `tools:node="remove"`로 뺐다.
+  - [내 위치] 버튼(맞추기 버튼 위)을 누를 때 처음 묻는다. 받으면 카메라를 반경 1km(`_nearbyMeters`, "근처")로 옮기고, 맞추기나 일차 고르기(`fitCount`)면 동선 맞춤으로 돌아간다. 10초 안에 못 받으면 알리고 멈춘다.
+  - 여행 중이고 이미 허용했으면 화면을 열 때 묻지 않고 파란 점만 켠다. 화면을 나가거나 앱이 뒤로 가면 듣기를 멈춘다.
+  - 지도에는 `MapScene.myLocation`으로 넘기고 네이버 구현은 SDK의 위치 오버레이를 쓴다(SDK의 위치 추적은 쓰지 않는다). 파랑(`AppColors.myLocation`)은 현재 위치에만 쓴다.
+  - 위치를 알면 후보 목록이 가까운 순(직선거리 `distanceMeters`)이고 줄마다 거리(`distanceText`)가 붙는다.
+- **방문**: 펼친 장소 줄의 [방문 완료]·[방문 취소](여행 중과 후, 출발 장소와 샘플 제외)는 확인 창(`VisitDialog`)을 거쳐 `updateStop`의 `visitedAt`으로 저장한다. 기록 시각 규칙과 날짜 범위는 `stop_visit.dart`.
+  - 방문 시각은 순간(UTC)이고 장소의 `timeZone`으로 보여 준다(`core/time/zoned_time.dart`, `timezone` 패키지). 기기 시간대를 쓰지 않는다.
+  - 마커와 장소 줄은 번호 대신 ✓(`visitedIcon`), 합친 마커는 모두 방문했을 때만이다. 장소 편집의 "방문 시각" 칸(방문한 장소만)에서 날짜(달력)와 시각(1분 휠)을 고친다.
+- 여행 중이면 동선 화면을 오늘 일차로 연다(`RouteChoiceController.build`).
+
 ## 지도 (네이버 SDK)
 
 - `flutter_naver_map`은 `core/map/naver/`, `main.dart`, `dev/snapshot_lab/`에서만 쓰고, 나머지는 `MapProvider`만 본다.
@@ -87,6 +99,7 @@ lib/
 ## 테스트
 
 - 실제 서버·카카오·네이버에 붙지 않는다. HTTP는 `FakeHttp`를 끼운 dio, 로그인은 `authOverrides`·`testSession`·`FakeSocialSdk`, 저장 실패와 기다림은 `FlakyTripRepository`(`failWrites`·`holdWrites`), 샘플은 `withSample`·`MemorySampleStore`, 주소 검색은 `FakeAddressApi`(`pumpTestApp(addressApi:)`).
+- 기기 위치는 `FakeLocationSource`(`pumpTestApp(locationSource:)`, 기본은 권한 없음): `granted`·`answer`·`serviceOff`로 권한을 정하고 `emit`으로 위치를 낸다. 낸 위치는 `pump` 두 번 뒤에 그려진다. 시각을 확인할 때는 기기 시간대와 상관없게 `zonedParts`로 서울 시각을 계산한다.
 - 사진은 `FakePhotoSource`·`FakePhotoPreparer`(원본을 400×300으로 보고, 고른 정사각형은 `areas`에 남는다)와 늘 1×1 그림을 주는 `fakePhotoImages`(`pumpTestApp(photoSource:, photoPreparer:, photoImages:)`), 사진만 실패는 `FlakyTripRepository.failPhotos`. 사진을 고르면 "사진 위치" 화면에서 [확인]을 눌러야 한다. 사진 칸은 입력 화면 아래쪽이라 `scrollUntilVisible`로 내린다.
 - 공용 도우미는 `test/helpers/`. 화면은 `pumpTestApp`(가짜 지도, 기본 로그인)이나 `testMaterialApp`, 지도에 넘긴 장면은 `mapScene(tester)`, 지도 탭은 `tapMarker`·`tapLine`·`tapMap`.
 - 기본 화면(800×600)은 가로라 동선 목록이 오른쪽 패널이다. 아래 시트는 `usePortraitPhone`. 연필·손잡이는 줄을 먼저 눌러야 뜬다.

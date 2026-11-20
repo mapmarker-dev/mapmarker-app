@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/routes.dart';
 import '../../core/links/open_link.dart';
+import '../../core/location/location_source.dart';
 import '../../core/map/external_map.dart';
 import '../../core/map/geo.dart';
 import '../../core/map/map_provider.dart';
@@ -33,6 +36,7 @@ import 'route_scene.dart';
 import 'route_sheet_layout.dart';
 import 'stop_draft.dart';
 import 'stop_placement.dart';
+import 'stop_visit.dart';
 import 'transport_draft.dart';
 import 'trip_detail_controller.dart';
 import 'widgets/candidate_form_dialog.dart';
@@ -49,6 +53,7 @@ import 'widgets/sample_banner.dart';
 import 'widgets/size_reporter.dart';
 import 'widgets/stop_form_dialog.dart';
 import 'widgets/transport_form_dialog.dart';
+import 'widgets/visit_dialog.dart';
 
 /// 여행 동선 페이지. 지도에 장소와 구간을 보여 주고, 여행 전체와 일차별 보기를 오간다.
 class TripDetailScreen extends ConsumerWidget {
@@ -151,8 +156,55 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   /// [_notice]를 띄운 곳. 화면을 정리할 때는 위젯 트리에서 찾을 수 없어서 띄울 때 잡아 둔다.
   ScaffoldMessengerState? _noticeMessenger;
 
+  /// 받은 현재 위치. 지도에 파란 점으로 그리고 후보를 가까운 순으로 늘어놓는다. 받기 전이면 null이다.
+  LatLng? _myLocation;
+
+  /// 위치를 듣는 중. 화면을 나가거나 앱이 뒤로 가면 멈춘다(배터리, "앱 사용 중" 권한).
+  StreamSubscription<LocationFix>? _locationSub;
+
+  /// 앱이 뒤로 가서 멈췄다. 앞으로 오면 다시 듣는다.
+  bool _locationPaused = false;
+
+  /// [내 위치]를 눌러 첫 위치를 기다리는 중. 받으면 카메라를 내 위치로 옮긴다.
+  bool _centerOnFix = false;
+
+  /// 첫 위치를 기다리는 시간. 지나면 못 찾았다고 알리고 멈춘다.
+  Timer? _locationTimeout;
+
+  /// 카메라를 내 위치로 옮기라고 한 횟수. 카메라 요청의 key다.
+  int _locateCount = 0;
+
+  /// 마지막 카메라 요청이 내 위치인지. 일차를 고르거나 맞추기를 누르면(fitCount) 동선 맞춤으로 돌아간다.
+  bool _cameraOnMe = false;
+
+  late final AppLifecycleListener _lifecycle;
+
+  /// [내 위치]가 보여 주는 반경(m). 이 안이 "근처"다(걸어서 15분 정도).
+  static const _nearbyMeters = 1000.0;
+
+  static const _locationWait = Duration(seconds: 10);
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle = AppLifecycleListener(
+      onHide: _pauseLocation,
+      onShow: _resumeLocation,
+    );
+    // 여행 중이고 이미 허용했으면 묻지 않고 파란 점만 켠다. 카메라는 그대로다.
+    if (!_readOnly &&
+        trip.phaseOn(ref.read(todayProvider)) == TripPhase.during) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _startLocation(ask: false);
+      });
+    }
+  }
+
   @override
   void dispose() {
+    _lifecycle.dispose();
+    _locationSub?.cancel();
+    _locationTimeout?.cancel();
     _sheetController.dispose();
     _selection.dispose();
     // 화면을 정리하는 중에는 다른 위젯(ScaffoldMessenger)을 바꿀 수 없어서, 이 프레임이 끝난 뒤에 닫는다.
@@ -604,6 +656,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       route: _latestRoute(route),
       stop: stop,
       initial: initial,
+      today: ref.read(todayProvider),
       onSave: (draft) async {
         if (draft == initial) return;
         // 고치기, 옮기기, 사진은 따로 저장한다. 하나만 실패해도 입력 화면이 열려 있어서,
@@ -731,6 +784,27 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   ///
   /// 그날 마지막 장소에서 다음 날로 가는 구간 사이에 끼어든다. 그 구간에 적어 둔 이동 수단이 있으면 먼저 묻고,
   /// 취소하면 넣지 않는다.
+  /// 펼친 장소 줄의 [방문 완료]나 [방문 취소]를 눌렀다. 실수로 누르지 않게 확인 창을 거친다.
+  /// 방문 완료는 [defaultVisitTime]으로 기록하고, 날짜와 시각은 장소 편집에서 고친다.
+  /// 확인 창이 저장까지 맡아서, 저장되기 전에는 닫히지 않는다.
+  Future<void> _toggleVisit(TripRoute route, Stop stop) async {
+    final latest = _latestRoute(route).stopById(stop.id) ?? stop;
+    final at = latest.visited
+        ? latest.visitedAt
+        : defaultVisitTime(trip, latest, ref.read(clockProvider)());
+    final controller = ref.read(tripDetailProvider(trip.id).notifier);
+    await showDialog<void>(
+      context: context,
+      builder: (context) => VisitDialog(
+        stop: latest,
+        at: at,
+        onConfirm: () => controller.updateStop(
+          latest.copyWith(visitedAt: () => latest.visited ? null : at),
+        ),
+      ),
+    );
+  }
+
   Future<void> _stayAgain(TripRoute route, int day, Stop lodging) async {
     final latest = _latestRoute(route);
     final order = dayStopsOf(latest, day).length;
@@ -844,6 +918,115 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     });
   }
 
+  /// [내 위치]를 눌렀다. 이미 위치가 있으면 카메라만 옮기고, 없으면 권한을 물어(처음만) 받기 시작한다.
+  Future<void> _locate() async {
+    if (_myLocation != null && _locationSub != null) {
+      setState(() {
+        _locateCount++;
+        _cameraOnMe = true;
+      });
+      return;
+    }
+    await _startLocation(ask: true);
+  }
+
+  /// 위치를 받기 시작한다. [ask]면 권한을 묻고 받지 못한 이유를 알리며, 첫 위치에서 카메라를 옮긴다.
+  /// [ask]가 아니면(여행 중에 화면을 열 때) 묻지도 알리지도 않고 파란 점만 켠다.
+  Future<void> _startLocation({required bool ask}) async {
+    final source = ref.read(locationSourceProvider);
+    final problem = await source.prepare(ask: ask);
+    if (!mounted) return;
+    if (problem != null) {
+      if (ask) _showLocationProblem(problem);
+      return;
+    }
+    _centerOnFix = ask;
+    _listenLocation();
+    if (ask && _myLocation == null) {
+      _locationTimeout?.cancel();
+      _locationTimeout = Timer(_locationWait, () {
+        if (!mounted || _myLocation != null) return;
+        _stopLocation();
+        _showLocationMessage(context.l10n.myLocationTimeout);
+      });
+    }
+  }
+
+  void _listenLocation() {
+    _locationSub?.cancel();
+    _locationSub = ref
+        .read(locationSourceProvider)
+        .positions()
+        .listen(
+          _onLocation,
+          // 위치를 받다가 끊기면(권한을 설정에서 끔 등) 멈춘다. 다시 누르면 처음부터 묻는다.
+          onError: (Object _) {
+            if (mounted) setState(_stopLocation);
+          },
+        );
+  }
+
+  void _onLocation(LocationFix fix) {
+    if (!mounted) return;
+    _locationTimeout?.cancel();
+    setState(() {
+      _myLocation = fix.position;
+      if (_centerOnFix) {
+        _centerOnFix = false;
+        _locateCount++;
+        _cameraOnMe = true;
+      }
+    });
+  }
+
+  void _stopLocation() {
+    _locationSub?.cancel();
+    _locationSub = null;
+    _locationTimeout?.cancel();
+    _centerOnFix = false;
+  }
+
+  void _pauseLocation() {
+    if (_locationSub == null) return;
+    _locationSub?.cancel();
+    _locationSub = null;
+    _locationPaused = true;
+  }
+
+  void _resumeLocation() {
+    if (!_locationPaused || !mounted) return;
+    _locationPaused = false;
+    _listenLocation();
+  }
+
+  /// 위치를 받지 못한 이유를 알린다. 설정에서만 바꿀 수 있으면 [설정] 버튼을 단다.
+  void _showLocationProblem(LocationProblem problem) {
+    final l10n = context.l10n;
+    final source = ref.read(locationSourceProvider);
+    switch (problem) {
+      case LocationProblem.denied:
+        _showLocationMessage(l10n.myLocationDenied);
+      case LocationProblem.deniedForever:
+        _showNotice(
+          l10n.myLocationDeniedForever,
+          actionLabel: l10n.myLocationSettings,
+          show: source.openAppSettings,
+        );
+      case LocationProblem.serviceOff:
+        _showNotice(
+          l10n.myLocationServiceOff,
+          actionLabel: l10n.myLocationSettings,
+          show: source.openLocationSettings,
+        );
+    }
+  }
+
+  void _showLocationMessage(String message) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(content: Text(message)));
+  }
+
   /// 장소나 후보를 외부 지도(네이버)에서 연다. 영업시간·리뷰는 거기서 본다.
   Future<void> _openMap(String name, LatLng position) async {
     final opened = await ref.read(openLinkProvider)(
@@ -947,6 +1130,11 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     final l10n = context.l10n;
     final insets = MediaQuery.paddingOf(context);
     final choice = ref.watch(routeChoiceProvider(trip.id));
+    // 동선에 맞추라고 하면(일차 고르기, 맞추기 버튼) 내 위치 카메라를 놓는다.
+    ref.listen(
+      routeChoiceProvider(trip.id).select((c) => c.fitCount),
+      (_, _) => _cameraOnMe = false,
+    );
     ref.listen(routeChoiceProvider(trip.id).select((c) => (c.day, c.hasList)), (
       _,
       next,
@@ -1005,6 +1193,9 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                   route: route,
                   view: view,
                   cameraKey: choice.fitCount,
+                  myLocation: _myLocation,
+                  // 내 위치로 옮긴 카메라. 일차를 고르거나 맞추기를 누르면 동선 맞춤으로 돌아간다.
+                  myLocationCamera: _cameraOnMe ? _locateCount : null,
                   padding: insets.copyWith(
                     top: overlayHeight,
                     right: right,
@@ -1036,21 +1227,45 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                 bottom: bottom,
                 child: Center(child: _MessageCard(message)),
               ),
-          if (view != null &&
-              (view.stops.isNotEmpty ||
-                  (choice.candidateView && hasCandidates)))
+          if (view != null)
             Positioned(
               right: right + AppSpace.lg,
               bottom: bottom + AppSpace.lg,
-              child: FloatingActionButton.small(
-                heroTag: null,
-                tooltip: l10n.routeFitTooltip,
-                backgroundColor: Theme.of(
-                  context,
-                ).colorScheme.surfaceContainerLowest,
-                foregroundColor: Theme.of(context).colorScheme.onSurface,
-                onPressed: _choices.fitCamera,
-                child: const Icon(Icons.fit_screen_outlined),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 현재 위치는 파란색으로만 보여 준다(주 색 코랄과 나눈다).
+                  FloatingActionButton.small(
+                    heroTag: null,
+                    tooltip: l10n.myLocationTooltip,
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerLowest,
+                    foregroundColor: _myLocation == null
+                        ? Theme.of(context).colorScheme.onSurface
+                        : context.appColors.myLocation,
+                    onPressed: _locate,
+                    child: Icon(
+                      _myLocation == null
+                          ? Icons.location_searching
+                          : Icons.my_location,
+                    ),
+                  ),
+                  if (view.stops.isNotEmpty ||
+                      (choice.candidateView && hasCandidates)) ...[
+                    const SizedBox(height: AppSpace.sm),
+                    FloatingActionButton.small(
+                      heroTag: null,
+                      tooltip: l10n.routeFitTooltip,
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerLowest,
+                      foregroundColor: Theme.of(context).colorScheme.onSurface,
+                      onPressed: _choices.fitCamera,
+                      child: const Icon(Icons.fit_screen_outlined),
+                    ),
+                  ],
+                ],
               ),
             ),
           if (route case AsyncData(value: final route))
@@ -1172,9 +1387,11 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
           count: route.candidates.length,
           showHandle: !side,
           onClose: onClose,
+          nearestFirst: _myLocation != null,
         ),
         list: CandidateList(
           route: route,
+          myLocation: _myLocation,
           selection: _selection,
           focus: choice.focus,
           focusCount: choice.focusCount,
@@ -1233,6 +1450,9 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
         _editStop(route, stop, canDelete: canDelete),
     onEditSegment: (segment) => _editSegment(route, segment),
     onStayAgain: (lodging) => _stayAgain(route, itinerary.day, lodging),
+    onVisit: showsVisitButtons(trip, ref.watch(todayProvider))
+        ? (stop) => _toggleVisit(route, stop)
+        : null,
     onReorder: (visibleIds, oldIndex, newIndex) =>
         _reorder(route, itinerary.day, visibleIds, oldIndex, newIndex),
     reorderLocked: !choice.showLodging,
@@ -1361,6 +1581,8 @@ class _RouteMap extends ConsumerWidget {
     required this.route,
     required this.view,
     required this.cameraKey,
+    required this.myLocation,
+    required this.myLocationCamera,
     required this.padding,
     required this.logoLift,
     required this.draft,
@@ -1378,6 +1600,13 @@ class _RouteMap extends ConsumerWidget {
   final TripRoute route;
   final RouteView view;
   final Object cameraKey;
+
+  /// 현재 위치(파란 점). 모르면 null이다.
+  final LatLng? myLocation;
+
+  /// null이 아니면 카메라를 내 위치 주변(근처 반경)에 맞춘다. 바뀔 때마다 다시 맞춘다.
+  final int? myLocationCamera;
+
   final EdgeInsets padding;
   final double logoLift;
 
@@ -1437,10 +1666,17 @@ class _RouteMap extends ConsumerWidget {
         arrows: arrows,
         lineIcons: lineIcons,
         curveHandle: curveHandle,
-        camera: MapCameraRequest(
-          key: cameraKey,
-          bounds: cameraBoundsFor(fitted),
-        ),
+        myLocation: myLocation,
+        camera: switch ((myLocationCamera, myLocation)) {
+          (final count?, final me?) => MapCameraRequest(
+            key: ('me', count),
+            bounds: boundsAround(me, _TripRoutePageState._nearbyMeters),
+          ),
+          _ => MapCameraRequest(
+            key: cameraKey,
+            bounds: cameraBoundsFor(fitted),
+          ),
+        },
         padding: padding,
         logoLift: logoLift,
       ),

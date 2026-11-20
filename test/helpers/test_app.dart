@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/app/router.dart';
 import 'package:mapmarker_app/core/links/open_link.dart';
+import 'package:mapmarker_app/core/location/location_source.dart';
 import 'package:mapmarker_app/core/map/map_registry.dart';
 import 'package:mapmarker_app/core/theme/app_theme.dart';
 import 'package:mapmarker_app/core/time/today.dart';
@@ -25,6 +26,7 @@ import 'package:mapmarker_app/l10n/l10n.dart';
 import 'fake_address_api.dart';
 import 'fake_auth.dart';
 import 'fake_http.dart';
+import 'fake_location.dart';
 import 'fake_map.dart';
 import 'fake_photos.dart';
 
@@ -148,6 +150,7 @@ List<Override> authOverrides({
 /// 앱 밖으로 여는 링크는 [openLink]가 받는다. 주소 검색은 [addressApi](기본은 결과 없음)가 답한다.
 ///
 /// 사진은 [photoSource](기본은 1×1 그림을 고름)와 [photoPreparer](그대로 씀)가 대신하고, 사진 이미지는 늘 1×1 그림이다.
+/// 기기 위치는 [locationSource](기본은 권한 없는 [FakeLocationSource])가 대신한다.
 ///
 /// 기본으로 로그인 상태다. 로그인 화면은 [session]에 `testSession(loggedIn: false)`를 넘겨 띄운다.
 Future<ProviderContainer> pumpTestApp(
@@ -162,6 +165,7 @@ Future<ProviderContainer> pumpTestApp(
   PhotoSource? photoSource,
   PhotoPreparer? photoPreparer,
   PhotoImages? photoImages,
+  LocationSource? locationSource,
 }) async {
   final container = ProviderContainer.test(
     overrides: [
@@ -175,6 +179,9 @@ Future<ProviderContainer> pumpTestApp(
         photoPreparer ?? FakePhotoPreparer(),
       ),
       photoImagesProvider.overrideWithValue(photoImages ?? fakePhotoImages()),
+      locationSourceProvider.overrideWithValue(
+        locationSource ?? FakeLocationSource(),
+      ),
       ...authOverrides(
         session: session,
         socialSdk: socialSdk,

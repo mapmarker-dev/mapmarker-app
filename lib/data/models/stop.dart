@@ -115,6 +115,8 @@ class Stop {
     String? memo,
     // 예정 시각은 지울 수도 있어서 함수로 받는다.
     LocalTime? Function()? plannedTime,
+    // 방문 시각을 주면 방문 여부도 따라간다(null이면 방문 취소). 서버와 같은 규칙이다.
+    DateTime? Function()? visitedAt,
     Photo? Function()? photo,
   }) => Stop(
     id: id,
@@ -129,8 +131,8 @@ class Stop {
     description: description ?? this.description,
     memo: memo ?? this.memo,
     plannedTime: plannedTime == null ? this.plannedTime : plannedTime(),
-    visited: visited,
-    visitedAt: visitedAt,
+    visited: visitedAt == null ? visited : visitedAt() != null,
+    visitedAt: visitedAt == null ? this.visitedAt : visitedAt(),
     timeZone: timeZone,
     placeProvider: placeProvider,
     placeId: placeId,

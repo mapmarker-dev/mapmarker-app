@@ -45,6 +45,11 @@ class TripDates {
   /// [day]일차의 날짜. 1일차가 시작일이다.
   LocalDate dateOfDay(int day) => start.addDays(day - 1);
 
+  /// [date]가 몇 일차인지. 기간 밖이면 null이다.
+  int? dayOn(LocalDate date) => date.isBefore(start) || date.isAfter(end)
+      ? null
+      : start.daysUntil(date) + 1;
+
   /// [today] 기준 상태. 시작일 전이면 전, 시작일부터 종료일까지 중, 그 뒤는 후다.
   TripPhase phaseOn(LocalDate today) {
     if (today.isBefore(start)) return TripPhase.before;

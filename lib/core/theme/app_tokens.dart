@@ -28,6 +28,9 @@ abstract final class AppPalette {
   /// 숙소 마커. 숙소는 이틀에 걸쳐 쓰여서 일차 색과 겹치지 않는 진한 색을 쓴다.
   static const ink700 = Color(0xFF3A3550);
 
+  /// 현재 위치. 지도 앱들이 현재 위치에 쓰는 파랑이고, 동선 색에는 쓰지 않는다.
+  static const locationBlue = Color(0xFF2F80ED);
+
   /// 로그인 버튼의 브랜드 색. 두 회사의 버튼 규칙에 정해져 있어 바꾸지 않는다.
   static const kakaoYellow = Color(0xFFFEE500);
   static const kakaoLabel = Color(0xD9000000);

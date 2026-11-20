@@ -2,6 +2,10 @@
     xmlns:tools="http://schemas.android.com/tools">
     <!-- 서버 API와 로그인. debug 매니페스트에만 있던 권한을 출시 빌드에도 둔다. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 현재 위치. "앱 사용 중"만 쓴다(백그라운드 권한은 없다). 정확한 위치와 대략적인 위치를 함께 적어야
+         Android 12 이상에서 사용자가 둘 중에 고를 수 있다. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
         android:label="MapMarker"
         android:allowBackup="false"
@@ -75,6 +79,10 @@
                 android:name="photopicker_activity:0:required"
                 android:value="" />
         </service>
+        <!-- geolocator의 백그라운드 위치 서비스는 쓰지 않는다. 남겨 두면 위치 포그라운드 서비스를 쓰는 앱으로 보인다. -->
+        <service
+            android:name="com.baseflow.geolocator.GeolocatorLocationService"
+            tools:node="remove" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

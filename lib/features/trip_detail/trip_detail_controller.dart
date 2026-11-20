@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/time/today.dart';
 import '../../data/api/api_exception.dart';
 import '../../data/models/candidate.dart';
 import '../../data/models/segment.dart';
@@ -181,8 +182,17 @@ class RouteChoiceController extends Notifier<RouteChoice> {
 
   final String tripId;
 
+  /// 여행 중(기간 안의 오늘)이면 오늘 일차로 열고, 아니면 여행 전체로 연다.
+  /// 여행 중에는 오늘 갈 곳이 먼저다(OVERVIEW "사용 시점"). 직접 "중"으로 바꾼 기간 없는 여행은 전체다.
   @override
-  RouteChoice build() => const RouteChoice();
+  RouteChoice build() {
+    final trip = ref.read(tripDetailProvider(tripId)).value;
+    final today = ref.read(todayProvider);
+    if (trip == null || trip.phaseOn(today) != TripPhase.during) {
+      return const RouteChoice();
+    }
+    return RouteChoice(day: trip.dates?.dayOn(today));
+  }
 
   /// 일차를 고른다. null이면 여행 전체다. 지금 보는 일차를 다시 골라도 카메라를 다시 맞춘다.
   /// [focus]를 주면 시트에서 그 장소나 구간을 보여 준다(지도에서 눌러 일차로 들어올 때).

@@ -110,5 +110,14 @@ void main() {
       expect(dates.dateOfDay(1), LocalDate(2026, 10, 30));
       expect(dates.dateOfDay(4), LocalDate(2026, 11, 2));
     });
+
+    test('tells which day a date is, across months', () {
+      final dates = TripDates(LocalDate(2026, 10, 30), LocalDate(2026, 11, 2));
+
+      expect(dates.dayOn(LocalDate(2026, 10, 29)), isNull);
+      expect(dates.dayOn(LocalDate(2026, 10, 30)), 1);
+      expect(dates.dayOn(LocalDate(2026, 11, 2)), 4);
+      expect(dates.dayOn(LocalDate(2026, 11, 3)), isNull);
+    });
   });
 }
