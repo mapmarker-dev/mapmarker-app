@@ -34,6 +34,7 @@ import '../../data/trips/trip_repository.dart';
 import '../../l10n/l10n.dart';
 import 'candidate_draft.dart';
 import 'day_itinerary.dart';
+import 'route_chips_collapse.dart';
 import 'route_scene.dart';
 import 'route_sheet_layout.dart';
 import 'stop_draft.dart';
@@ -1605,18 +1606,37 @@ class _TopOverlay extends ConsumerWidget {
             ),
           ],
           const SizedBox(height: AppSpace.sm),
-          RouteDayChips(
-            days: trip.nights + 1,
-            selectedDay: choice.day,
-            candidateView: choice.candidateView,
-            showLodging: choice.showLodging,
-            showCandidates: choice.showCandidates,
-            onDaySelected: choices.selectDay,
-            onCandidatesSelected: choices.selectCandidates,
-            onShowLodgingChanged: choices.setShowLodging,
-            onShowCandidatesChanged: choices.setShowCandidates,
-            padding: side,
-          ),
+          // 칩 두 줄은 접을 수 있다. 접으면 지금 보기를 요약한 알약만 남고 지도가 넓어진다.
+          if (ref.watch(routeChipsCollapsedProvider))
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Padding(
+                padding: side,
+                child: RouteChipsSummary(
+                  selectedDay: choice.day,
+                  candidateView: choice.candidateView,
+                  showLodging: choice.showLodging,
+                  showCandidates: choice.showCandidates,
+                  onExpand: ref
+                      .read(routeChipsCollapsedProvider.notifier)
+                      .toggle,
+                ),
+              ),
+            )
+          else
+            RouteDayChips(
+              days: trip.nights + 1,
+              selectedDay: choice.day,
+              candidateView: choice.candidateView,
+              showLodging: choice.showLodging,
+              showCandidates: choice.showCandidates,
+              onDaySelected: choices.selectDay,
+              onCandidatesSelected: choices.selectCandidates,
+              onShowLodgingChanged: choices.setShowLodging,
+              onShowCandidatesChanged: choices.setShowCandidates,
+              onCollapse: ref.read(routeChipsCollapsedProvider.notifier).toggle,
+              padding: side,
+            ),
           const SizedBox(height: AppSpace.sm),
         ],
       ),

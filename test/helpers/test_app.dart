@@ -19,6 +19,7 @@ import 'package:mapmarker_app/data/models/trip.dart';
 import 'package:mapmarker_app/data/photos/photo_images.dart';
 import 'package:mapmarker_app/data/photos/photo_preparer.dart';
 import 'package:mapmarker_app/data/photos/photo_source.dart';
+import 'package:mapmarker_app/data/settings/route_chips_store.dart';
 import 'package:mapmarker_app/data/trips/memory_trip_repository.dart';
 import 'package:mapmarker_app/data/trips/trip_repository.dart';
 import 'package:mapmarker_app/l10n/l10n.dart';
@@ -27,6 +28,7 @@ import 'fake_address_api.dart';
 import 'fake_auth.dart';
 import 'fake_http.dart';
 import 'fake_location.dart';
+import 'memory_route_chips_store.dart';
 import 'fake_map.dart';
 import 'fake_photos.dart';
 
@@ -151,6 +153,7 @@ List<Override> authOverrides({
 ///
 /// 사진은 [photoSource](기본은 1×1 그림을 고름)와 [photoPreparer](그대로 씀)가 대신하고, 사진 이미지는 늘 1×1 그림이다.
 /// 기기 위치는 [locationSource](기본은 권한 없는 [FakeLocationSource])가 대신한다.
+/// 칩을 접었는지는 [routeChipsStore](기본은 펼침)가 기억한다.
 ///
 /// 기본으로 로그인 상태다. 로그인 화면은 [session]에 `testSession(loggedIn: false)`를 넘겨 띄운다.
 Future<ProviderContainer> pumpTestApp(
@@ -166,6 +169,7 @@ Future<ProviderContainer> pumpTestApp(
   PhotoPreparer? photoPreparer,
   PhotoImages? photoImages,
   LocationSource? locationSource,
+  RouteChipsStore? routeChipsStore,
 }) async {
   final container = ProviderContainer.test(
     overrides: [
@@ -181,6 +185,9 @@ Future<ProviderContainer> pumpTestApp(
       photoImagesProvider.overrideWithValue(photoImages ?? fakePhotoImages()),
       locationSourceProvider.overrideWithValue(
         locationSource ?? FakeLocationSource(),
+      ),
+      routeChipsStoreProvider.overrideWithValue(
+        routeChipsStore ?? MemoryRouteChipsStore(),
       ),
       ...authOverrides(
         session: session,

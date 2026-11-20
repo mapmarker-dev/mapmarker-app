@@ -23,7 +23,7 @@ MapMarker의 Flutter 앱(Dart SDK ^3.12.0). 소스는 `lib/`, 테스트는 `test
 - 비밀값(Client Secret 등)은 앱 코드에서 읽지 않는다(빌드에서 누구나 꺼낼 수 있다).
 - `.env`(dart-define으로 Dart까지 간다): `NAVER_MAP_CLIENT_ID`, `API_BASE_URL`, `KAKAO_NATIVE_APP_KEY`(Gradle도 읽어 스킴 `kakao<키>`를 만든다).
 - `android/local.properties`(커밋하지 않음, Gradle만): `naver.client_id`, `naver.client_secret`, `naver.client_name`. `build.gradle.kts`가 매니페스트 meta-data로 넣고, 없으면 그 로그인만 실패한다.
-- **예외: 네이버 로그인 Client Secret은 APK에 들어간다**(SDK가 요구, 이유는 OVERVIEW "로그인과 계정"). 그래서 Dart와 `.env`에는 두지 않고 매니페스트로만 넣는다. `com.naver.sdk.logEnabled`는 `false`(켜면 logcat에 남는다). `naver_login_flutter`는 4.1.0에 고정했고 올릴 때 로그 출력을 다시 본다. 플러그인의 `configure` CLI는 쓰지 않는다(Secret이 셸 기록에 남는다).
+- **예외: 네이버 로그인 Client Secret은 APK에 들어간다**(OVERVIEW "로그인과 계정"). Dart와 `.env`에는 두지 않고 매니페스트로만 넣는다. `com.naver.sdk.logEnabled`는 `false`(켜면 logcat에 남는다). `naver_login_flutter`는 4.1.0에 고정했고 올릴 때 로그 출력을 다시 본다. 플러그인의 `configure` CLI는 쓰지 않는다(Secret이 셸 기록에 남는다).
 - 카카오 콘솔에는 개발 PC의 debug 키 해시만 있다. 다른 PC에서 빌드하면 그 키 해시를 더한다.
 
 ## 브랜치
@@ -67,27 +67,21 @@ lib/
 
 ## 사진
 
-- 장소마다 1장. 장소 입력 화면의 사진 칸(`PlacePhotoField`)에서 고르면 원본으로 줄이고(`PhotoPreparer.shrink`: 긴 변 1920px, 비율 그대로, EXIF 지움), "사진 위치" 화면(`photo_position_screen.dart`)에서 고른 정사각형으로 썸네일(400×400)을 만든다. 지도 마커, 장소 줄, 편집 미리보기, 내보내기가 이 썸네일을 쓴다. 준비하는 동안은 저장을 막는다.
-- 사진 칸: 없으면 낮은 회색 칸, 있으면 160 썸네일과 옆 글자 버튼 [바꾸기] [위치 바꾸기] [지우기](사진을 가리지 않고, 아래 테두리 동작 버튼과 모양이 다르다). [위치 바꾸기]는 저장된 사진이면 원본을 받아(`PhotoImages.fetch`, `measure`) 다시 고르고, 새 사진 ID로 둘 다 올린다.
-- 썸네일 자르기는 플러그인에 없어서 Flutter로 원본의 고른 부분을 그린 PNG를 플러그인으로 JPEG로 바꾼다. 비율 → 픽셀은 `squarePixels`.
-- **위치 정보:** `image_picker`의 줄이기는 쓰지 않는다(Android에서 GPS를 새 파일로 옮긴다). `flutter_image_compress`(`keepExif: false`)로 다시 쓰고, 올리기 전에 `hasMetadataSegment`로 APP1(EXIF, XMP)이 없는지 한 번 더 본다. 플러그인은 짧은 변 기준으로 줄여서 `shortSideFor`로 값을 넘긴다.
-- 올리기: [저장]할 때 장소를 먼저 저장하고 `ServerTripRepository.setStopPhoto`(업로드 주소 → S3 PUT → 등록). S3는 따로 된 dio(`photoDioProvider`)로만 부른다(서버 토큰이 S3로 가면 안 된다). 같은 사진 ID가 이미 그 장소에 있으면 건너뛴다. 사진만 실패하면 `PhotoSaveException` → `photoSaveFailed`이고, 다시 저장하면 사진만 보낸다(새 장소는 `_saveNewStop`이 확인).
-- 보기: 주소는 응답마다 새로 서명돼 바뀌므로 이미지(`PhotoImage`)는 사진 ID와 크기로 기억한다. 위젯 key는 주소라 받지 못했던 이미지는 새 주소로 다시 받는다. 403(만료)이면 보고 있는 여행을 다시 받는다(30초에 한 번).
-- 지도: 사진 있는 장소는 `MarkerLook.photo` 사진 마커(꼬리 끝이 장소 자리, 번호는 왼쪽 위 원, 테두리는 `AppColors.routePhotoFrame` + 흰 바깥 선)다. `NOverlayImage.fromWidget`이 이미지를 기다리지 않아서 `precacheImage`로 먼저 받고, 못 받으면 원 마커로 그린다. "후보 목록" 보기의 흐린 동선은 원 마커다.
-- 후보로 빼기와 장소 지우기 확인 창은 사라질 사진을 썸네일로 보여 준다(`LostPhotoLine`).
+- 장소마다 1장. 사진 칸(`PlacePhotoField`)에서 고르면 원본으로 줄이고(`PhotoPreparer.shrink`: 긴 변 1920px, EXIF 지움), "사진 위치" 화면에서 고른 정사각형으로 썸네일(400×400)을 만든다. 마커, 장소 줄, 내보내기는 썸네일을 쓴다. 썸네일 자르기는 Flutter로 그린 PNG를 플러그인으로 JPEG로 바꾼다.
+- **위치 정보:** `image_picker`의 줄이기는 쓰지 않는다(Android에서 GPS를 새 파일로 옮긴다). `flutter_image_compress`(`keepExif: false`)로 다시 쓰고, 올리기 전에 `hasMetadataSegment`로 APP1(EXIF, XMP)이 없는지 한 번 더 본다. 플러그인은 짧은 변 기준이라 `shortSideFor`로 값을 넘긴다.
+- 올리기: [저장]할 때 장소를 먼저 저장하고 `ServerTripRepository.setStopPhoto`(업로드 주소 → S3 PUT → 등록). S3는 따로 된 dio(`photoDioProvider`)로만 부른다(서버 토큰이 S3로 가면 안 된다). 사진만 실패하면 `PhotoSaveException`이고, 다시 저장하면 사진만 보낸다.
+- 보기: 주소는 응답마다 새로 서명되므로 이미지(`PhotoImage`)는 사진 ID와 크기로 기억한다. 403(만료)이면 보고 있는 여행을 다시 받는다(30초에 한 번).
+- 사진 마커(`MarkerLook.photo`): `NOverlayImage.fromWidget`이 이미지를 기다리지 않아서 `precacheImage`로 먼저 받고, 못 받으면 원 마커로 그린다.
 - `AndroidManifest.xml`의 `ModuleDependencies` 서비스는 시스템 사진 선택기가 없는 기기에 Google Play 서비스가 선택기를 받게 한다.
 
 ## 여행 중 (현재 위치, 방문)
 
-- **현재 위치**는 `core/location/LocationSource`(geolocator 구현, `locationSourceProvider`)로만 받는다. 권한은 "앱 사용 중"만이고, geolocator의 백그라운드 서비스는 매니페스트에서 `tools:node="remove"`로 뺐다.
-  - [내 위치] 버튼(맞추기 버튼 위, 둘 다 시트 윗변을 따라 올라가고 가운데 높이보다 위면 숨는다)을 누를 때 처음 묻는다. 받으면 카메라를 반경 1km(`_nearbyMeters`, "근처")로 옮기고, 맞추기나 일차 고르기(`fitCount`)면 동선 맞춤으로 돌아간다. 10초 안에 못 받으면 알리고 멈춘다.
-  - 여행 중이고 이미 허용했으면 화면을 열 때 묻지 않고 파란 점만 켠다. 화면을 나가거나 앱이 뒤로 가면 듣기를 멈춘다.
-  - 지도에는 `MapScene.myLocation`으로 넘기고 네이버 구현은 SDK의 위치 오버레이를 쓴다(SDK의 위치 추적은 쓰지 않는다). 파랑(`AppColors.myLocation`)은 현재 위치에만 쓴다.
-  - 위치를 알면 후보 목록이 가까운 순(직선거리 `distanceMeters`)이고 줄마다 거리(`distanceText`)가 붙는다.
-- **방문**: 장소 줄 오른쪽의 방문 동그라미(빈 원, 방문하면 채운 ✓. 여행 중과 후, 출발 장소와 샘플 제외)는 확인 창(`VisitDialog`)을 거쳐 `updateStop`의 `visitedAt`으로 저장한다. 기록 시각 규칙과 날짜 범위는 `stop_visit.dart`.
-  - 방문 시각은 순간(UTC)이고 장소의 `timeZone`으로 보여 준다(`core/time/zoned_time.dart`, `timezone` 패키지). 기기 시간대를 쓰지 않는다.
-  - 지도 마커와 장소 줄의 번호는 방문해도 그대로다. 방문은 동그라미와 둘째 줄("…방문")로만 보인다. 장소 편집의 "방문 시각" 칸(방문한 장소만)에서 날짜(달력)와 시각(1분 휠)을 고친다.
-- 여행 중이면 동선 화면을 오늘 일차로 연다(`RouteChoiceController.build`).
+규칙과 이유는 OVERVIEW "여행 중". 코드 위치와 지킬 것만 적는다.
+
+- **현재 위치**는 `core/location/LocationSource`(`locationSourceProvider`)로만 받는다. geolocator의 `GeolocatorLocationService`는 매니페스트에 남겨 둔다(위치 스트림이 이 서비스에 붙는다). 포그라운드 알림 설정과 `FOREGROUND_SERVICE_LOCATION` 권한은 쓰지 않는다.
+  - 지도에는 `MapScene.myLocation`으로 넘기고 네이버 구현은 SDK의 위치 오버레이를 쓴다. 파랑(`AppColors.myLocation`)은 현재 위치에만 쓴다.
+- **방문**은 `updateStop`의 `visitedAt`으로 저장한다(확인 창 `VisitDialog`, 기록 시각 규칙과 날짜 범위는 `stop_visit.dart`). 방문 시각은 장소의 `timeZone`으로 보여 준다(`core/time/zoned_time.dart`). 기기 시간대를 쓰지 않는다.
+- 오늘 일차로 열기는 `RouteChoiceController.build`, 그날 밤 숙소 버튼은 `DayItinerary.lodgingsToStayAgain`, 칩 접기는 `routeChipsCollapsedProvider`(`RouteChipsStore`로 기기에 기억)다.
 
 ## 지도 (네이버 SDK)
 
@@ -98,9 +92,9 @@ lib/
 
 ## 테스트
 
-- 실제 서버·카카오·네이버에 붙지 않는다. HTTP는 `FakeHttp`를 끼운 dio, 로그인은 `authOverrides`·`testSession`·`FakeSocialSdk`, 저장 실패와 기다림은 `FlakyTripRepository`(`failWrites`·`holdWrites`), 샘플은 `withSample`·`MemorySampleStore`, 주소 검색은 `FakeAddressApi`(`pumpTestApp(addressApi:)`).
+- 실제 서버·카카오·네이버에 붙지 않는다. HTTP는 `FakeHttp`를 끼운 dio, 로그인은 `authOverrides`·`testSession`·`FakeSocialSdk`, 저장 실패와 기다림은 `FlakyTripRepository`(`failWrites`·`holdWrites`), 샘플은 `withSample`·`MemorySampleStore`, 칩 접기는 `MemoryRouteChipsStore`(`pumpTestApp(routeChipsStore:)`, 기본은 펼침), 주소 검색은 `FakeAddressApi`(`pumpTestApp(addressApi:)`).
 - 기기 위치는 `FakeLocationSource`(`pumpTestApp(locationSource:)`, 기본은 권한 없음): `granted`·`answer`·`serviceOff`로 권한을 정하고 `emit`으로 위치를 낸다. 낸 위치는 `pump` 두 번 뒤에 그려진다. 시각을 확인할 때는 기기 시간대와 상관없게 `zonedParts`로 서울 시각을 계산한다.
-- 사진은 `FakePhotoSource`·`FakePhotoPreparer`(원본을 400×300으로 보고, 고른 정사각형은 `areas`에 남는다)와 늘 1×1 그림을 주는 `fakePhotoImages`(`pumpTestApp(photoSource:, photoPreparer:, photoImages:)`), 사진만 실패는 `FlakyTripRepository.failPhotos`. 사진을 고르면 "사진 위치" 화면에서 [확인]을 눌러야 한다. 사진 칸은 입력 화면 아래쪽이라 `scrollUntilVisible`로 내린다.
+- 사진은 `FakePhotoSource`·`FakePhotoPreparer`(원본 400×300, 고른 정사각형은 `areas`)와 1×1 그림을 주는 `fakePhotoImages`, 사진만 실패는 `FlakyTripRepository.failPhotos`. 사진을 고르면 "사진 위치" 화면에서 [확인]을 눌러야 하고, 사진 칸은 `scrollUntilVisible`로 내린다.
 - 공용 도우미는 `test/helpers/`. 화면은 `pumpTestApp`(가짜 지도, 기본 로그인)이나 `testMaterialApp`, 지도에 넘긴 장면은 `mapScene(tester)`, 지도 탭은 `tapMarker`·`tapLine`·`tapMap`.
 - 기본 화면(800×600)은 가로라 동선 목록이 오른쪽 패널이다. 아래 시트는 `usePortraitPhone`. 연필·손잡이는 줄을 먼저 눌러야 뜬다.
 - 로캘이 한국어라 `tester.pageBack()` 대신 `find.byType(BackButton)`을 누른다. 칩은 `ChoiceChip`·`FilterChip` 위젯을 누른다.

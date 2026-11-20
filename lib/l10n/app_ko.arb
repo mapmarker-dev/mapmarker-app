@@ -321,6 +321,26 @@
   "@routeShowCandidates": {
     "description": "동선 페이지 칩 둘째 줄(함께 보기). 전체·일차 보기의 지도에도 후보 장소를 보일지 켜고 끈다"
   },
+  "routeChipsCollapse": "보기 접기",
+  "@routeChipsCollapse": {
+    "description": "동선 페이지 칩 둘째 줄 맨 앞 버튼의 설명(길게 누를 때, 화면 읽기). 칩 두 줄을 접고 지금 보기 요약만 남긴다"
+  },
+  "routeChipsExpand": "보기 펼치기",
+  "@routeChipsExpand": {
+    "description": "칩을 접었을 때 남는 요약 알약의 설명(길게 누를 때, 화면 읽기). 누르면 칩 두 줄을 다시 펼친다"
+  },
+  "routeChipsShowBoth": "숙소와 후보 보기",
+  "@routeChipsShowBoth": {
+    "description": "접은 칩 요약 알약에서 함께 보기의 숙소와 후보를 둘 다 켰을 때 붙는 말. 예: '2일차, 숙소와 후보 보기'. 둘 다 끄면 아무 말도 붙지 않는다"
+  },
+  "routeChipsShowLodging": "숙소 보기",
+  "@routeChipsShowLodging": {
+    "description": "접은 칩 요약 알약에서 함께 보기의 숙소만 켰을 때(또는 후보 목록 보기에서 숙소를 켰을 때) 붙는 말. 예: '2일차, 숙소 보기'"
+  },
+  "routeChipsShowCandidates": "후보 보기",
+  "@routeChipsShowCandidates": {
+    "description": "접은 칩 요약 알약에서 함께 보기의 후보만 켰을 때 붙는 말. 예: '전체, 후보 보기'"
+  },
   "candidateListTitle": "후보 장소",
   "@candidateListTitle": {
     "description": "후보 보기의 시트·패널 제목"
