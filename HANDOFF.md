@@ -1,14 +1,14 @@
 # HANDOFF
 
-> 최종 갱신: 2026-11-19 · 브랜치: dev
+> 최종 갱신: 2026-11-20 · 브랜치: dev
 
 ## 지금 하는 일
 
-**1-3 사진**이 끝났다(규칙은 `CLAUDE.md` "사진", 결정은 `.github` OVERVIEW "사진, 이미지, 공유"). 정사각형 위치 고르기까지 실기기와 실제 S3로 확인했고 dev → main PR을 열 차례다.
+**1-4 여행 중 기능**(1-3 사진 PR은 main에 합쳤고 dev에도 반영했다). 설계가 확인됐고 서버는 방문 시각(`PATCH /v1/stops/:id`의 `visitedAt`)을 받는다(`../mapmarker-server/HANDOFF.md`). 먼저 예정 시각 휠을 1분 단위로 바꿨다(방문 시각도 같은 휠을 쓴다, OVERVIEW "일차 동선 시트와 편집").
 
 ## 다음에 할 첫 단계
 
-1. dev → main PR(merge commit). 다음 단위는 PLAN 1-4 여행 중 기능(`../.github/HANDOFF.md`).
+1. 현재 위치(`geolocator`, [내 위치] 버튼), 근처 후보(후보 목록 가까운 순과 거리), 방문 완료와 취소(확인 창, 여행 중과 후), 장소 편집의 방문 날짜와 시각을 만든다. 시각을 장소 시간대로 바꾸는 데는 `timezone`을 쓴다.
    - 나중에 더할 경로: `/trips/:tripId/export`, `/settings`, 3단계 `/shared/:shareId`(공유 링크 `/trip/<공유ID>`를 redirect로).
 
 ## 현재 상태
