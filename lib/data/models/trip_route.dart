@@ -102,6 +102,7 @@ class TripRoute {
         ),
       ),
       vias: showLodging ? const [] : List.unmodifiable(_viasOf(all)),
+      showLodging: showLodging,
     );
   }
 
@@ -139,7 +140,11 @@ class RouteView {
     required this.stops,
     required this.segments,
     this.vias = const [],
+    this.showLodging = true,
   });
+
+  /// 숙소를 보여 주는 보기인지. false면 [stops]에 숙소가 없다.
+  final bool showLodging;
 
   /// 동선 순서다.
   final List<Stop> stops;

@@ -87,12 +87,53 @@ void main() {
       // 전날 숙소가 없다.
       expect(offered(trip, 1), isEmpty);
       expect(offered(trip, 2), ['hotel']);
-      // 2일차 밤 숙소가 없어서 3일차는 숙소에서 출발하지 않는다.
-      expect(offered(trip, 3), isEmpty);
+      // 2일차 밤 숙소가 없어서 3일차는 숙소에서 출발하지 않는다. 앞 일차의 숙소로 돌아갈 수 있다.
+      expect(offered(trip, 3), ['hotel']);
+      expect(offered(trip, 3, lodging: false), isEmpty);
       // 숙소를 끄면 출발 숙소도 보이지 않는다.
       expect(offered(trip, 2, lodging: false), isEmpty);
       // 그날 밤 숙소가 있다.
       expect(offered(route, 2), isEmpty);
+    });
+
+    test('offers the latest earlier lodging after a night elsewhere', () {
+      // 1일차: a > 숙소A, 2일차: (숙소A에서 출발) 숙소B(낮에 들름) > 음식점(밤샘), 3일차: 음식점에서 출발 > q.
+      final trip = _route([
+        testStop('a'),
+        testLodging('hotel-a', order: 1),
+        testStop('hotel-b', day: 2, kind: StopKind.lodging),
+        testStop('pub', day: 2, order: 1, kind: StopKind.food),
+        testStop('q', day: 3),
+      ]);
+      List<String> offered(TripRoute route, int day) => [
+        for (final stop in DayItinerary.of(
+          route,
+          route.view(day: day),
+          day,
+        ).lodgingsToStayAgain)
+          stop.id,
+      ];
+
+      // 앞 일차들에서 마지막으로 들른 숙소 하나만 맨 끝에 둔다(숙소A까지 쌓지 않는다).
+      expect(offered(trip, 3), ['hotel-b']);
+
+      // 그날 들른 숙소와 같은 자리면 그날 들른 숙소로 둔다.
+      final back = _route([
+        ...trip.stops,
+        testStop(
+          'b-again',
+          day: 3,
+          order: 1,
+          kind: StopKind.lodging,
+          latitude: trip.stopById('hotel-b')!.latitude,
+          longitude: trip.stopById('hotel-b')!.longitude,
+        ),
+        testStop('r', day: 3, order: 2),
+      ]);
+      expect(offered(back, 3), ['b-again']);
+
+      // 출발 장소가 숙소면(연박) 앞 일차 숙소는 내놓지 않는다.
+      expect(offered(trip, 2), ['hotel-b', 'hotel-a']);
     });
 
     test('offers the lodging visited that day, latest first', () {

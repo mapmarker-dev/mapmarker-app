@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -104,12 +106,34 @@ const _estimatedSheetHeader = 56.0;
 /// Material 작은 플로팅 버튼(맞추기 버튼)의 크기.
 const _smallFabSize = 40.0;
 
+/// 시트가 가운데 높이([RouteDaySheet.midSize])보다 이만큼(화면 비율) 더 올라오면 지도 버튼을 숨긴다.
+/// 가운데 높이에 멈춘 시트를 조금 끌었다고 깜박이지 않게 둔다.
+const _fabHideMargin = 0.05;
+
+const _fabFadeDuration = Duration(milliseconds: 150);
+
 class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   /// 위에 뜬 제목 카드와 일차 칩의 화면 위쪽부터의 높이. 재기 전에는 지도를 띄우지 않는다.
   /// 지도를 만들 때부터 여백이 맞아야 처음 카메라가 제목 카드 밑으로 숨지 않는다.
   double? _overlayHeight;
 
   final _sheetController = DraggableScrollableController();
+
+  /// 시트 높이가 바뀔 때마다 오른다. 지도 버튼만 다시 그린다(지도는 다시 그리지 않는다).
+  /// 시트는 그리는 도중에도 높이를 알려서, 그때는 다음 프레임으로 미룬다.
+  final _sheetMoved = ValueNotifier(0);
+
+  void _onSheetMoved() {
+    final scheduler = SchedulerBinding.instance;
+    if (scheduler.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+      scheduler.addPostFrameCallback((_) {
+        if (mounted) _sheetMoved.value++;
+      });
+    } else {
+      _sheetMoved.value++;
+    }
+  }
+
   final _sheetKey = GlobalKey<RouteDaySheetState>();
 
   /// 시트 제목 줄 높이. 일차마다 같아서 한 번 재면 계속 쓴다.
@@ -187,6 +211,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   @override
   void initState() {
     super.initState();
+    _sheetController.addListener(_onSheetMoved);
     _lifecycle = AppLifecycleListener(
       onHide: _pauseLocation,
       onShow: _resumeLocation,
@@ -205,7 +230,10 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     _lifecycle.dispose();
     _locationSub?.cancel();
     _locationTimeout?.cancel();
-    _sheetController.dispose();
+    _sheetController
+      ..removeListener(_onSheetMoved)
+      ..dispose();
+    _sheetMoved.dispose();
     _selection.dispose();
     // 화면을 정리하는 중에는 다른 위젯(ScaffoldMessenger)을 바꿀 수 없어서, 이 프레임이 끝난 뒤에 닫는다.
     // 앱 전체가 닫히는 중이면 ScaffoldMessenger도 함께 사라져서 닫을 것이 없다.
@@ -1228,9 +1256,30 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                 child: Center(child: _MessageCard(message)),
               ),
           if (view != null)
-            Positioned(
-              right: right + AppSpace.lg,
-              bottom: bottom + AppSpace.lg,
+            // 아래 시트를 올리면 버튼도 시트 윗변을 따라 올라간다. 버튼만 옮기고 지도는 다시 그리지 않는다.
+            // 가운데 높이보다 더 올리면(지도가 띠만 남음) 숨긴다.
+            ListenableBuilder(
+              listenable: _sheetMoved,
+              builder: (context, buttons) {
+                final sheet = !hasList || isSide || !_sheetController.isAttached
+                    ? null
+                    : _sheetController;
+                final hidden =
+                    sheet != null &&
+                    sheet.size > RouteDaySheet.midSize + _fabHideMargin;
+                return Positioned(
+                  right: right + AppSpace.lg,
+                  bottom: math.max(bottom, sheet?.pixels ?? 0) + AppSpace.lg,
+                  child: IgnorePointer(
+                    ignoring: hidden,
+                    child: AnimatedOpacity(
+                      opacity: hidden ? 0 : 1,
+                      duration: _fabFadeDuration,
+                      child: buttons,
+                    ),
+                  ),
+                );
+              },
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [

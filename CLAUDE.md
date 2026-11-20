@@ -80,7 +80,7 @@ lib/
 ## 여행 중 (현재 위치, 방문)
 
 - **현재 위치**는 `core/location/LocationSource`(geolocator 구현, `locationSourceProvider`)로만 받는다. 권한은 "앱 사용 중"만이고, geolocator의 백그라운드 서비스는 매니페스트에서 `tools:node="remove"`로 뺐다.
-  - [내 위치] 버튼(맞추기 버튼 위)을 누를 때 처음 묻는다. 받으면 카메라를 반경 1km(`_nearbyMeters`, "근처")로 옮기고, 맞추기나 일차 고르기(`fitCount`)면 동선 맞춤으로 돌아간다. 10초 안에 못 받으면 알리고 멈춘다.
+  - [내 위치] 버튼(맞추기 버튼 위, 둘 다 시트 윗변을 따라 올라가고 가운데 높이보다 위면 숨는다)을 누를 때 처음 묻는다. 받으면 카메라를 반경 1km(`_nearbyMeters`, "근처")로 옮기고, 맞추기나 일차 고르기(`fitCount`)면 동선 맞춤으로 돌아간다. 10초 안에 못 받으면 알리고 멈춘다.
   - 여행 중이고 이미 허용했으면 화면을 열 때 묻지 않고 파란 점만 켠다. 화면을 나가거나 앱이 뒤로 가면 듣기를 멈춘다.
   - 지도에는 `MapScene.myLocation`으로 넘기고 네이버 구현은 SDK의 위치 오버레이를 쓴다(SDK의 위치 추적은 쓰지 않는다). 파랑(`AppColors.myLocation`)은 현재 위치에만 쓴다.
   - 위치를 알면 후보 목록이 가까운 순(직선거리 `distanceMeters`)이고 줄마다 거리(`distanceText`)가 붙는다.

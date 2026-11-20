@@ -7,7 +7,12 @@ import '../../data/models/trip_route.dart';
 /// 일차 동선 시트에 늘어놓을 그날의 동선. 지도와 같은 것을 보여 주려고 [RouteView]로 만든다.
 @immutable
 class DayItinerary {
-  const DayItinerary({required this.day, this.start, this.stops = const []});
+  const DayItinerary({
+    required this.day,
+    this.start,
+    this.stops = const [],
+    this.earlierLodging,
+  });
 
   /// [view]는 [day]일차 보기여야 한다(`route.view(day: day, ...)`).
   /// 숙소를 끈 보기면 숙소와 숙소에 닿는 구간이 빠진다.
@@ -36,6 +41,17 @@ class DayItinerary {
       day: day,
       start: start,
       stops: List.unmodifiable(stops),
+      earlierLodging: view.showLodging && start != null && !start.isLodging
+          ? route.stops
+                .where((s) => s.day < day && s.isLodging)
+                .fold<Stop?>(
+                  null,
+                  (latest, s) =>
+                      latest == null || compareRouteOrder(s, latest) > 0
+                      ? s
+                      : latest,
+                )
+          : null,
     );
   }
 
@@ -47,6 +63,11 @@ class DayItinerary {
   /// 이 일차의 장소. 동선 순서다.
   final List<ItineraryStop> stops;
 
+  /// 출발 장소가 숙소가 아닐 때(전날 밤을 숙소 밖에서 보냄), 앞 일차들에서 마지막으로 들른 숙소.
+  /// 밤샘이나 야간 이동 뒤에 원래 숙소로 돌아가는 날에 [lodgingsToStayAgain]으로 내놓는다.
+  /// 숙소를 끈 보기에서는 null이다.
+  final Stop? earlierLodging;
+
   /// 화면에 보이는 장소의 ID. 출발 장소부터 동선 순서다.
   List<String> get stopIds => [?start?.id, for (final s in stops) s.stop.id];
 
@@ -54,7 +75,9 @@ class DayItinerary {
   ///
   /// 이 일차 마지막이 숙소가 아닐 때(이 일차의 밤 숙소를 아직 넣지 않았을 때)만 있다.
   /// - 이 일차에 들른 숙소(예: 체크인하고 저녁 먹으러 나감)와, 출발 장소가 숙소면 그 숙소(전날 밤 숙소, 연박)다.
-  /// - 늦게 들른 숙소가 먼저이고 출발 숙소가 맨 끝이다. 늦게 들른 숙소일수록 그날 밤 묵을 곳일 가능성이 크다.
+  /// - 출발 장소가 숙소가 아니면 출발 숙소 대신 [earlierLodging](앞 일차들에서 마지막으로 들른 숙소)이다.
+  ///   앞 일차의 숙소를 모두 내놓으면 숙소를 자주 옮긴 여행에서 버튼이 쌓인다.
+  /// - 늦게 들른 숙소가 먼저이고 출발 숙소(또는 [earlierLodging])가 맨 끝이다. 늦게 들른 숙소일수록 그날 밤 묵을 곳일 가능성이 크다.
   /// - 같은 자리의 숙소는 하나만 둔다. 출발 숙소와 같은 자리면 출발 숙소로 둔다(어젯밤에 이어 묵는 것이라서).
   /// - 숙소를 끈 보기에는 숙소가 없어서 버튼도 없다.
   List<Stop> get lodgingsToStayAgain {
@@ -68,7 +91,12 @@ class DayItinerary {
       if (lodgings.any(stop.isSamePlaceAs)) continue;
       lodgings.add(stop);
     }
-    return List.unmodifiable([...lodgings, ?start]);
+    final earlier = start == null ? earlierLodging : null;
+    return List.unmodifiable([
+      ...lodgings,
+      ?start,
+      if (earlier != null && !lodgings.any(earlier.isSamePlaceAs)) earlier,
+    ]);
   }
 
   /// [id] 장소나 구간이 이 목록에 있는지.
