@@ -9,7 +9,6 @@ import '../../core/route/route_scene.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../data/models/photo.dart';
-import '../../data/models/stop.dart';
 import '../../data/models/trip.dart';
 import '../../data/models/trip_route.dart';
 import '../../l10n/l10n.dart';
@@ -17,8 +16,8 @@ import '../../l10n/l10n.dart';
 /// 내보내기 이미지 크기(px). 비율은 4:5 하나다(인스타 피드에 잘리지 않고 대화방에서 한 장이 다 보인다).
 const exportPixelSize = Size(1080, 1350);
 
-/// 여행 후 이미지의 사진 마커는 앱 지도보다 이만큼 크게 그린다(사진 중심 회고).
-const largePhotoScale = 1.6;
+/// 여행 후 이미지의 사진 마커는 앱 지도보다 이만큼 크게 그린다. 사진은 잘 보이되 다른 장소와 동선을 덮지 않을 만큼이다.
+const largePhotoScale = 1.3;
 
 /// 이미지 가장자리에서 장소까지 띄우는 최소 여백(논리 px). 이름표가 옆으로 붙을 자리다.
 const _sideRoom = AppSpace.xxl + AppSpace.sm;
@@ -76,7 +75,6 @@ class ExportMarker {
     required this.position,
     required this.look,
     required this.name,
-    this.faded = false,
     this.large = false,
   });
 
@@ -85,9 +83,6 @@ class ExportMarker {
   final LatLng position;
   final MarkerLook look;
   final String name;
-
-  /// 아직 가지 않은 곳이라 흐리게 그린다. 이름표도 흐리다.
-  final bool faded;
 
   /// [largePhotoScale]만큼 크게 그리는 사진 마커.
   final bool large;
@@ -105,7 +100,6 @@ class ExportMarker {
     position: position,
     look: look,
     name: name,
-    faded: faded,
     large: large && look.photo != null,
   );
 }
@@ -172,13 +166,12 @@ class ExportScene {
 
 /// 내보내기 이미지에 그릴 것을 만든다.
 ///
+/// 가장 중요한 것은 동선의 순서와 장소가 어디인지다. 그래서 여행 전, 중, 후 모두, 방문 여부와 사진에
+/// 관계없이 모든 장소와 구간을 똑같이 또렷하게 그린다. 방문 기록은 이미지에 넣지 않는다.
+///
 /// - 범위와 숙소: 지도 보기와 같다([TripRoute.view]). 숙소를 끄면 숙소를 거친 곳은 흐린 선([RouteView.vias])이다.
-/// - 여행 전([TripPhase.before]): 계획한 동선 그대로다.
-/// - 여행 중: 방문한 곳과 양 끝을 모두 방문한 구간은 또렷하게, 남은 곳은 [AppOpacity.backdrop]만큼 흐리게 그린다.
-///   방문한 마커에는 종류 배지 자리에 ✓ 배지를 단다. 흐린 구간에는 화살표와 선 아이콘이 없다.
-///   (앱 지도는 방문해도 마커가 그대로다. 이미지는 진행 상황을 보여 주는 것이라 나눠 그린다.)
-/// - 여행 후: 사진 마커를 [largePhotoScale]만큼 크게 그린다. 방문을 하나라도 적었으면 가지 않은 곳은 여행 중처럼 흐리고,
-///   하나도 적지 않았으면(방문 체크를 쓰지 않은 여행) 모두 또렷하다.
+/// - 여행 후: 사진 마커를 [largePhotoScale]만큼 조금 크게 그리고, 제목 아래 줄에 사진 수를 붙인다.
+///   사진 마커가 번호 마커를 가리지 않게 번호 마커를 위에 그린다([ExportCanvas]).
 /// - 후보는 넣지 않는다(이미지는 정한 동선의 결과물이다).
 ExportScene buildExportScene({
   required Trip trip,
@@ -202,72 +195,23 @@ ExportScene buildExportScene({
     colors: colors,
     photoOf: options.photos ? photoOf : null,
   );
-  final progress =
-      phase == TripPhase.during ||
-      (phase == TripPhase.after && route.stops.any((stop) => stop.visited));
-  bool visitedPlace(Stop stop) =>
-      view.stops.where(stop.isSamePlaceAs).any((s) => s.visited);
-  bool visitedId(String id) {
-    final stop = route.stopById(id);
-    return stop != null && visitedPlace(stop);
-  }
-
-  Color dim(Color color) =>
-      color.withValues(alpha: color.a * AppOpacity.backdrop);
   final large = phase == TripPhase.after && options.photos;
-
   final markers = [
     for (final marker in overlays.markers)
-      if (!progress || visitedId(marker.id))
-        ExportMarker(
-          id: marker.id,
-          position: marker.position,
-          look: progress ? _checked(marker.look) : marker.look,
-          name: marker.caption,
-          large: large && marker.look.photo != null,
-        )
-      else
-        ExportMarker(
-          id: marker.id,
-          position: marker.position,
-          look: marker.look.faded(AppOpacity.backdrop),
-          name: marker.caption,
-          faded: true,
-        ),
+      ExportMarker(
+        id: marker.id,
+        position: marker.position,
+        look: marker.look,
+        name: marker.caption,
+        large: large && marker.look.photo != null,
+      ),
   ];
-
-  // 구간 선의 ID는 구간 ID, 숙소를 거침은 RouteVia.id다.
-  final segmentsById = {for (final s in view.segments) s.id: s};
-  final viasById = {for (final via in view.vias) via.id: via};
-  bool doneLine(String id) {
-    if (!progress) return true;
-    if (segmentsById[id] case final segment?) {
-      return visitedId(segment.fromStopId) && visitedId(segment.toStopId);
-    }
-    if (viasById[id] case final via?) {
-      return visitedPlace(via.from) && visitedPlace(via.to);
-    }
-    return true;
-  }
-
-  final lines = [
-    for (final line in overlays.lines)
-      doneLine(line.id)
-          ? line
-          : MapLine(
-              id: line.id,
-              points: line.points,
-              color: dim(line.color),
-              outline: dim(line.outline),
-              style: line.style,
-            ),
-  ];
+  final lines = overlays.lines;
 
   final inRange = [
     for (final stop in view.stops)
       if (options.day == null || stop.day == options.day) stop,
   ];
-  final places = inRange.where((stop) => !stop.isLodging).toList();
   final photoCount = inRange.where((stop) => stop.photo != null).length;
   final dates = trip.dates;
   final day = options.day;
@@ -279,22 +223,11 @@ ExportScene buildExportScene({
       dates.dateOfDay(day).toDateTime(),
     ),
   };
-  // 여행 전체의 짧은 범위: 기간이 있으면 날짜, 없으면 일정.
-  final shortRange =
-      rangeText ??
-      (dates == null
-          ? l10n.nightsText(trip.nights)
-          : l10n.tripDatesText(dates));
-  final subtitle = switch (phase) {
-    TripPhase.during => l10n.exportProgress(
-      shortRange,
-      places.length,
-      places.where((stop) => stop.visited).length,
-    ),
-    TripPhase.after when options.photos && photoCount > 0 =>
-      l10n.exportPhotoCount(shortRange, photoCount),
-    _ => rangeText ?? l10n.tripSummaryOf(trip),
-  };
+  // 전체는 기간과 일정(예: 2026.10.20 – 10.22, 2박 3일), 일차는 그 날짜다.
+  final range = rangeText ?? l10n.tripSummaryOf(trip);
+  final subtitle = phase == TripPhase.after && options.photos && photoCount > 0
+      ? l10n.exportPhotoCount(range, photoCount)
+      : range;
 
   final days = {
     for (final marker in markers)
@@ -310,14 +243,8 @@ ExportScene buildExportScene({
   return ExportScene(
     markers: markers,
     lines: lines,
-    arrows: [
-      for (final arrow in overlays.arrows)
-        if (doneLine(arrow.id)) arrow,
-    ],
-    lineIcons: [
-      for (final icon in overlays.lineIcons)
-        if (doneLine(icon.id)) icon,
-    ],
+    arrows: overlays.arrows,
+    lineIcons: overlays.lineIcons,
     title: options.title ? l10n.exportTripTitle(trip.title) : null,
     subtitle: subtitle,
     legendDays: options.day == null && days.length >= 2 && days.length <= 5
@@ -327,17 +254,3 @@ ExportScene buildExportScene({
     bounds: cameraBoundsFor(points),
   );
 }
-
-/// 방문한 장소의 마커: 종류 배지 자리에 ✓ 배지. 사진 마커에는 배지가 없어서 그대로다.
-MarkerLook _checked(MarkerLook look) => MarkerLook(
-  fill: look.fill,
-  foreground: look.foreground,
-  halo: look.halo,
-  ring: look.ring,
-  label: look.label,
-  icon: look.icon,
-  badge: Icons.check,
-  small: look.small,
-  photo: look.photo,
-  photoFrame: look.photoFrame,
-);

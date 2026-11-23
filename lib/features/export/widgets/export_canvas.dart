@@ -176,10 +176,10 @@ class ExportCanvas extends StatelessWidget {
       reserved: [?card, watermark, capture.logo],
       labelSize: metrics.labelSize,
     );
-    // 흐린(아직 가지 않은) 마커를 먼저 그려 또렷한 마커가 위에 오게 한다.
+    // 사진 마커는 크고 네모라 옆 장소를 덮기 쉽다. 먼저 그려서 번호 마커가 늘 위에 보이게 한다(동선 순서가 먼저다).
     final markers = [
-      ...layout.markers.where((m) => m.marker.faded),
-      ...layout.markers.where((m) => !m.marker.faded),
+      ...layout.markers.where((m) => m.marker.look.photo != null),
+      ...layout.markers.where((m) => m.marker.look.photo == null),
     ];
     return SizedBox.fromSize(
       size: metrics.size,
@@ -223,13 +223,10 @@ class ExportCanvas extends StatelessWidget {
             for (final label in layout.labels)
               Positioned.fromRect(
                 rect: label.rect,
-                child: Opacity(
-                  opacity: label.marker.faded ? AppOpacity.backdrop : 1,
-                  child: _Pill(
-                    text: label.marker.name,
-                    style: metrics.labelStyle,
-                    color: scheme.surfaceContainerLowest,
-                  ),
+                child: _Pill(
+                  text: label.marker.name,
+                  style: metrics.labelStyle,
+                  color: scheme.surfaceContainerLowest,
                 ),
               ),
             if (card != null)

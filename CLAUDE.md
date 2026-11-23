@@ -94,7 +94,8 @@ lib/
 규칙과 이유는 OVERVIEW "사진, 이미지, 공유". 코드 위치와 지킬 것만 적는다.
 
 - 흐름: `MapProvider.buildCaptureMap`이 결과 크기(1080×1350px ÷ 기기 픽셀 비율)의 지도를 오버레이 없이 찍고(`MapCapture`), `features/export/`의 `ExportCanvas`가 그 위에 동선을 위젯으로 그린다. 미리보기가 곧 결과이고, 저장할 때 `RepaintBoundary.toImage`로 PNG를 만든다. 지도는 미리보기 뒤에 가려 둔다(가려져도 찍힌다).
-- 동선 모양은 앱 지도와 같은 `core/route/route_scene.dart`의 `routeOverlays`에서 나온다. 상태별 표현은 `buildExportScene`, 자리 잡기(이름표 겹침, 짧은 선의 화살표 숨김)는 `layoutExport`다.
+- 동선 모양은 앱 지도와 같은 `core/route/route_scene.dart`의 `routeOverlays`에서 나온다. 이미지에 넣을 것은 `buildExportScene`, 자리 잡기(이름표 겹침, 짧은 선의 화살표 숨김)는 `layoutExport`다.
+- 동선의 순서와 장소가 먼저다. 방문 여부나 사진 때문에 어떤 장소나 구간도 흐리게 그리거나 가리지 않는다(사진 마커는 번호 마커 아래에 그린다).
 - 제목 카드 높이와 마커가 솟는 높이만큼 지도 위쪽 여백을 두고 맞춰서(`ExportScene.frameFor`) 장소가 카드에 가리지 않는다. 범위, 숙소, 제목, 사진을 바꾸면 여백이나 범위가 바뀌어 지도를 다시 찍는다.
 - 지도 로고 자리(`MapCapture.logo`)는 다 그린 뒤 찍은 지도로 다시 덮는다. 이미지 글자는 기기 글자 크기 설정을 따르지 않는다.
 - 저장과 공유는 `core/share/ImageSharing`(gal, share_plus, PNG를 JPEG 92로)만 부른다. Android 10 이하는 저장 권한(`WRITE_EXTERNAL_STORAGE`, maxSdk 29)을 묻고, 10은 앨범에 넣으려고 `requestLegacyExternalStorage`도 켠다.
