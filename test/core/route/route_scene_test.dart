@@ -9,7 +9,7 @@ import 'package:mapmarker_app/data/models/segment.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trip_route.dart';
 import 'package:mapmarker_app/data/trips/route_links.dart';
-import 'package:mapmarker_app/features/trip_detail/route_scene.dart';
+import 'package:mapmarker_app/core/route/route_scene.dart';
 
 import '../../helpers/test_stops.dart';
 

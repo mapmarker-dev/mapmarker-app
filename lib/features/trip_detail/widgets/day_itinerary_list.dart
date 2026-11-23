@@ -11,7 +11,7 @@ import '../../../data/models/trip.dart';
 import '../../../data/models/trip_route.dart';
 import '../../../l10n/l10n.dart';
 import '../day_itinerary.dart';
-import '../route_scene.dart';
+import '../../../core/route/route_scene.dart';
 import 'itinerary_tiles.dart';
 
 /// 일차 동선 목록에서 펼친 장소와 고른 장소·구간.

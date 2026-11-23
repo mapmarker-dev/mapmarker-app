@@ -903,5 +903,61 @@
       "hours": {"type": "int"},
       "minutes": {"type": "int"}
     }
+  },
+  "exportOpen": "이미지 만들기",
+  "@exportOpen": {
+    "description": "동선 페이지 제목 카드의 아이콘 설명과 내보내기 화면 제목. 지도 위에 동선을 그린 이미지를 만들어 저장하거나 공유한다"
+  },
+  "exportPhotos": "사진",
+  "@exportPhotos": {
+    "description": "내보내기 화면의 켜고 끄는 칩. 장소 사진을 이미지에 넣는다"
+  },
+  "exportLodging": "숙소",
+  "@exportLodging": {
+    "description": "내보내기 화면의 켜고 끄는 칩. 숙소를 이미지에 넣는다"
+  },
+  "exportTitle": "제목",
+  "@exportTitle": {
+    "description": "내보내기 화면의 켜고 끄는 칩. 이미지 위쪽에 여행 제목과 날짜 카드를 넣는다"
+  },
+  "exportSave": "사진첩에 저장",
+  "exportShare": "공유",
+  "exportSaved": "사진첩에 저장했습니다.",
+  "exportSaveDenied": "사진첩에 저장하려면 권한이 필요합니다.",
+  "exportSettings": "설정",
+  "@exportSettings": {
+    "description": "사진첩 권한이 없다는 스낵바의 버튼. 앱 설정 화면을 연다"
+  },
+  "exportSaveFailed": "저장하지 못했습니다. 다시 시도해 주세요.",
+  "exportShareFailed": "공유하지 못했습니다. 다시 시도해 주세요.",
+  "exportMapFailed": "지도를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.",
+  "exportRangeEmpty": "이 범위에는 장소가 없습니다.",
+  "exportTripTitle": "‘{title}’",
+  "@exportTripTitle": {
+    "description": "내보낸 이미지 위쪽 카드의 여행 제목. 여행 제목만 작은따옴표로 감싼다",
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "exportProgress": "{range}, {total}곳 중 {visited}곳 방문",
+  "@exportProgress": {
+    "description": "여행 중 내보낸 이미지의 제목 아래 줄. 범위는 기간이나 일차다. 예: 2일차, 10월 21일 (수), 6곳 중 3곳 방문",
+    "placeholders": {
+      "range": {"type": "String", "example": "2일차, 10월 21일 (수)"},
+      "total": {"type": "int"},
+      "visited": {"type": "int"}
+    }
+  },
+  "exportPhotoCount": "{range}, 사진 {count}장",
+  "@exportPhotoCount": {
+    "description": "여행 후 내보낸 이미지(사진을 넣었을 때)의 제목 아래 줄. 예: 2026.10.20 – 10.22, 사진 8장",
+    "placeholders": {
+      "range": {"type": "String", "example": "2026.10.20 – 10.22"},
+      "count": {"type": "int"}
+    }
+  },
+  "exportWatermark": "MapMarker",
+  "@exportWatermark": {
+    "description": "내보낸 이미지 오른쪽 아래의 앱 이름. 옮기지 않는다"
   }
 }

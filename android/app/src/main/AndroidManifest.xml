@@ -6,9 +6,15 @@
          Android 12 이상에서 사용자가 둘 중에 고를 수 있다. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- 내보낸 이미지를 사진첩의 "MapMarker" 앨범에 저장한다(gal). Android 10 이하만 이 권한을 묻고,
+         Android 10은 앨범에 저장하려면 requestLegacyExternalStorage도 필요하다(11 이상은 무시한다). -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29"/>
     <application
         android:label="MapMarker"
         android:allowBackup="false"
+        android:requestLegacyExternalStorage="true"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

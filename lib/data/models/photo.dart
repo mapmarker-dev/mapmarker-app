@@ -14,10 +14,10 @@ class Photo {
 
   final String id;
 
-  /// 원본(긴 변 1920px). 크게 볼 때와 내보내기에 쓴다.
+  /// 원본(긴 변 1920px). 크게 볼 때 쓴다.
   final String url;
 
-  /// 썸네일(긴 변 400px). 지도 마커와 장소 줄에 쓴다.
+  /// 썸네일(400px). 지도 마커, 장소 줄, 내보내기 이미지에 쓴다.
   final String thumbnailUrl;
 
   @override

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -96,12 +95,6 @@ class TripListScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('MapMarker'),
         actions: [
-          if (kDebugMode)
-            IconButton(
-              tooltip: '스냅샷 검증',
-              icon: const Icon(Icons.science_outlined),
-              onPressed: () => context.go(Routes.snapshotLab),
-            ),
           // 설정 화면(1-6단계)이 생기면 그리로 옮긴다.
           PopupMenuButton<_Menu>(
             tooltip: l10n.moreMenuTooltip,

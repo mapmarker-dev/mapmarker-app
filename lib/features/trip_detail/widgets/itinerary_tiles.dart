@@ -10,7 +10,7 @@ import '../../../data/models/candidate.dart';
 import '../../../data/models/segment.dart';
 import '../../../data/models/stop.dart';
 import '../../../l10n/l10n.dart';
-import '../transport_look.dart';
+import '../../../core/route/transport_look.dart';
 import 'stop_photo.dart';
 
 /// 일차 동선 시트의 장소 줄.

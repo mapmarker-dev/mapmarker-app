@@ -1,11 +1,30 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/core/map/geo.dart';
 import 'package:mapmarker_app/core/map/map_provider.dart';
 
 /// 지도 SDK 없이 화면을 띄우는 가짜 지도. 받은 [MapScene]과 탭 함수를 그대로 들고 있는다.
+///
+/// 내보내기 지도([buildCaptureMap])는 그린 다음 프레임에 1×1 그림을 찍은 것으로 넘긴다.
+/// 범위의 남서쪽은 여백 안쪽 왼쪽 아래, 북동쪽은 오른쪽 위에 온다. [captureFails]면 찍지 않고 실패를 알린다.
 class FakeMapProvider implements MapProvider {
-  const FakeMapProvider();
+  const FakeMapProvider({this.captureFails = false});
+
+  final bool captureFails;
+
+  @override
+  Widget buildCaptureMap({
+    required MapFrame frame,
+    required ValueChanged<MapCapture> onCaptured,
+    required VoidCallback onFailed,
+  }) => FakeCaptureMap(
+    frame: frame,
+    onCaptured: onCaptured,
+    onFailed: onFailed,
+    fails: captureFails,
+  );
 
   @override
   Widget buildMap(
@@ -41,6 +60,77 @@ class FakeMap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const SizedBox.expand();
+}
+
+/// 가짜 내보내기 지도. 범위가 바뀔 때마다 한 번 찍는다.
+class FakeCaptureMap extends StatefulWidget {
+  const FakeCaptureMap({
+    super.key,
+    required this.frame,
+    required this.onCaptured,
+    required this.onFailed,
+    this.fails = false,
+  });
+
+  final MapFrame frame;
+  final ValueChanged<MapCapture> onCaptured;
+  final VoidCallback onFailed;
+  final bool fails;
+
+  @override
+  State<FakeCaptureMap> createState() => _FakeCaptureMapState();
+}
+
+class _FakeCaptureMapState extends State<FakeCaptureMap> {
+  @override
+  void initState() {
+    super.initState();
+    _schedule();
+  }
+
+  @override
+  void didUpdateWidget(FakeCaptureMap old) {
+    super.didUpdateWidget(old);
+    if (old.frame != widget.frame) _schedule();
+  }
+
+  void _schedule() {
+    final frame = widget.frame;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || frame != widget.frame) return;
+      if (widget.fails) {
+        widget.onFailed();
+        return;
+      }
+      widget.onCaptured(fakeCapture(frame, context.size!));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.expand();
+}
+
+/// [size] 지도에 [frame]을 맞춰 찍은 것 같은 가짜 그림.
+MapCapture fakeCapture(MapFrame frame, Size size) {
+  final recorder = ui.PictureRecorder();
+  ui.Canvas(recorder).drawRect(
+    const ui.Rect.fromLTWH(0, 0, 1, 1),
+    ui.Paint()..color = const ui.Color(0xFFEDEAE3),
+  );
+  final image = recorder.endRecording().toImageSync(1, 1);
+  final padding = frame.padding;
+  return MapCapture(
+    image: image,
+    frame: frame,
+    projection: MapProjection.fromPairs(
+      (
+        frame.bounds.southWest,
+        Offset(padding.left, size.height - padding.bottom),
+      ),
+      (frame.bounds.northEast, Offset(size.width - padding.right, padding.top)),
+    ),
+    logo: Rect.fromLTWH(0, size.height - 48, 112, 48),
+  );
 }
 
 FakeMap _fakeMap(WidgetTester tester) =>

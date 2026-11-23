@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../core/map/map_provider.dart';
-import '../../core/map/route_arrow.dart';
-import '../../core/map/route_curve.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_tokens.dart';
+import '../map/map_provider.dart';
+import '../map/route_arrow.dart';
+import '../map/route_curve.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_tokens.dart';
 import '../../data/models/photo.dart';
 import '../../data/models/stop.dart';
 import '../../data/models/trip_route.dart';

@@ -38,10 +38,9 @@ lib/
 ├─ app/             MaterialApp, 경로 표(router.dart), 경로 상수(routes.dart)
 ├─ config/          환경 변수(Env)
 ├─ data/            모델, 저장소, 서버 API. 여러 기능이 함께 쓴다
-├─ core/            기능에 속하지 않는 공용 코드(디자인 토큰·테마, 곡선 계산, 지도 인터페이스 등)
+├─ core/            기능에 속하지 않는 공용 코드(디자인 토큰·테마, 곡선 계산, 지도 인터페이스, 동선 그림, 이미지 저장과 공유 등)
 ├─ features/<기능>/  화면과 상태(Riverpod). 예: login, trips, trip_detail, trash, export
-├─ l10n/            다국어 글자(app_ko.arb)와 모델 글자 변환
-└─ dev/             개발용 화면(경로는 디버그 빌드에서만 등록)
+└─ l10n/            다국어 글자(app_ko.arb)와 모델 글자 변환
 ```
 
 - 폴더는 파일이 생길 때 만들고, `test/`는 `lib/`와 같은 구조다. 기능 폴더는 `xxx_screen.dart`, `xxx_controller.dart`(Notifier), `widgets/`로 시작한다.
@@ -85,16 +84,27 @@ lib/
 
 ## 지도 (네이버 SDK)
 
-- `flutter_naver_map`은 `core/map/naver/`, `main.dart`, `dev/snapshot_lab/`에서만 쓰고, 나머지는 `MapProvider`만 본다.
+- `flutter_naver_map`은 `core/map/naver/`와 `main.dart`에서만 쓰고, 나머지는 `MapProvider`만 본다.
 - SDK는 오버레이를 메시지로 바꿔 보낸다. 바꿀 수 없는 값이 하나라도 있으면 같이 보낸 오버레이가 모두 빠지고 오류는 `adb logcat`의 `E flutter`에만 남는다. 좌표·무늬는 `List`로 넘긴다(`map()`의 `Iterable`은 안 된다). 새 오버레이를 쓰면 `test/core/map/naver/naver_map_provider_test.dart`에 변환 테스트를 더한다.
 - 리스너를 단 오버레이는 탭을 먹어 지도 탭이 불리지 않는다. 카메라 맞춤은 `fitBounds`가 지도 여백을 빼는 것에 기대므로, 지도 위 요소를 바꾸면 `MapScene.padding`도 맞춘다.
 - 네이버 로고는 끄거나 가리지 않는다(내보내기 이미지 포함).
+
+## 이미지 내보내기
+
+규칙과 이유는 OVERVIEW "사진, 이미지, 공유". 코드 위치와 지킬 것만 적는다.
+
+- 흐름: `MapProvider.buildCaptureMap`이 결과 크기(1080×1350px ÷ 기기 픽셀 비율)의 지도를 오버레이 없이 찍고(`MapCapture`), `features/export/`의 `ExportCanvas`가 그 위에 동선을 위젯으로 그린다. 미리보기가 곧 결과이고, 저장할 때 `RepaintBoundary.toImage`로 PNG를 만든다. 지도는 미리보기 뒤에 가려 둔다(가려져도 찍힌다).
+- 동선 모양은 앱 지도와 같은 `core/route/route_scene.dart`의 `routeOverlays`에서 나온다. 상태별 표현은 `buildExportScene`, 자리 잡기(이름표 겹침, 짧은 선의 화살표 숨김)는 `layoutExport`다.
+- 제목 카드 높이와 마커가 솟는 높이만큼 지도 위쪽 여백을 두고 맞춰서(`ExportScene.frameFor`) 장소가 카드에 가리지 않는다. 범위, 숙소, 제목, 사진을 바꾸면 여백이나 범위가 바뀌어 지도를 다시 찍는다.
+- 지도 로고 자리(`MapCapture.logo`)는 다 그린 뒤 찍은 지도로 다시 덮는다. 이미지 글자는 기기 글자 크기 설정을 따르지 않는다.
+- 저장과 공유는 `core/share/ImageSharing`(gal, share_plus, PNG를 JPEG 92로)만 부른다. Android 10 이하는 저장 권한(`WRITE_EXTERNAL_STORAGE`, maxSdk 29)을 묻고, 10은 앨범에 넣으려고 `requestLegacyExternalStorage`도 켠다.
 
 ## 테스트
 
 - 실제 서버·카카오·네이버에 붙지 않는다. HTTP는 `FakeHttp`를 끼운 dio, 로그인은 `authOverrides`·`testSession`·`FakeSocialSdk`, 저장 실패와 기다림은 `FlakyTripRepository`(`failWrites`·`holdWrites`), 샘플은 `withSample`·`MemorySampleStore`, 칩 접기는 `MemoryRouteChipsStore`(`pumpTestApp(routeChipsStore:)`, 기본은 펼침), 주소 검색은 `FakeAddressApi`(`pumpTestApp(addressApi:)`).
 - 기기 위치는 `FakeLocationSource`(`pumpTestApp(locationSource:)`, 기본은 권한 없음): `granted`·`answer`·`serviceOff`로 권한을 정하고 `emit`으로 위치를 낸다. 낸 위치는 `pump` 두 번 뒤에 그려진다. 시각을 확인할 때는 기기 시간대와 상관없게 `zonedParts`로 서울 시각을 계산한다.
 - 사진은 `FakePhotoSource`·`FakePhotoPreparer`(원본 400×300, 고른 정사각형은 `areas`)와 1×1 그림을 주는 `fakePhotoImages`, 사진만 실패는 `FlakyTripRepository.failPhotos`. 사진을 고르면 "사진 위치" 화면에서 [확인]을 눌러야 하고, 사진 칸은 `scrollUntilVisible`로 내린다.
+- 내보내기는 가짜 지도가 다음 프레임에 1×1 그림을 찍은 것으로 넘기고(`fakeCapture`, 실패는 `pumpTestApp(mapCaptureFails:)`), 저장과 공유는 `FakeImageSharing`(`pumpTestApp(imageSharing:)`)이 받는다. 저장과 공유는 이미지를 실제로 만들어서 `runAsync`와 `pump`를 번갈아 기다린다. 사진 마커가 있으면 사진을 받는 것도 실제 시간이 걸린다.
 - 공용 도우미는 `test/helpers/`. 화면은 `pumpTestApp`(가짜 지도, 기본 로그인)이나 `testMaterialApp`, 지도에 넘긴 장면은 `mapScene(tester)`, 지도 탭은 `tapMarker`·`tapLine`·`tapMap`.
 - 기본 화면(800×600)은 가로라 동선 목록이 오른쪽 패널이다. 아래 시트는 `usePortraitPhone`. 연필·손잡이는 줄을 먼저 눌러야 뜬다.
 - 로캘이 한국어라 `tester.pageBack()` 대신 `find.byType(BackButton)`을 누른다. 칩은 `ChoiceChip`·`FilterChip` 위젯을 누른다.

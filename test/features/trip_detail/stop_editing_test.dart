@@ -8,7 +8,7 @@ import 'package:mapmarker_app/core/map/map_provider.dart';
 import 'package:mapmarker_app/core/time/local_time.dart';
 import 'package:mapmarker_app/data/models/segment.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
-import 'package:mapmarker_app/features/trip_detail/route_scene.dart';
+import 'package:mapmarker_app/core/route/route_scene.dart';
 import 'package:mapmarker_app/features/trip_detail/trip_detail_controller.dart';
 import 'package:mapmarker_app/features/trip_detail/widgets/itinerary_tiles.dart';
 

@@ -35,7 +35,7 @@ import '../../l10n/l10n.dart';
 import 'candidate_draft.dart';
 import 'day_itinerary.dart';
 import 'route_chips_collapse.dart';
-import 'route_scene.dart';
+import '../../core/route/route_scene.dart';
 import 'route_sheet_layout.dart';
 import 'stop_draft.dart';
 import 'stop_placement.dart';
@@ -1596,6 +1596,14 @@ class _TopOverlay extends ConsumerWidget {
                 l10n.tripSummaryOf(trip),
               ),
               onRename: onRename,
+              // 보던 일차와 숙소 켜짐 그대로 연다. "후보 목록" 보기는 day가 null이라 전체다.
+              onExport: () => context.go(
+                Routes.tripExport(
+                  trip.id,
+                  day: choice.day,
+                  lodging: choice.showLodging,
+                ),
+              ),
             ),
           ),
           if (onUseSample case final onUse?) ...[

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/core/map/map_provider.dart';
 import 'package:mapmarker_app/data/models/segment.dart';
-import 'package:mapmarker_app/features/trip_detail/transport_look.dart';
+import 'package:mapmarker_app/core/route/transport_look.dart';
 
 List<TransportLeg> _legs(List<TransportMode> modes) => [
   for (final mode in modes) TransportLeg(mode),

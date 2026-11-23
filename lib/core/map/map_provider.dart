@@ -2,13 +2,28 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import 'geo.dart';
+import 'map_capture.dart';
+
+export 'map_capture.dart';
 
 /// 지도. 지도 종류(네이버, 구글)마다 구현이 하나씩 있고, 화면은 이 인터페이스만 쓴다.
 ///
 /// 화면은 무엇을 그릴지([MapScene])와, 사용자가 누를 때 부를 함수를 넘긴다.
 ///
-/// 아직 열지 않은 것: 스냅샷과 좌표→화면 위치(1-5단계 내보내기). 곡선 핸들은 화면 좌표가 필요하지만 지도 구현 안에서 끝낸다.
+/// 내보내기 이미지의 바탕은 [buildCaptureMap]이 찍는다. 곡선 핸들은 화면 좌표가 필요하지만 지도 구현 안에서 끝낸다.
 abstract interface class MapProvider {
+  /// 내보내기 이미지의 바탕 지도. 오버레이 없이 [frame]에 맞추고, 지도를 다 받아 카메라가 멈추면 찍어서 [onCaptured]로 넘긴다.
+  ///
+  /// - 지도는 부모가 준 크기로 그린다. 다른 위젯에 가려져 있어도 찍힌다(0단계 검증).
+  /// - [frame]이 바뀌면 다시 맞추고 다시 찍는다. 늦게 받은 지도 조각이 있을 수 있어서 같은 [frame]을 한 번 더 찍기도 한다.
+  /// - 손으로 움직일 수 없고, 로고는 왼쪽 아래에 있다([MapCapture.logo]).
+  /// - 지도를 받지 못하면(인터넷 끊김) [onFailed]를 부른다.
+  Widget buildCaptureMap({
+    required MapFrame frame,
+    required ValueChanged<MapCapture> onCaptured,
+    required VoidCallback onFailed,
+  });
+
   /// - [onMarkerTap]: 마커를 누르면 [MapMarker.id]로 부른다.
   /// - [onLineTap]: 선이나 선 아이콘을 누르면 [MapLine.id]([MapLineIcon.id])로 부른다. 화살표는 누를 수 없다.
   /// - [onMapTap]: 마커와 선이 아닌 곳을 누르면 부른다.

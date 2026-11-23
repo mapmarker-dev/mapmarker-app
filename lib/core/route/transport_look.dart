@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/map/map_provider.dart';
+import '../map/map_provider.dart';
 import '../../data/models/segment.dart';
 
 /// 이동 수단 아이콘. 일차 동선 목록, 이동 수단 입력 화면, 지도의 선 아이콘이 함께 쓴다.

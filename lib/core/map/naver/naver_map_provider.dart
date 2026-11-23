@@ -12,11 +12,11 @@ import '../map_provider.dart';
 import '../marker_icon.dart';
 import '../route_arrow.dart';
 import '../route_curve.dart';
+import 'naver_capture_map.dart';
 
 /// 네이버 지도. 1단계(국내)는 이 지도만 쓴다.
 ///
-/// SDK 초기화는 `main.dart`가 한다. 이 파일 밖의 앱 코드는 `flutter_naver_map`을 쓰지 않는다
-/// (0단계 검증 화면 `dev/snapshot_lab/`만 예외).
+/// SDK 초기화는 `main.dart`가 한다. 이 폴더 밖의 앱 코드는 `flutter_naver_map`을 쓰지 않는다.
 class NaverMapProvider implements MapProvider {
   const NaverMapProvider();
 
@@ -34,6 +34,14 @@ class NaverMapProvider implements MapProvider {
     onMapTap: onMapTap,
     onCurveChanged: onCurveChanged,
   );
+
+  @override
+  Widget buildCaptureMap({
+    required MapFrame frame,
+    required ValueChanged<MapCapture> onCaptured,
+    required VoidCallback onFailed,
+  }) =>
+      NaverCaptureMap(frame: frame, onCaptured: onCaptured, onFailed: onFailed);
 }
 
 /// 장소가 없는 여행을 처음 열 때 보여 줄 곳: 한국 전체.
