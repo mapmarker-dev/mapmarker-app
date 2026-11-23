@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -21,6 +22,16 @@ import '../../data/trips/trip_repository.dart';
 import '../../l10n/l10n.dart';
 import 'export_scene.dart';
 import 'widgets/export_canvas.dart';
+
+/// 미리보기를 끌고 늘려 고를 수 있는 줌. 더 멀면 나라 밖까지, 더 가까우면 지도 조각이 비기 쉽다.
+const _minZoom = 5.0;
+const _maxZoom = 18.0;
+
+/// 지도를 다시 찍는 동안 미리보기 위에 흐르는 막대의 두께(논리 px).
+const _redrawBarHeight = 3.0;
+
+/// 한 번 늘리거나 줄일 수 있는 배율. 지나치게 밀어 미리보기가 사라지지 않게 한다.
+const _maxGestureScale = 8.0;
 
 /// 내보낼 여행.
 final exportTripProvider = StreamProvider.autoDispose.family<Trip?, String>(
@@ -77,7 +88,98 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
   /// 저장이나 공유 중이다. 그동안 두 버튼을 잠근다.
   bool _working = false;
 
+  /// 사용자가 미리보기를 끌고 늘려 고른 지도 위치. null이면 동선에 맞춘다.
+  /// [사진], [숙소], [제목]을 바꿔도 그대로이고, 범위를 바꾸거나 [동선에 맞추기]를 누르면 비운다. 기억하지 않는다.
+  MapFrame? _placed;
+
+  /// 끄는 동안과 손을 뗀 뒤 다시 찍기 전까지, 보이는 미리보기([_moveCapture] 기준)를 밀고 키운 변환.
+  /// 저장하는 그림에는 들어가지 않는다(다시 찍은 뒤에만 저장할 수 있다).
+  Matrix4 _move = Matrix4.identity();
+  MapCapture? _moveCapture;
+  Matrix4 _moveAtStart = Matrix4.identity();
+  Offset _focalAtStart = Offset.zero;
+  bool _moving = false;
+
+  /// 미리보기(이미지) 크기(논리 px). 손을 뗄 때 가운데를 계산한다.
+  Size _canvasSize = Size.zero;
+
   void _setOptions(ExportOptions options) => setState(() => _options = options);
+
+  void _selectDay(int? day) => setState(() {
+    _options = _options.copyWith(day: () => day);
+    // 보는 곳이 달라지므로 그 범위에 다시 맞춘다.
+    _placed = null;
+  });
+
+  void _fitRoute() => setState(() => _placed = null);
+
+  void _onMoveStart(ScaleStartDetails details) {
+    _moving = true;
+    _focalAtStart = details.localFocalPoint;
+    _moveAtStart = _move.clone();
+  }
+
+  void _onMoveUpdate(ScaleUpdateDetails details) {
+    final focal = details.localFocalPoint;
+    final scale = details.scale.clamp(1 / _maxGestureScale, _maxGestureScale);
+    setState(() {
+      _move =
+          (Matrix4.identity()
+              ..translateByDouble(focal.dx, focal.dy, 0, 1)
+              ..scaleByDouble(scale, scale, 1, 1)
+              ..translateByDouble(-_focalAtStart.dx, -_focalAtStart.dy, 0, 1))
+            ..multiply(_moveAtStart);
+    });
+  }
+
+  /// 손을 떼면 미리보기 가운데에 온 곳을 지도 가운데로, 늘린 만큼 줌을 바꿔(두 배면 +1) 다시 찍는다.
+  void _onMoveEnd(ScaleEndDetails details) {
+    _moving = false;
+    final base = _moveCapture;
+    if (base == null) return;
+    final scale = _move.storage[0];
+    final shift = Offset(_move.storage[12], _move.storage[13]);
+    if ((scale - 1).abs() < 0.01 && shift.distance < 1) return;
+    // 보이는 위치 = 원래 위치 × scale + shift. 미리보기 가운데에 보이는 원래 위치를 찾는다.
+    final middle = (_canvasSize.center(Offset.zero) - shift) / scale;
+    final zoom = (base.zoom + math.log(scale) / math.ln2).clamp(
+      _minZoom,
+      _maxZoom,
+    );
+    setState(
+      () => _placed = MapFrame.at(
+        center: base.projection.toLatLng(middle),
+        zoom: zoom,
+      ),
+    );
+  }
+
+  /// 보이는 미리보기의 바탕 지도가 [capture]로 바뀌었다. 끄는 중이면 같은 곳이 같은 자리에 보이게 변환을 옮기고,
+  /// 아니면 새로 찍은 지도가 고른 위치 그대로라서 변환을 지운다.
+  void _rebaseMove(MapCapture capture) {
+    final old = _moveCapture;
+    _moveCapture = capture;
+    if (old == null || identical(old, capture)) return;
+    if (_moving) {
+      // 새 지도 위치 → 옛 지도 위치. 가로세로 늘이고 옮기는 변환이다.
+      final a = Offset.zero;
+      final b = _canvasSize.bottomRight(Offset.zero);
+      final oldA = old.projection.toScreen(capture.projection.toLatLng(a));
+      final oldB = old.projection.toScreen(capture.projection.toLatLng(b));
+      final rebase = Matrix4.identity()
+        ..translateByDouble(oldA.dx, oldA.dy, 0, 1)
+        ..scaleByDouble(
+          (oldB.dx - oldA.dx) / (b.dx - a.dx),
+          (oldB.dy - oldA.dy) / (b.dy - a.dy),
+          1,
+          1,
+        );
+      _move = _move.multiplied(rebase);
+      _moveAtStart = _moveAtStart.multiplied(rebase);
+    } else if (old.frame != capture.frame) {
+      _move = Matrix4.identity();
+    }
+  }
 
   void _onCaptured(MapCapture capture) {
     if (!mounted) return;
@@ -247,14 +349,17 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     _precache(scene);
     final size = exportPixelSize / MediaQuery.devicePixelRatioOf(context);
     final metrics = ExportMetrics(context, size);
-    final frame = scene.frameFor(
+    _canvasSize = size;
+    final fitted = scene.frameFor(
       titleBottom: metrics.titleCardRect(scene)?.bottom,
     );
+    final frame = fitted == null ? null : _placed ?? fitted;
     final capture = _capture;
     if (frame != null && capture != null && capture.frame == frame) {
       _shown = (capture, scene);
     }
     final shown = _shown;
+    if (shown != null) _rebaseMove(shown.$1);
     final ready = frame != null && capture?.frame == frame && !_mapFailed;
     final map = ref.watch(
       mapProviderProvider(trip.mapProvider ?? MapProviderType.naver),
@@ -270,57 +375,94 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         ? l10n.exportMapFailed
         : null;
 
+    final movable = shown != null && notice == null;
     final preview = AspectRatio(
       aspectRatio: exportPixelSize.aspectRatio,
       child: ClipRRect(
         borderRadius: AppRadius.md,
-        child: FittedBox(
-          child: SizedBox.fromSize(
-            size: size,
-            child: Stack(
-              children: [
-                if (frame != null)
-                  Positioned.fill(
-                    child: map.buildCaptureMap(
-                      frame: frame,
-                      onCaptured: _onCaptured,
-                      onFailed: _onMapFailed,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: FittedBox(
+                child: SizedBox.fromSize(
+                  size: size,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onScaleStart: movable ? _onMoveStart : null,
+                    onScaleUpdate: movable ? _onMoveUpdate : null,
+                    onScaleEnd: movable ? _onMoveEnd : null,
+                    child: Stack(
+                      children: [
+                        if (frame != null)
+                          Positioned.fill(
+                            child: map.buildCaptureMap(
+                              frame: frame,
+                              onCaptured: _onCaptured,
+                              onFailed: _onMapFailed,
+                            ),
+                          ),
+                        // 지도는 찍으려고 띄운 것이라 보이지 않게 덮는다.
+                        Positioned.fill(
+                          child: ColoredBox(
+                            color: scheme.surfaceContainerHighest,
+                          ),
+                        ),
+                        if (movable)
+                          Transform(
+                            transform: _move,
+                            child: RepaintBoundary(
+                              key: _canvasKey,
+                              child: ExportCanvas(
+                                capture: shown.$1,
+                                scene: shown.$2,
+                                metrics: metrics,
+                              ),
+                            ),
+                          ),
+                        if (notice == null && !ready && shown == null)
+                          const Positioned.fill(
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                        if (notice != null)
+                          Positioned.fill(
+                            child: Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(AppSpace.xl),
+                                child: Text(
+                                  notice,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                // 지도는 찍으려고 띄운 것이라 보이지 않게 덮는다.
-                Positioned.fill(
-                  child: ColoredBox(color: scheme.surfaceContainerHighest),
                 ),
-                if (shown != null && notice == null)
-                  RepaintBoundary(
-                    key: _canvasKey,
-                    child: ExportCanvas(
-                      capture: shown.$1,
-                      scene: shown.$2,
-                      metrics: metrics,
-                    ),
-                  ),
-                if (notice == null && !ready)
-                  Positioned.fill(
-                    child: ColoredBox(
-                      color: scheme.surface.withValues(
-                        alpha: 1 - AppOpacity.backdrop,
-                      ),
-                      child: const Center(child: CircularProgressIndicator()),
-                    ),
-                  ),
-                if (notice != null)
-                  Positioned.fill(
-                    child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppSpace.xl),
-                        child: Text(notice, textAlign: TextAlign.center),
-                      ),
-                    ),
-                  ),
-              ],
+              ),
             ),
-          ),
+            // 다시 찍는 동안은 미리보기 위 가장자리의 얇은 막대로만 알린다(동선을 가리지 않는다).
+            // 기기 화면 기준 두께라서 줄여 보이는 미리보기 바깥에 둔다.
+            if (movable && !ready)
+              const Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: LinearProgressIndicator(minHeight: _redrawBarHeight),
+              ),
+            if (movable)
+              Positioned(
+                top: AppSpace.sm,
+                right: AppSpace.sm,
+                child: IconButton.filledTonal(
+                  tooltip: l10n.exportFitRoute,
+                  isSelected: _placed != null,
+                  icon: const Icon(Icons.fit_screen_outlined),
+                  selectedIcon: const Icon(Icons.fit_screen),
+                  onPressed: _fitRoute,
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -340,6 +482,17 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
             child: Center(child: preview),
           ),
         ),
+        if (frame != null)
+          Padding(
+            padding: side + const EdgeInsets.only(top: AppSpace.xs),
+            child: Text(
+              l10n.exportMoveHint,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ),
         const SizedBox(height: AppSpace.md),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -354,8 +507,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                       day == null ? l10n.routeAllDays : l10n.routeDay(day),
                     ),
                     selected: options.day == day,
-                    onSelected: (_) =>
-                        _setOptions(options.copyWith(day: () => day)),
+                    onSelected: (_) => _selectDay(day),
                   ),
                 ),
             ],

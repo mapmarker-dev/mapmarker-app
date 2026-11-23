@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mapmarker_app/core/map/geo.dart';
+import 'package:mapmarker_app/core/map/map_provider.dart';
 import 'package:mapmarker_app/core/share/image_sharing.dart';
 import 'package:mapmarker_app/core/time/local_date.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
@@ -114,7 +116,7 @@ void main() {
   ) async {
     await _openExport(tester);
 
-    expect(_inImage(find.text('‘${_trip.title}’')), findsOneWidget);
+    expect(_inImage(find.text(_trip.title)), findsOneWidget);
     expect(_inImage(find.text(testL10n.tripSummaryOf(_trip))), findsOneWidget);
     for (final name in ['용두암', '동문시장', '제주 호텔', '성산', '섭지코지']) {
       expect(_inImage(find.text(name)), findsOneWidget, reason: name);
@@ -138,7 +140,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilterChip, '제목'));
     await tester.pumpAndSettle();
 
-    expect(_inImage(find.text('‘${_trip.title}’')), findsNothing);
+    expect(_inImage(find.text(_trip.title)), findsNothing);
     expect(top(), lessThan(withTitle));
   });
 
@@ -243,5 +245,107 @@ void main() {
           .onPressed,
       isNull,
     );
+  });
+
+  group('moving the map', () {
+    MapFrame frame(WidgetTester tester) =>
+        tester.widget<FakeCaptureMap>(find.byType(FakeCaptureMap)).frame;
+
+    /// 지금 미리보기 가운데에 보이는 곳과 줌(가짜 지도가 찍은 것과 같다).
+    (LatLng, double) middle(WidgetTester tester) {
+      final size = tester.getSize(find.byType(FakeCaptureMap));
+      final capture = fakeCapture(frame(tester), size);
+      return (
+        capture.projection.toLatLng(size.center(Offset.zero)),
+        capture.zoom,
+      );
+    }
+
+    bool fitPressed(WidgetTester tester) => tester
+        .widget<IconButton>(
+          find.ancestor(
+            of: find.byTooltip('동선에 맞추기'),
+            matching: find.byType(IconButton),
+          ),
+        )
+        .isSelected!;
+
+    testWidgets('dragging moves the map and the fit button brings it back', (
+      tester,
+    ) async {
+      await _openExport(tester);
+      final (before, zoom) = middle(tester);
+      expect(fitPressed(tester), isFalse);
+      expect(find.text('끌거나 두 손가락으로 늘려 지도 위치를 바꿀 수 있습니다.'), findsOneWidget);
+
+      // 왼쪽으로 끌면 오른쪽(동쪽)에 있던 곳이 가운데로 온다.
+      await tester.drag(find.byType(ExportCanvas), const Offset(-120, 0));
+      // 다시 찍는 동안은 위쪽 얇은 막대만 뜬다.
+      await tester.pump();
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      await tester.pumpAndSettle();
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+
+      final moved = frame(tester);
+      expect(moved.bounds, isNull);
+      expect(moved.center!.longitude, greaterThan(before.longitude));
+      expect(moved.center!.latitude, closeTo(before.latitude, 0.01));
+      expect(moved.zoom, closeTo(zoom, 0.01));
+      expect(fitPressed(tester), isTrue);
+      // 다시 찍은 뒤에는 저장할 수 있다.
+      expect(
+        tester
+            .widget<FilledButton>(find.widgetWithText(FilledButton, '공유'))
+            .onPressed,
+        isNotNull,
+      );
+
+      await tester.tap(find.byTooltip('동선에 맞추기'));
+      await tester.pumpAndSettle();
+
+      expect(frame(tester).bounds, isNotNull);
+      expect(fitPressed(tester), isFalse);
+    });
+
+    testWidgets('pinching out zooms in', (tester) async {
+      await _openExport(tester);
+      final (_, zoom) = middle(tester);
+      final center = tester.getCenter(find.byType(ExportCanvas));
+
+      final first = await tester.startGesture(center - const Offset(40, 0));
+      final second = await tester.startGesture(center + const Offset(40, 0));
+      for (var step = 1; step <= 8; step++) {
+        await first.moveTo(center - Offset(40.0 + step * 10, 0));
+        await second.moveTo(center + Offset(40.0 + step * 10, 0));
+        await tester.pump();
+      }
+      await first.up();
+      await second.up();
+      await tester.pumpAndSettle();
+
+      expect(frame(tester).zoom, greaterThan(zoom + 0.5));
+    });
+
+    testWidgets('chips keep the chosen place but a new range refits', (
+      tester,
+    ) async {
+      await _openExport(tester);
+      await tester.drag(find.byType(ExportCanvas), const Offset(-120, 40));
+      await tester.pumpAndSettle();
+      final moved = frame(tester);
+
+      await tester.tap(find.widgetWithText(FilterChip, '제목'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilterChip, '숙소'));
+      await tester.pumpAndSettle();
+
+      expect(frame(tester), moved);
+
+      await tester.tap(find.widgetWithText(ChoiceChip, '1일차'));
+      await tester.pumpAndSettle();
+
+      expect(frame(tester).bounds, isNotNull);
+    });
   });
 }

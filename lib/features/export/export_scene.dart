@@ -152,7 +152,7 @@ class ExportScene {
       (most, marker) => math.max(most, marker.size.width / 2),
     );
     final side = math.max(_sideRoom, halfWidth + AppSpace.xs);
-    return MapFrame(
+    return MapFrame.fit(
       bounds: bounds,
       padding: EdgeInsets.fromLTRB(
         side,
@@ -170,8 +170,9 @@ class ExportScene {
 /// 관계없이 모든 장소와 구간을 똑같이 또렷하게 그린다. 방문 기록은 이미지에 넣지 않는다.
 ///
 /// - 범위와 숙소: 지도 보기와 같다([TripRoute.view]). 숙소를 끄면 숙소를 거친 곳은 흐린 선([RouteView.vias])이다.
-/// - 여행 후: 사진 마커를 [largePhotoScale]만큼 조금 크게 그리고, 제목 아래 줄에 사진 수를 붙인다.
+/// - 여행 후: 사진 마커를 [largePhotoScale]만큼 조금 크게 그린다.
 ///   사진 마커가 번호 마커를 가리지 않게 번호 마커를 위에 그린다([ExportCanvas]).
+/// - 제목 카드: 여행 제목(따옴표 없이)과, 전체면 기간과 일정, 일차면 그 날짜다.
 /// - 후보는 넣지 않는다(이미지는 정한 동선의 결과물이다).
 ExportScene buildExportScene({
   required Trip trip,
@@ -208,11 +209,6 @@ ExportScene buildExportScene({
   ];
   final lines = overlays.lines;
 
-  final inRange = [
-    for (final stop in view.stops)
-      if (options.day == null || stop.day == options.day) stop,
-  ];
-  final photoCount = inRange.where((stop) => stop.photo != null).length;
   final dates = trip.dates;
   final day = options.day;
   final rangeText = switch ((day, dates)) {
@@ -223,11 +219,8 @@ ExportScene buildExportScene({
       dates.dateOfDay(day).toDateTime(),
     ),
   };
-  // 전체는 기간과 일정(예: 2026.10.20 – 10.22, 2박 3일), 일차는 그 날짜다.
-  final range = rangeText ?? l10n.tripSummaryOf(trip);
-  final subtitle = phase == TripPhase.after && options.photos && photoCount > 0
-      ? l10n.exportPhotoCount(range, photoCount)
-      : range;
+  // 전체는 기간과 일정(예: 2026.10.20 – 10.22, 2박 3일), 일차는 그 날짜다. 상태와 관계없이 같다.
+  final subtitle = rangeText ?? l10n.tripSummaryOf(trip);
 
   final days = {
     for (final marker in markers)
@@ -245,7 +238,7 @@ ExportScene buildExportScene({
     lines: lines,
     arrows: overlays.arrows,
     lineIcons: overlays.lineIcons,
-    title: options.title ? l10n.exportTripTitle(trip.title) : null,
+    title: options.title ? trip.title : null,
     subtitle: subtitle,
     legendDays: options.day == null && days.length >= 2 && days.length <= 5
         ? days

@@ -88,7 +88,7 @@ void main() {
     });
 
     test('titles the image with the trip title and its period', () {
-      expect(scene.title, '‘${_trip.title}’');
+      expect(scene.title, _trip.title);
       expect(scene.subtitle, testL10n.tripSummaryOf(_trip));
       expect(scene.legendDays, [1, 2]);
     });
@@ -176,7 +176,7 @@ void main() {
       hotel2,
     ];
 
-    test('enlarges photo markers a little and counts photos', () {
+    test('enlarges photo markers a little', () {
       final scene = _scene(_route(withPhotos), phase: TripPhase.after);
       final large = scene.markers.where((m) => m.large).map((m) => m.name);
 
@@ -187,7 +187,7 @@ void main() {
         null,
         '2',
       ]);
-      expect(scene.subtitle, '2026.10.20 – 10.22, 2박 3일, 사진 2장');
+      expect(scene.subtitle, testL10n.tripSummaryOf(_trip));
       expect(scene.hasPhotos, isTrue);
     });
 

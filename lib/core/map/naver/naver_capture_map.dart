@@ -89,14 +89,20 @@ class _NaverCaptureMapState extends State<NaverCaptureMap> {
     if (controller == null) return;
     final version = ++_version;
     _cancelTimers();
-    final bounds = widget.frame.bounds;
-    final update = NCameraUpdate.fitBounds(
-      NLatLngBounds(
-        southWest: _nLatLng(bounds.southWest),
-        northEast: _nLatLng(bounds.northEast),
+    final frame = widget.frame;
+    final update = switch (frame) {
+      MapFrame(:final bounds?) => NCameraUpdate.fitBounds(
+        NLatLngBounds(
+          southWest: _nLatLng(bounds.southWest),
+          northEast: _nLatLng(bounds.northEast),
+        ),
+        padding: frame.padding,
       ),
-      padding: widget.frame.padding,
-    )..setAnimation(animation: NCameraAnimation.none, duration: Duration.zero);
+      MapFrame(:final center, :final zoom) => NCameraUpdate.scrollAndZoomTo(
+        target: _nLatLng(center!),
+        zoom: zoom,
+      ),
+    }..setAnimation(animation: NCameraAnimation.none, duration: Duration.zero);
     await controller.updateCamera(update);
     if (!mounted || version != _version) return;
     if (_loaded) _scheduleCaptures(version);
@@ -118,6 +124,7 @@ class _NaverCaptureMapState extends State<NaverCaptureMap> {
       final bounds = await controller.getContentBounds();
       final sw = await controller.latLngToScreenLocation(bounds.southWest);
       final ne = await controller.latLngToScreenLocation(bounds.northEast);
+      final camera = await controller.getCameraPosition();
       final file = await controller.takeSnapshot(compressQuality: 100);
       final bytes = await file.readAsBytes();
       file.delete().ignore();
@@ -135,6 +142,7 @@ class _NaverCaptureMapState extends State<NaverCaptureMap> {
             (_latLng(bounds.southWest), Offset(sw.x, sw.y)),
             (_latLng(bounds.northEast), Offset(ne.x, ne.y)),
           ),
+          zoom: camera.zoom,
           logo: Rect.fromLTWH(
             0,
             size.height - _logoReserve.height,

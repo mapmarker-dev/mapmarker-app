@@ -920,6 +920,14 @@
   "@exportTitle": {
     "description": "내보내기 화면의 켜고 끄는 칩. 이미지 위쪽에 여행 제목과 날짜 카드를 넣는다"
   },
+  "exportFitRoute": "동선에 맞추기",
+  "@exportFitRoute": {
+    "description": "내보내기 미리보기 오른쪽 위 버튼의 설명. 끌고 늘려 옮긴 지도를 다시 동선 전체에 맞춘다"
+  },
+  "exportMoveHint": "끌거나 두 손가락으로 늘려 지도 위치를 바꿀 수 있습니다.",
+  "@exportMoveHint": {
+    "description": "내보내기 미리보기 아래 안내"
+  },
   "exportSave": "사진첩에 저장",
   "exportShare": "공유",
   "exportSaved": "사진첩에 저장했습니다.",
@@ -932,21 +940,6 @@
   "exportShareFailed": "공유하지 못했습니다. 다시 시도해 주세요.",
   "exportMapFailed": "지도를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.",
   "exportRangeEmpty": "이 범위에는 장소가 없습니다.",
-  "exportTripTitle": "‘{title}’",
-  "@exportTripTitle": {
-    "description": "내보낸 이미지 위쪽 카드의 여행 제목. 여행 제목만 작은따옴표로 감싼다",
-    "placeholders": {
-      "title": {"type": "String"}
-    }
-  },
-  "exportPhotoCount": "{range}, 사진 {count}장",
-  "@exportPhotoCount": {
-    "description": "여행 후 내보낸 이미지(사진을 넣었을 때)의 제목 아래 줄. 범위는 기간과 일정이나 일차다. 예: 2026.10.20 – 10.22, 2박 3일, 사진 8장",
-    "placeholders": {
-      "range": {"type": "String", "example": "2026.10.20 – 10.22, 2박 3일"},
-      "count": {"type": "int"}
-    }
-  },
   "exportWatermark": "MapMarker",
   "@exportWatermark": {
     "description": "내보낸 이미지 오른쪽 아래의 앱 이름. 옮기지 않는다"
