@@ -26,13 +26,14 @@ class ItineraryStopTile extends StatelessWidget {
     required this.look,
     required this.expanded,
     required this.highlighted,
-    required this.onToggle,
+    this.onToggle,
     required this.onOpenMap,
     this.onEdit,
     this.caption,
     this.reorderHandle,
     this.saving = false,
     this.onVisit,
+    this.compact = false,
   });
 
   final Stop stop;
@@ -45,7 +46,8 @@ class ItineraryStopTile extends StatelessWidget {
   /// 고른 장소. 지도에서 마커를 누르거나 시트에서 이 줄을 누른 것이다.
   final bool highlighted;
 
-  final VoidCallback onToggle;
+  /// 줄을 눌렀다. null이면 누를 수 없다(순서를 바꾸는 동안).
+  final VoidCallback? onToggle;
   final VoidCallback onOpenMap;
 
   /// 연필 아이콘을 눌렀다. 장소 입력 화면을 연다. null이면 연필이 없다(목록에서 누른 줄에만 뜬다).
@@ -63,6 +65,10 @@ class ItineraryStopTile extends StatelessWidget {
   /// 방문 동그라미를 눌렀다(방문 전이면 기록, 방문했으면 지우기). 확인 창은 부른 쪽이 띄운다.
   /// null이면 동그라미가 없다(여행 전, 샘플, 출발 장소).
   final VoidCallback? onVisit;
+
+  /// 순서를 바꾸는 동안의 한 줄 모양. 설명을 숨겨 줄 높이를 고르게 한다(놓을 자리가 손가락과 맞게).
+  /// 사진도 눌러 크게 보지 않는다(줄을 길게 눌러 끌 수 있게).
+  final bool compact;
 
   /// 사진 썸네일 크기. 누르면 크게 본다(줄 누르기와 따로).
   static const _photoSize = 48.0;
@@ -135,7 +141,7 @@ class ItineraryStopTile extends StatelessWidget {
                               overflow: expanded ? null : TextOverflow.ellipsis,
                             ),
                             Text(kindLine, style: muted),
-                            if (description.isNotEmpty)
+                            if (description.isNotEmpty && !compact)
                               Padding(
                                 padding: const EdgeInsets.only(
                                   top: AppSpace.xs,
@@ -169,11 +175,13 @@ class ItineraryStopTile extends StatelessWidget {
                             photo,
                             size: _photoSize,
                             label: l10n.stopPhotoLabel(stop.name),
-                            onTap: () => showStopPhoto(
-                              context,
-                              photo: photo,
-                              label: l10n.stopPhotoLabel(stop.name),
-                            ),
+                            onTap: compact
+                                ? null
+                                : () => showStopPhoto(
+                                    context,
+                                    photo: photo,
+                                    label: l10n.stopPhotoLabel(stop.name),
+                                  ),
                           ),
                         ),
                       ),

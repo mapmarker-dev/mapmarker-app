@@ -55,6 +55,30 @@ List<Segment> segmentsDroppedByMove({
   return _droppedBy([...others]..insert(at, stopId), segments);
 }
 
+/// [day]일차의 장소를 [stopIds] 순서로 늘어놓으면 사라지는 구간. 새 순서에서 더는 이웃하지 않는 쌍의 구간이다.
+///
+/// 고르는 방법은 저장소의 `orderDay`와 같다. 새 순서에서도 이웃인 쌍은 남는다.
+/// 화면이 순서 바꾸기를 저장하기 전에 이동 수단이 지워지는지 묻는 데 쓴다.
+List<Segment> segmentsDroppedByOrder({
+  required List<Stop> stops,
+  required Iterable<Segment> segments,
+  required int day,
+  required List<String> stopIds,
+}) => _droppedBy(orderedIds(stops, day: day, stopIds: stopIds), segments);
+
+/// [day]일차만 [stopIds] 순서로 바꾼 동선의 장소 ID. [stops]는 동선 순서다.
+List<String> orderedIds(
+  List<Stop> stops, {
+  required int day,
+  required List<String> stopIds,
+}) {
+  final next = stopIds.iterator;
+  return [
+    for (final stop in stops)
+      if (stop.day != day) stop.id else if (next.moveNext()) next.current,
+  ];
+}
+
 /// 새 장소를 [day]일차의 [order] 자리에 넣으면 사라지는 구간. 끼어드는 자리의 구간(A와 B 사이에 넣으면 A→B)이다.
 ///
 /// 넣는 방법은 저장소의 `addStop`과 같다. 화면이 넣기 전에 이동 수단이 지워지는지 알리는 데 쓴다.

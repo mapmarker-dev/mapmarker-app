@@ -115,7 +115,7 @@ lib/
 - 내보내기는 가짜 지도가 다음 프레임에 1×1 그림을 찍은 것으로 넘기고(`fakeCapture`, 실패는 `pumpTestApp(mapCaptureFails:)`), 저장과 공유는 `FakeImageSharing`(`pumpTestApp(imageSharing:)`)이 받는다. 저장과 공유는 이미지를 실제로 만들어서 `runAsync`와 `pump`를 번갈아 기다린다. 사진 마커가 있으면 사진을 받는 것도 실제 시간이 걸린다.
 - 지도의 사진 방향 화살표는 `pickPhotoSide(tester, side)`로 누른다(`MapScene.photoSidePicker`가 있어야 한다).
 - 공용 도우미는 `test/helpers/`. 화면은 `pumpTestApp`(가짜 지도, 기본 로그인)이나 `testMaterialApp`, 지도에 넘긴 장면은 `mapScene(tester)`, 지도 탭은 `tapMarker`·`tapLine`·`tapMap`.
-- 기본 화면(800×600)은 가로라 동선 목록이 오른쪽 패널이다. 아래 시트는 `usePortraitPhone`. 연필·손잡이는 줄을 먼저 눌러야 뜬다.
+- 기본 화면(800×600)은 가로라 동선 목록이 오른쪽 패널이다. 아래 시트는 `usePortraitPhone`. 연필은 줄을 먼저 눌러야 뜨고, 순서 손잡이는 제목 줄의 [순서 바꾸기]를 눌러야 뜬다.
 - 로캘이 한국어라 `tester.pageBack()` 대신 `find.byType(BackButton)`을 누른다. 칩은 `ChoiceChip`·`FilterChip` 위젯을 누른다.
 - 저장소 스트림을 `await ...first`로 기다리지 않는다(가짜 시간 안에서 멈춘다). 꼭 기다리면 `tester.runAsync` 안에서. 진행 표시가 도는 동안은 `pumpAndSettle` 대신 `pump`를 여러 번.
 - `enterText` 뒤에는 `pump` 한 번. 위젯 없이 날짜 표기를 볼 때는 `initializeDateFormatting('ko')`를 먼저.

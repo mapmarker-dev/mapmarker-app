@@ -100,7 +100,8 @@ void main() {
       expect(find.byTooltip('제목 바꾸기'), findsNothing);
 
       await openDayOne(tester);
-      // 장소를 눌러도 연필·손잡이가 없다.
+      // 장소를 눌러도 연필이 없고, 순서 바꾸기 버튼도 없다.
+      expect(find.text('순서 바꾸기'), findsNothing);
       await tester.tap(find.text('용두암'));
       await tester.pumpAndSettle();
       expect(find.byTooltip('장소 편집'), findsNothing);

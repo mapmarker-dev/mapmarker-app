@@ -127,30 +127,3 @@ class ItineraryStop {
   /// 시트는 구간 줄 대신 "숙소를 거쳐 감" 줄을 둔다.
   final RouteVia? via;
 }
-
-/// 시트에서 장소를 끌어 옮긴 뒤 저장소에 넘길 일차 안 순서([Stop.order]).
-///
-/// [visibleIds]는 옮기기 전 시트의 장소 순서다(출발 장소 제외).
-/// [dayStops]는 그 일차의 모든 장소다. 숙소를 끄면 시트에 보이지 않는 숙소가 섞여 있어서,
-/// 옮긴 장소를 시트에서 바로 앞에 놓인 장소 뒤에 넣는다. 맨 앞으로 옮기면 바로 뒤 장소 앞에 넣는다.
-///
-/// [oldIndex]는 옮기기 전 자리, [newIndex]는 옮긴 뒤 자리다(`onReorderItem`의 값).
-int reorderedStopOrder({
-  required List<String> visibleIds,
-  required List<Stop> dayStops,
-  required int oldIndex,
-  required int newIndex,
-}) {
-  final moved = visibleIds[oldIndex];
-  final visible = [...visibleIds]..removeAt(oldIndex);
-  final target = newIndex;
-  visible.insert(target, moved);
-
-  final others = [
-    for (final stop in dayStops)
-      if (stop.id != moved) stop.id,
-  ];
-  if (target > 0) return others.indexOf(visible[target - 1]) + 1;
-  if (visible.length > 1) return others.indexOf(visible[1]);
-  return 0;
-}

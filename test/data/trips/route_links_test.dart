@@ -124,6 +124,51 @@ void main() {
     });
   });
 
+  group('segments dropped by ordering a day', () {
+    // 1일차: a > b > c > d, 2일차: e.
+    final stops = [
+      testStop('a'),
+      testStop('b', order: 1),
+      testStop('c', order: 2),
+      testStop('d', order: 3),
+      testStop('e', day: 2),
+    ];
+    final segments = linkStops(
+      tripId: 'trip',
+      stops: stops,
+      existing: const [],
+      createId: createId,
+    );
+
+    List<(String, String)> dropped(List<String> stopIds) => pairs(
+      segmentsDroppedByOrder(
+        stops: stops,
+        segments: segments,
+        day: 1,
+        stopIds: stopIds,
+      ),
+    );
+
+    test('are the pairs that are no longer neighbors in the new order', () {
+      // c d a b: a>b, c>d는 여전히 이웃이다. 하나씩 옮기면 중간에 끊겨 지워졌을 쌍이다.
+      expect(dropped(['c', 'd', 'a', 'b']), [('b', 'c'), ('d', 'e')]);
+    });
+
+    test('are none when the order stays', () {
+      expect(dropped(['a', 'b', 'c', 'd']), isEmpty);
+    });
+
+    test('come from the whole route with only that day reordered', () {
+      expect(orderedIds(stops, day: 1, stopIds: ['d', 'c', 'b', 'a']), [
+        'd',
+        'c',
+        'b',
+        'a',
+        'e',
+      ]);
+    });
+  });
+
   group('segments dropped by adding a stop', () {
     // 1일차: a > b, 2일차: 없음, 3일차: c.
     final stops = [

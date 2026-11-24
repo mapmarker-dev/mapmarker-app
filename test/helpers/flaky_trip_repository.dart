@@ -98,6 +98,13 @@ class FlakyTripRepository implements TripRepository {
   }) => _write(() => inner.moveStop(stopId, day: day, order: order));
 
   @override
+  Future<void> orderDay(
+    String tripId, {
+    required int day,
+    required List<String> stopIds,
+  }) => _write(() => inner.orderDay(tripId, day: day, stopIds: stopIds));
+
+  @override
   Future<void> deleteStop(String stopId) =>
       _write(() => inner.deleteStop(stopId));
 

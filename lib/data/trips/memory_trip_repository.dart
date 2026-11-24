@@ -136,6 +136,26 @@ class MemoryTripRepository implements TripRepository {
   }
 
   @override
+  Future<void> orderDay(
+    String tripId, {
+    required int day,
+    required List<String> stopIds,
+  }) async {
+    final trip = _tripOf(tripId);
+    _checkDay(trip, day);
+    final days = _daysOf(trip.id);
+    final current = {for (final stop in days[day] ?? <Stop>[]) stop.id: stop};
+    if (stopIds.length != current.length ||
+        stopIds.toSet().length != stopIds.length ||
+        !stopIds.every(current.containsKey)) {
+      throw StateError('그 일차의 장소와 다릅니다: $stopIds');
+    }
+    if (current.isEmpty) return;
+    days[day] = [for (final id in stopIds) current[id]!];
+    _changeRoute(trip, days);
+  }
+
+  @override
   Future<void> trashTrip(String tripId) async {
     if (!_trips.containsKey(tripId) || _trashedAt.containsKey(tripId)) return;
     _trashedAt[tripId] = clock().toUtc();

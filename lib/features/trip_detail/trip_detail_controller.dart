@@ -58,6 +58,12 @@ class TripDetailController extends StreamNotifier<Trip?> {
   }) =>
       ref.read(tripRepositoryProvider).moveStop(stopId, day: day, order: order);
 
+  /// [day]일차의 장소를 [stopIds] 순서로 늘어놓는다(순서 바꾸기의 [완료]). 이웃이 바뀐 구간의 이동 수단은 저장소가 지운다.
+  Future<void> orderDay({required int day, required List<String> stopIds}) =>
+      ref
+          .read(tripRepositoryProvider)
+          .orderDay(tripId, day: day, stopIds: stopIds);
+
   /// 이동 수단을 바꾼다. 비우면 미정이다.
   Future<Segment> updateSegment(Segment segment) =>
       ref.read(tripRepositoryProvider).updateSegment(segment);

@@ -313,6 +313,48 @@ void main() {
       expect(repository.moveStop('a', day: 4, order: 0), throwsRangeError);
     });
 
+    test(
+      'orders a day and keeps segments whose stops stay neighbors',
+      () async {
+        for (final (i, id) in ['a', 'b', 'c', 'd'].indexed) {
+          await repository.addStop(testStop(id, order: i));
+        }
+        await repository.addStop(testStop('e', day: 2));
+        final before = await repository.watchRoute('trip').first;
+        String idOf(String from, String to) => before.segments
+            .firstWhere((s) => s.fromStopId == from && s.toStopId == to)
+            .id;
+
+        await repository.orderDay(
+          'trip',
+          day: 1,
+          stopIds: ['c', 'd', 'a', 'b'],
+        );
+
+        expect(await days(), ['1: c d a b', '2: e']);
+        expect(await orders(), [0, 1, 2, 3, 0]);
+        expect(await lines(), ['c>d', 'd>a', 'a>b', 'b>e']);
+        final after = await repository.watchRoute('trip').first;
+        final kept = {for (final s in after.segments) s.id};
+        expect(kept, containsAll([idOf('a', 'b'), idOf('c', 'd')]));
+
+        // 그 일차의 장소와 다르면 거절하고 그대로 둔다.
+        expect(
+          repository.orderDay('trip', day: 1, stopIds: ['a', 'b', 'c']),
+          throwsStateError,
+        );
+        expect(
+          repository.orderDay('trip', day: 1, stopIds: ['a', 'b', 'c', 'e']),
+          throwsStateError,
+        );
+        expect(
+          repository.orderDay('trip', day: 4, stopIds: const []),
+          throwsRangeError,
+        );
+        expect(await days(), ['1: c d a b', '2: e']);
+      },
+    );
+
     test('links the neighbors again after a stop is deleted', () async {
       for (final (i, id) in ['a', 'b', 'c'].indexed) {
         await repository.addStop(testStop(id, order: i));

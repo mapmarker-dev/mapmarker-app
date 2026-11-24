@@ -138,6 +138,14 @@ class SampleTripRepository implements TripRepository {
   }) async => _inner.moveStop(_mineStop(stopId), day: day, order: order);
 
   @override
+  Future<void> orderDay(
+    String tripId, {
+    required int day,
+    required List<String> stopIds,
+  }) async =>
+      _inner.orderDay(_mine(tripId, tripId), day: day, stopIds: stopIds);
+
+  @override
   Future<void> deleteStop(String stopId) async =>
       _inner.deleteStop(_mineStop(stopId));
 

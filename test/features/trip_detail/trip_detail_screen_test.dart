@@ -648,8 +648,9 @@ void main() {
       expect(find.text('장소 지우기', skipOffstage: false), findsNothing);
     });
 
-    testWidgets('shows the pencil and handle only on the row tapped in the '
-        'list', (tester) async {
+    testWidgets('shows the pencil only on the row tapped in the list', (
+      tester,
+    ) async {
       _tallScreen(tester);
       await _pumpJeju(tester);
       await tapChip(tester, '2일차');
@@ -662,9 +663,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(_inTile('c', find.byTooltip('장소 편집')), findsOneWidget);
-      expect(_inTile('c', find.byIcon(Icons.drag_handle)), findsOneWidget);
       expect(find.byTooltip('장소 편집'), findsOneWidget);
-      expect(find.byIcon(Icons.drag_handle), findsOneWidget);
+      // 순서 바꾸기 손잡이는 [순서 바꾸기]를 눌러야 뜬다.
+      expect(find.byIcon(Icons.drag_handle), findsNothing);
 
       // 지도에서 고르면 바탕색만 바뀌고 목록은 깔끔하게 남는다.
       await tapMarker(tester, 'd');
@@ -679,15 +680,14 @@ void main() {
       await _pumpJeju(tester);
       await tapChip(tester, '2일차');
       await _openSheet(tester);
-      // 손잡이는 목록에서 누른 줄에만 뜬다.
-      await tester.tap(find.text('c'));
+      await tester.tap(find.text('순서 바꾸기'));
       await tester.pumpAndSettle();
 
-      // c를 d 아래로 끈다.
+      // c를 d 아래로 끈다. 줄이 모두 한 줄 모양이라 한 줄 높이만큼 내리면 c와 d가 자리를 바꾼다.
       final handle = _inTile('c', find.byIcon(Icons.drag_handle));
-      final drag = await tester.startGesture(tester.getCenter(handle));
-      // 줄 하나(d와 그 위 구간 줄)의 높이만큼 내리면 c와 d가 자리를 바꾼다.
       final rowHeight = tester.getSize(find.byKey(const ValueKey('d'))).height;
+      final drag = await tester.startGesture(tester.getCenter(handle));
+      await tester.pump();
       await drag.moveBy(Offset(0, rowHeight / 2));
       await tester.pump();
       await drag.moveBy(Offset(0, rowHeight / 2 + 4));
@@ -695,6 +695,14 @@ void main() {
       await drag.up();
       await tester.pumpAndSettle();
 
+      // [완료] 전에도 목록과 지도는 바꾼 순서로 보인다.
+      expect(_tileNames(tester), ['hotel', 'd', 'c', 'hotel2']);
+      expect(mapScene(tester).captions, ['hotel', 'd', 'c']);
+
+      await tester.tap(find.text('완료'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('완료'), findsNothing);
       expect(_tileNames(tester), ['hotel', 'd', 'c', 'hotel2']);
       final scene = mapScene(tester);
       expect(scene.captions, ['hotel', 'd', 'c']);
@@ -729,14 +737,13 @@ void main() {
       expect(_tile(tester, 'c').expanded, isTrue);
       expect(find.byTooltip('장소 편집'), findsNothing);
 
-      // 시트에서 한 번 누르면 접지 않고 연필·손잡이만 더한다.
+      // 시트에서 한 번 누르면 접지 않고 연필만 더한다.
       await tester.tap(find.text('c'));
       await tester.pumpAndSettle();
 
       expect(_tile(tester, 'c').expanded, isTrue);
       expect(find.text('주차 2시간 무료'), findsOneWidget);
       expect(_inTile('c', find.byTooltip('장소 편집')), findsOneWidget);
-      expect(_inTile('c', find.byIcon(Icons.drag_handle)), findsOneWidget);
 
       // 연필이 뜬 뒤로는 누를 때마다 접고 펼친다.
       await tester.tap(find.text('c'));

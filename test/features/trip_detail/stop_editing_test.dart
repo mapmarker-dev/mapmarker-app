@@ -744,34 +744,23 @@ void main() {
 
     testWidgets('locks reordering until lodging is shown', (tester) async {
       await hideLodgingOnDay2(tester);
-      await tester.tap(find.text('q'));
-      await tester.pumpAndSettle();
 
-      // 고른 줄에 손잡이는 뜨지만 끌리지 않는다.
-      expect(handleOf('q'), findsOneWidget);
-      expect(find.byType(ReorderableDragStartListener), findsNothing);
-      await tester.drag(handleOf('q'), const Offset(0, 200));
-      await tester.pumpAndSettle();
-      expect(_tileNames(tester), ['q', 'r']);
-
-      await tester.tap(handleOf('q'));
+      // [순서 바꾸기]는 흐리게 보이고, 누르면 왜 안 되는지만 알린다.
+      await tester.tap(find.text('순서 바꾸기'));
       await tester.pumpAndSettle();
 
       expect(find.text('숙소를 켜면 순서를 바꿀 수 있습니다.'), findsOneWidget);
+      expect(find.text('완료'), findsNothing);
+      expect(handleOf('q'), findsNothing);
 
       await tapShowLodging(tester);
+      await tester.tap(find.text('순서 바꾸기'));
+      await tester.pumpAndSettle();
 
-      // 숙소가 켜지고, 고른 줄은 그대로라 바로 끌 수 있다.
+      // 숙소가 켜지면 숙소까지 모든 장소를 끌 수 있다.
       expect(_tileNames(tester), ['hotel', 'q', 'B', 'r']);
-      expect(
-        find.descendant(
-          of: find.byWidgetPredicate(
-            (w) => w is ItineraryStopTile && w.stop.name == 'q',
-          ),
-          matching: find.byType(ReorderableDragStartListener),
-        ),
-        findsOneWidget,
-      );
+      expect(handleOf('q'), findsOneWidget);
+      expect(handleOf('B'), findsOneWidget);
     });
 
     testWidgets(

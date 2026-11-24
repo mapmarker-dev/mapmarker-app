@@ -169,23 +169,26 @@ Finder _inStopTile(String id, Finder finder) => find.descendant(
   matching: finder,
 );
 
-/// 1일차 a를 b 아래로 끌어 놓는다.
+/// 1일차에서 [순서 바꾸기]를 누르고 a를 b 아래로 끌어 놓은 뒤 [완료]를 누른다.
 Future<void> _dragAUnderB(WidgetTester tester) async {
-  await tester.tap(find.text('a'));
+  await tester.tap(find.text('순서 바꾸기'));
   await tester.pumpAndSettle();
   final handle = _inStopTile('a', find.byIcon(Icons.drag_handle));
-  final drag = await tester.startGesture(tester.getCenter(handle));
   final rowHeight = tester.getSize(find.byKey(const ValueKey('b'))).height;
+  final drag = await tester.startGesture(tester.getCenter(handle));
+  await tester.pump();
   await drag.moveBy(Offset(0, rowHeight / 2));
   await tester.pump();
   await drag.moveBy(Offset(0, rowHeight / 2 + 4));
   await tester.pump();
   await drag.up();
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('완료'));
   await _pumpWhileSaving(tester);
 }
 
 void _savingTests() {
-  testWidgets('dims a dragged stop and shows progress until it is saved', (
+  testWidgets('shows progress on done until the new order is saved', (
     tester,
   ) async {
     final repository = _repository()..holdWrites = Completer();
@@ -194,11 +197,7 @@ void _savingTests() {
     await _dragAUnderB(tester);
 
     expect(_stopIds(tester), ['b', 'a']);
-    expect(_stopTile(tester, 'a').saving, isTrue);
-    expect(
-      _inStopTile('a', find.byType(CircularProgressIndicator)),
-      findsOneWidget,
-    );
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
     // 저장을 기다리는 동안에는 다시 끌 수 없다.
     expect(find.byIcon(Icons.drag_handle), findsNothing);
 
@@ -206,11 +205,11 @@ void _savingTests() {
     await tester.pumpAndSettle();
 
     expect(_stopIds(tester), ['b', 'a']);
-    expect(_stopTile(tester, 'a').saving, isFalse);
     expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('완료'), findsNothing);
   });
 
-  testWidgets('puts a dragged stop back when saving the move fails', (
+  testWidgets('keeps reordering when saving the new order fails', (
     tester,
   ) async {
     final repository = _repository()
@@ -218,14 +217,20 @@ void _savingTests() {
       ..failWrites = ApiFailure.network;
     await _openDayOne(tester, repository);
     await _dragAUnderB(tester);
-    expect(_stopTile(tester, 'a').saving, isTrue);
 
     repository.holdWrites!.complete();
     await tester.pumpAndSettle();
 
-    expect(_stopIds(tester), ['a', 'b']);
-    expect(_stopTile(tester, 'a').saving, isFalse);
+    // 바꾼 순서는 남아 있어 [완료]를 다시 누르거나 [취소]할 수 있다.
     expect(find.text(testL10n.saveFailedNetwork), findsOneWidget);
+    expect(_stopIds(tester), ['b', 'a']);
+    expect(find.text('완료'), findsOneWidget);
+    expect(_stopTile(tester, 'a').compact, isTrue);
+
+    await tester.tap(find.text('취소'));
+    await tester.pumpAndSettle();
+
+    expect(_stopIds(tester), ['a', 'b']);
   });
 
   testWidgets('draws only the new curve, dimmed, until it is saved', (

@@ -190,34 +190,4 @@ void main() {
       expect(day2.contains('a'), isFalse);
     });
   });
-
-  group('reorderedStopOrder', () {
-    final dayStops = route.stops.where((s) => s.day == 2).toList();
-
-    int orderAfter(List<String> visibleIds, int oldIndex, int newIndex) =>
-        reorderedStopOrder(
-          visibleIds: visibleIds,
-          dayStops: dayStops,
-          oldIndex: oldIndex,
-          newIndex: newIndex,
-        );
-
-    test('uses the sheet position when everything is visible', () {
-      final ids = ['c', 'nap', 'd', 'hotel2'];
-
-      expect(orderAfter(ids, 2, 0), 0);
-      expect(orderAfter(ids, 0, 2), 2);
-      expect(orderAfter(ids, 0, 3), 3);
-    });
-
-    test('puts the stop after the one before it when lodging is hidden', () {
-      // 시트에는 c, d만 보인다. 전체는 c, nap, d, hotel2다.
-      final ids = ['c', 'd'];
-
-      // d를 맨 앞으로: c 앞.
-      expect(orderAfter(ids, 1, 0), 0);
-      // c를 d 뒤로: 숨은 그날 밤 숙소(hotel2) 앞에 남는다.
-      expect(orderAfter(ids, 0, 1), 2);
-    });
-  });
 }

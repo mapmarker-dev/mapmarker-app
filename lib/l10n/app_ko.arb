@@ -645,7 +645,7 @@
   },
   "lodgingHiddenReorder": "숙소를 켜면 순서를 바꿀 수 있습니다.",
   "@lodgingHiddenReorder": {
-    "description": "숙소를 끈 시트에서 흐린 순서 손잡이를 눌렀을 때. 숨긴 숙소 사이의 자리가 보이지 않아서 끌어 옮기기를 막는다"
+    "description": "숙소를 끈 시트에서 흐린 [순서 바꾸기]를 눌렀을 때. 숨긴 숙소 사이의 자리가 보이지 않아서 순서 바꾸기를 막는다"
   },
   "lodgingHiddenSaved": "숙소로 저장했습니다.",
   "@lodgingHiddenSaved": {
@@ -666,7 +666,15 @@
   "itineraryMemo": "메모",
   "itineraryReorder": "끌어서 순서 바꾸기",
   "@itineraryReorder": {
-    "description": "장소 줄 오른쪽 손잡이의 설명"
+    "description": "순서를 바꾸는 동안 장소 줄 오른쪽 손잡이의 설명"
+  },
+  "itineraryReorderStart": "순서 바꾸기",
+  "@itineraryReorderStart": {
+    "description": "일차 동선 시트 제목 줄의 버튼. 누르면 장소가 모두 한 줄 모양이 되고 손잡이로 끌어 순서를 바꾼다"
+  },
+  "itineraryReorderDone": "완료",
+  "@itineraryReorderDone": {
+    "description": "순서를 바꾸는 동안 시트 제목 줄의 버튼. 누르면 바꾼 순서를 저장한다. 옆에 [취소]가 있다"
   },
   "deleteStop": "지우기",
   "@deleteStop": {
@@ -682,15 +690,10 @@
   "deleteStopMessageWithPhoto": "앞뒤 장소는 바로 이어집니다. 이 장소의 사진과, 닿은 구간의 이동 수단은 사라집니다.",
   "moveStopDropsTransportTitle": "이동 수단이 사라집니다",
   "@moveStopDropsTransportTitle": {
-    "description": "장소를 끌어 옮기거나 연박 숙소를 넣으면 이웃이 바뀌는 구간에 적어 둔 이동 수단이 있을 때 묻는 대화상자 제목"
+    "description": "바꾼 순서를 저장하거나 연박 숙소를 넣으면 이웃이 바뀌는 구간에 적어 둔 이동 수단이 있을 때 묻는 대화상자 제목"
   },
-  "moveStopDropsTransportMessage": "{name} 장소를 옮기면 아래 구간의 이동 수단이 지워집니다. 옮길까요?",
-  "@moveStopDropsTransportMessage": {
-    "placeholders": {
-      "name": {"type": "String", "example": "용두암"}
-    }
-  },
-  "moveStopConfirm": "옮기기",
+  "reorderDropsTransportMessage": "바꾼 순서로 저장하면 아래 구간의 이동 수단이 지워집니다. 저장할까요?",
+  "reorderSaveConfirm": "저장",
   "droppedTransportRoute": "{day}일차 {from} → {to}",
   "@droppedTransportRoute": {
     "description": "이동 수단이 사라지는 구간. 같은 일차 안의 구간과, 전날 밤 숙소에서 그날 아침에 나오는 구간. 예: 2일차 용두암 → 동문시장, 3일차 제주시 숙소 → 성산일출봉",
