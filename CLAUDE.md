@@ -72,8 +72,11 @@ lib/
 - 보기: 주소는 응답마다 새로 서명되므로 이미지(`PhotoImage`)는 사진 ID와 크기로 기억한다. 403(만료)이면 보고 있는 여행을 다시 받는다(30초에 한 번).
 - 사진 마커(`MarkerLook.photo`): `NOverlayImage.fromWidget`이 이미지를 기다리지 않아서 `precacheImage`로 먼저 받고, 못 받으면 원 마커로 그린다.
 - **사진 방향**(`Stop.photoSide`, 기본 위): 사진 마커의 모양과 기준점은 `MarkerIcon.sizeOf`·`anchorOf`가 방향마다 정한다(꼬리 끝이 장소, 번호 원은 장소에서 먼 쪽 모서리, 이름은 사진 반대쪽 `naverCaptionAlignOf`). 합친 마커는 사진을 주는 장소(`photoStopAt`)의 방향이다.
-  - 바꾸기: 일차 보기에서 사진 있는 장소 줄을 펼치면 `MapScene.photoSidePicker`(화살표 4개, 그림은 네이버 마커 하나, 누르는 영역은 곡선 핸들처럼 카메라가 멈추면 Flutter로 놓는다) → `onPhotoSideChanged` → `updateStop`. 저장하는 동안 마커는 `MapMarker.pending`(흐림)이고 화살표가 없다. 장소 편집 화면에는 없다(지도를 보며 바꾼다).
+  - 바꾸기: 일차 보기에서 사진 있는 장소 줄을 펼치면 `MapScene.photoSidePicker`(화살표 4개, 그림은 네이버 마커 하나, 누르는 영역은 곡선 핸들처럼 카메라가 멈추면 Flutter로 놓는다) → `onPhotoSideChanged` → `updateStop`. 저장하는 동안 마커는 `MapMarker.pending`(흐림)이고 화살표가 없다. 장소 편집 화면에는 없다(지도를 보며 바꾼다). 방향을 고르면 화살표를 숨기고(`_photoSideDone`), 그 마커를 다시 누르거나 펼친 줄이 바뀌면 다시 띄운다.
   - 앱은 장소를 고칠 때마다 `photoSide`를 보내서 이 칸이 없는 서버에는 400이다. 서버를 먼저 올린다.
+- **같은 자리 장소는 사진 하나와 방향 하나를 함께 쓴다**(좌표가 같은 장소: 연박 숙소, 처음과 끝이 같은 공항). 데이터는 그 자리에서 사진이 있는 첫 장소(`TripRoute.photoOwnerOf`)에만 있고, 동선 화면과 내보내기는 `withSharedPhotos`로 모든 밤에 같은 사진과 방향을 그린다.
+  - 사진 쓰기는 `TripDetailController.setStopPhoto`/`deleteStopPhoto`가 주인 장소로 보낸다(어느 밤에서 넣어도 주인에, 지우면 그 자리 사진 모두). 이 규칙 전에 따로 넣은 사진은 새로 넣을 때 지워 하나로 맞춘다. 방향 화살표도 주인 장소의 방향을 바꾼다.
+  - 주인 장소를 지우거나 후보로 빼면 서버가 사진과 방향을 같은 자리의 다음 장소로 넘긴다(`MemoryTripRepository`도 같다). 그래서 지우기 확인의 "사진도 사라진다"는 그 자리의 마지막 장소일 때만이다.
 - `AndroidManifest.xml`의 `ModuleDependencies` 서비스는 시스템 사진 선택기가 없는 기기에 Google Play 서비스가 선택기를 받게 한다.
 
 ## 여행 중 (현재 위치, 방문)

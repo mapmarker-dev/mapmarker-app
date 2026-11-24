@@ -176,6 +176,7 @@ class MemoryTripRepository implements TripRepository {
   @override
   Future<void> deleteStop(String stopId) async {
     final saved = _stopOf(stopId);
+    _releasePhoto(saved);
     final trip = _tripOf(saved.tripId);
     final days = _daysOf(trip.id);
     days[saved.day]!.removeWhere((stop) => stop.id == stopId);
@@ -266,6 +267,7 @@ class MemoryTripRepository implements TripRepository {
   @override
   Future<Candidate> demoteStop(String stopId) async {
     final saved = _stopOf(stopId);
+    _releasePhoto(saved);
     final trip = _tripOf(saved.tripId);
     final days = _daysOf(trip.id);
     days[saved.day]!.removeWhere((stop) => stop.id == stopId);
@@ -356,6 +358,22 @@ class MemoryTripRepository implements TripRepository {
   );
 
   /// 여행의 장소를 일차별 목록으로. 목록 안은 순서대로다.
+  /// 서버와 같다: 동선에서 빼는 장소의 사진은, 같은 자리 장소가 남아 있고 그중 사진이 있는 장소가 없으면
+  /// 동선에서 먼저 오는 그 장소로 사진 방향과 함께 넘긴다. 아니면 사진은 장소와 함께 사라진다.
+  void _releasePhoto(Stop saved) {
+    final photo = saved.photo;
+    if (photo == null) return;
+    final siblings = _routeOf(
+      saved.tripId,
+    ).stops.where((s) => s.id != saved.id && s.isSamePlaceAs(saved)).toList();
+    if (siblings.isEmpty || siblings.any((s) => s.photo != null)) return;
+    final heir = siblings.first;
+    _stops[heir.id] = heir.copyWith(
+      photo: () => photo,
+      photoSide: saved.photoSide,
+    );
+  }
+
   Map<int, List<Stop>> _daysOf(String tripId) {
     final days = <int, List<Stop>>{};
     for (final stop in _routeOf(tripId).stops) {

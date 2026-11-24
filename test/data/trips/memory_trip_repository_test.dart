@@ -1,5 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/data/models/candidate.dart';
+import 'package:mapmarker_app/data/models/photo.dart';
+import 'package:mapmarker_app/data/photos/photo_upload.dart';
 import 'package:mapmarker_app/data/models/segment.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
@@ -529,5 +533,55 @@ void main() {
         expect(await candidateIds(), isEmpty);
       },
     );
+  });
+
+  group('photo of the same place', () {
+    // 같은 숙소에 두 밤 묵었다. 사진과 방향은 첫 밤에 있다.
+    PreparedPhoto prepared(String id) => PreparedPhoto(
+      id: id,
+      original: Uint8List(1),
+      originalWidth: 1,
+      originalHeight: 1,
+      thumbnail: Uint8List(1),
+    );
+
+    setUp(() async {
+      await repository.createTrip(_trip('a'));
+      await repository.addStop(testLodging('night1', tripId: 'a'));
+      await repository.addStop(testStop('sight', tripId: 'a', day: 2));
+      await repository.addStop(
+        testLodging('night2', tripId: 'a', day: 2, order: 1),
+      );
+      await repository.setStopPhoto('night1', prepared('p'));
+      final night1 = (await repository.watchRoute('a').first).stopById(
+        'night1',
+      )!;
+      await repository.updateStop(night1.copyWith(photoSide: PhotoSide.left));
+    });
+
+    Future<Stop?> stop(String id) async =>
+        (await repository.watchRoute('a').first).stopById(id);
+
+    test('hands the photo and its side to the night left', () async {
+      await repository.deleteStop('night1');
+
+      final night2 = (await stop('night2'))!;
+      expect(night2.photo?.id, 'p');
+      expect(night2.photoSide, PhotoSide.left);
+    });
+
+    test('hands it over when the night becomes a candidate too', () async {
+      await repository.demoteStop('night1');
+
+      expect((await stop('night2'))!.photo?.id, 'p');
+    });
+
+    test('keeps the photo the other night already has', () async {
+      await repository.setStopPhoto('night2', prepared('q'));
+
+      await repository.deleteStop('night1');
+
+      expect((await stop('night2'))!.photo?.id, 'q');
+    });
   });
 }

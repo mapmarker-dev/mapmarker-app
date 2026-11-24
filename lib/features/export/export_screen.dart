@@ -318,7 +318,9 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     };
     final body = switch ((trip.value, route.value)) {
       _ when message != null => Center(child: Text(message)),
-      (final trip?, final route?) => _buildBody(context, trip, route),
+      (final trip?, final route?) =>
+        // 같은 자리 장소(연박 숙소)는 사진과 방향을 함께 쓴다(동선 화면과 같다).
+        _buildBody(context, trip, route.withSharedPhotos),
       _ => const Center(child: CircularProgressIndicator()),
     };
     return Scaffold(

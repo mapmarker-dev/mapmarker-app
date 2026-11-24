@@ -155,6 +155,10 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   /// 지도 화살표로 바꾸고 저장을 기다리는 사진 방향. 저장소가 새 동선을 내기 전까지 새 방향을 흐리게 보여 준다.
   ({String stopId, PhotoSide side, TripRoute route})? _savingPhotoSide;
 
+  /// 사진 방향을 고른 펼친 장소 줄. 고르면 화살표를 숨기고(지도를 가리지 않게), 그 마커를 다시 누르거나
+  /// 펼친 줄이 바뀌면 다시 띄운다.
+  String? _photoSideDone;
+
   /// 끌어 옮기고 저장을 기다리는 장소. 목록이 그 줄을 흐리게 두고 진행 표시를 띄운다.
   String? _savingStopId;
 
@@ -217,6 +221,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   void initState() {
     super.initState();
     _sheetController.addListener(_onSheetMoved);
+    _selection.addListener(_onSelectionChanged);
     _lifecycle = AppLifecycleListener(
       onHide: _pauseLocation,
       onShow: _resumeLocation,
@@ -328,6 +333,8 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     String markerId,
   ) async {
     if (markerId == draftMarkerId) return _addStop(route, day);
+    // 방향을 고른 뒤 숨긴 사진 방향 화살표는 그 마커를 다시 누르면 다시 뜬다.
+    if (_photoSideDone != null) setState(() => _photoSideDone = null);
     // 후보를 누르면 "후보 목록" 보기로 가서 그 줄을 펼친다. 이미 "후보 목록" 보기면 카메라는 그대로 둔다.
     if (route.candidateById(markerId) != null) {
       if (ref.read(routeChoiceProvider(trip.id)).candidateView) {
@@ -801,6 +808,13 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     return saved;
   }
 
+  /// 펼친 줄이 바뀌면(접기 포함) 숨겨 둔 사진 방향 화살표를 다시 띄울 수 있게 한다.
+  void _onSelectionChanged() {
+    if (_photoSideDone != null && _photoSideDone != _selection.expanded) {
+      _photoSideDone = null;
+    }
+  }
+
   /// 지도의 화살표로 사진 방향을 바꿨다. 저장소의 최신 장소에 방향만 넣는다. 저장하는 동안 마커를 흐리게 두고,
   /// 실패하면 스낵바로 알리고 원래 방향으로 돌아간다.
   Future<void> _changePhotoSide(
@@ -812,24 +826,34 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     final latest = stored.stopById(stopId);
     if (latest == null || latest.photoSide == side) return;
     final saving = (stopId: stopId, side: side, route: stored);
-    setState(() => _savingPhotoSide = saving);
+    setState(() {
+      _savingPhotoSide = saving;
+      // 고르면 화살표를 숨긴다. 그 마커를 다시 누르면 다시 뜬다.
+      _photoSideDone = _selection.expanded;
+    });
     final saved = await _save(
       () => ref
           .read(tripDetailProvider(trip.id).notifier)
           .updateStop(latest.copyWith(photoSide: side)),
     );
     if (!saved && mounted && _savingPhotoSide == saving) {
-      setState(() => _savingPhotoSide = null);
+      // 바뀌지 않았으니 화살표를 다시 띄워 다시 고르게 한다.
+      setState(() {
+        _savingPhotoSide = null;
+        _photoSideDone = null;
+      });
     }
   }
 
   /// 사진 방향 화살표를 둘 장소. 일차 보기에서 사진 있는 장소 줄을 펼친 때만이다.
-  /// 같은 자리에 여러 번 넣은 장소(연박 숙소)는 사진이 있는 장소의 방향을 바꾼다([photoStopAt]).
-  String? _photoSideStopId(RouteView view, int? day) {
+  /// 같은 자리 장소(연박 숙소)는 사진과 방향을 함께 쓰므로, 그 자리 사진의 주인 장소([TripRoute.photoOwnerOf])를
+  /// 저장소의 동선([stored])에서 찾아 그 방향을 바꾼다.
+  String? _photoSideStopId(TripRoute? stored, RouteView view, int? day) {
     final expanded = _selection.expanded;
-    if (day == null || expanded == null) return null;
+    if (stored == null || day == null || expanded == null) return null;
+    if (expanded == _photoSideDone) return null;
     final stop = view.stops.where((s) => s.id == expanded).firstOrNull;
-    return stop == null ? null : photoStopAt(view, stop)?.id;
+    return stop == null ? null : stored.photoOwnerOf(stop)?.id;
   }
 
   /// 곡선 핸들을 둘 구간. 일차 보기에서 목록의 구간 줄을 직접 눌러 고른 때만이다
@@ -1235,7 +1259,11 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     final savingSegmentId = _savingSegmentIdOf(stored.value);
     final savingPhotoStopId = _savingPhotoStopIdOf(stored.value);
     final route = stored.whenData(
-      (stored) => _withSavingPhotoSide(stored, _withSavingCurve(stored)),
+      // 같은 자리 장소(연박 숙소)는 사진과 방향을 함께 쓴다. 저장을 기다리는 방향도 그 자리 전체에 보인다.
+      (stored) => _withSavingPhotoSide(
+        stored,
+        _withSavingCurve(stored),
+      ).withSharedPhotos,
     );
     final view = route.value?.view(
       day: choice.day,
@@ -1301,7 +1329,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                   savingSegmentId: savingSegmentId,
                   // 저장을 기다리는 동안에는 화살표가 없어 다시 바꿀 수 없다.
                   photoSideStopId: savingPhotoStopId == null && !_readOnly
-                      ? _photoSideStopId(view, day)
+                      ? _photoSideStopId(stored.value, view, day)
                       : null,
                   savingPhotoStopId: savingPhotoStopId,
                   onMarkerTap: (id) => _onMarkerTap(route, view, day, id),

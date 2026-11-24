@@ -85,9 +85,7 @@ routeOverlays({
         look: faded ? look.faded(AppOpacity.backdrop) : look,
         pending:
             pendingStopId != null &&
-            view.stops.any(
-              (s) => s.id == pendingStopId && s.isSamePlaceAs(stop),
-            ),
+            (route.stopById(pendingStopId)?.isSamePlaceAs(stop) ?? false),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mapmarker_app/data/models/photo.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trip_route.dart';
 import 'package:mapmarker_app/data/trips/route_links.dart';
@@ -243,5 +244,42 @@ void main() {
   test('the first day has no lodging before it', () {
     expect(route.startOf(1), isNull);
     expect(TripRoute().view(day: 1).stops, isEmpty);
+  });
+
+  group('photo of the same place', () {
+    const photo = Photo(id: 'p', url: 'u', thumbnailUrl: 't');
+    // 같은 숙소에 세 밤 묵었다. 사진과 방향은 둘째 밤에만 있다.
+    final shared = TripRoute(
+      stops: [
+        testLodging('night1'),
+        testStop('sight', day: 2),
+        testLodging(
+          'night2',
+          day: 2,
+          order: 1,
+        ).copyWith(photo: () => photo, photoSide: PhotoSide.down),
+        testLodging('night3', day: 3),
+      ],
+    );
+
+    test('finds the first stop with a photo at the same place', () {
+      final night1 = shared.stopById('night1')!;
+
+      expect(shared.photoOwnerOf(night1)!.id, 'night2');
+      expect(shared.photoOwnerOf(shared.stopById('sight')!), isNull);
+    });
+
+    test('shows the one photo and side on every night', () {
+      final route = shared.withSharedPhotos;
+
+      for (final id in ['night1', 'night2', 'night3']) {
+        expect(route.stopById(id)!.photo, photo, reason: id);
+        expect(route.stopById(id)!.photoSide, PhotoSide.down, reason: id);
+      }
+      expect(route.stopById('sight')!.photo, isNull);
+      // 바꿀 것이 없으면 그대로다.
+      expect(route.withSharedPhotos, same(route.withSharedPhotos));
+      expect(TripRoute().withSharedPhotos.stops, isEmpty);
+    });
   });
 }

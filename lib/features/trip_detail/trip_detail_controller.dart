@@ -83,16 +83,48 @@ class TripDetailController extends StreamNotifier<Trip?> {
       ref.read(tripRepositoryProvider).demoteStop(stopId);
 
   /// 장소에 사진을 올려 등록한다(있던 사진은 바뀐다). 실패는 [PhotoSaveException]이다.
-  Future<void> setStopPhoto(String stopId, PreparedPhoto photo) => _photo(
-    () => ref.read(tripRepositoryProvider).setStopPhoto(stopId, photo),
-  );
+  ///
+  /// 같은 자리 장소(연박 숙소)는 사진 하나를 함께 쓴다([TripRoute.photoOwnerOf]). 그래서 어느 밤에서 넣어도
+  /// 그 자리 사진의 주인 장소에 올리고, 따로 넣어 둔 다른 사진(이 규칙 전에 넣은 것)은 지워 하나로 맞춘다.
+  Future<void> setStopPhoto(String stopId, PreparedPhoto photo) =>
+      _photo(() async {
+        final repository = ref.read(tripRepositoryProvider);
+        final route = _route();
+        final stop = route?.stopById(stopId);
+        final owner = stop == null ? null : route!.photoOwnerOf(stop);
+        final target = owner?.id ?? stopId;
+        await repository.setStopPhoto(target, photo);
+        for (final other in _samePlaceWithPhotos(route, stop)) {
+          if (other.id != target) await repository.deleteStopPhoto(other.id);
+        }
+      });
 
-  /// 장소의 사진을 지운다. 실패는 [PhotoSaveException]이다.
-  Future<void> deleteStopPhoto(String stopId) =>
-      _photo(() => ref.read(tripRepositoryProvider).deleteStopPhoto(stopId));
+  /// 장소의 사진을 지운다. 같은 자리 장소가 함께 쓰는 사진이라 그 자리의 사진을 모두 지운다.
+  /// 실패는 [PhotoSaveException]이다.
+  Future<void> deleteStopPhoto(String stopId) => _photo(() async {
+    final repository = ref.read(tripRepositoryProvider);
+    final route = _route();
+    final others = _samePlaceWithPhotos(route, route?.stopById(stopId));
+    if (others.isEmpty) {
+      await repository.deleteStopPhoto(stopId);
+      return;
+    }
+    for (final other in others) {
+      await repository.deleteStopPhoto(other.id);
+    }
+  });
+
+  TripRoute? _route() => ref.read(tripRouteProvider(tripId)).value;
+
+  /// [stop]과 같은 자리이고 사진이 있는 장소들(자신 포함). 동선 순서다.
+  static List<Stop> _samePlaceWithPhotos(TripRoute? route, Stop? stop) => [
+    if (route != null && stop != null)
+      for (final other in route.stops)
+        if (other.isSamePlaceAs(stop) && other.photo != null) other,
+  ];
 
   /// 장소는 저장한 뒤라서, 사진 실패를 따로 알린다("사진을 저장하지 못했습니다").
-  Future<void> _photo(Future<Object?> Function() write) async {
+  Future<void> _photo(Future<void> Function() write) async {
     try {
       await write();
     } on ApiException catch (error) {
