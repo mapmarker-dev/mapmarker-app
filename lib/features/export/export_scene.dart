@@ -16,7 +16,7 @@ import '../../l10n/l10n.dart';
 /// 내보내기 이미지 크기(px). 비율은 4:5 하나다(인스타 피드에 잘리지 않고 대화방에서 한 장이 다 보인다).
 const exportPixelSize = Size(1080, 1350);
 
-/// 여행 후 이미지의 사진 마커는 앱 지도보다 이만큼 크게 그린다. 사진은 잘 보이되 다른 장소와 동선을 덮지 않을 만큼이다.
+/// 이미지의 사진 마커는 앱 지도보다 이만큼 크게 그린다(여행 전, 중, 후 모두). 사진은 잘 보이되 다른 장소와 동선을 덮지 않을 만큼이다.
 const largePhotoScale = 1.3;
 
 /// 이미지 가장자리에서 장소까지 띄우는 최소 여백(논리 px). 이름표가 옆으로 붙을 자리다.
@@ -172,17 +172,16 @@ class ExportScene {
 /// 내보내기 이미지에 그릴 것을 만든다.
 ///
 /// 가장 중요한 것은 동선의 순서와 장소가 어디인지다. 그래서 여행 전, 중, 후 모두, 방문 여부와 사진에
-/// 관계없이 모든 장소와 구간을 똑같이 또렷하게 그린다. 방문 기록은 이미지에 넣지 않는다.
+/// 관계없이 모든 장소와 구간을 똑같이 또렷하게 그린다. 방문 기록은 이미지에 넣지 않고, 여행 상태에 따라 달라지는 것도 없다.
 ///
 /// - 범위와 숙소: 지도 보기와 같다([TripRoute.view]). 숙소를 끄면 숙소를 거친 곳은 흐린 선([RouteView.vias])이다.
-/// - 여행 후: 사진 마커를 [largePhotoScale]만큼 조금 크게 그린다.
+/// - 사진 마커는 [largePhotoScale]만큼 조금 크게 그린다.
 ///   사진 마커가 번호 마커를 가리지 않게 번호 마커를 위에 그린다([ExportCanvas]).
 /// - 제목 카드: 여행 제목(따옴표 없이)과, 전체면 기간과 일정, 일차면 그 날짜다.
 /// - 후보는 넣지 않는다(이미지는 정한 동선의 결과물이다).
 ExportScene buildExportScene({
   required Trip trip,
   required TripRoute route,
-  required TripPhase phase,
   required ExportOptions options,
   required AppColors colors,
   required AppLocalizations l10n,
@@ -201,7 +200,7 @@ ExportScene buildExportScene({
     colors: colors,
     photoOf: options.photos ? photoOf : null,
   );
-  final large = phase == TripPhase.after && options.photos;
+  final large = options.photos;
   final markers = [
     for (final marker in overlays.markers)
       ExportMarker(

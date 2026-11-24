@@ -45,13 +45,11 @@ final _trip = testTrip(
 
 ExportScene _scene(
   TripRoute route, {
-  TripPhase phase = TripPhase.before,
   ExportOptions options = const ExportOptions(),
   Trip? trip,
 }) => buildExportScene(
   trip: trip ?? _trip,
   route: route,
-  phase: phase,
   options: options,
   colors: _colors,
   l10n: testL10n,
@@ -146,27 +144,22 @@ void main() {
       hotel2,
     ]);
 
-    for (final phase in TripPhase.values) {
-      test('leave the route as planned ${phase.name} the trip', () {
-        final scene = _scene(route, phase: phase);
-        final plan = _scene(_route(stops), phase: phase);
+    test('leave the route as planned', () {
+      final scene = _scene(route);
+      final plan = _scene(_route(stops));
 
-        // 동선의 순서와 장소가 먼저라서 방문 여부와 관계없이 모두 같은 모양이다(흐림, 체크 표시 없음).
-        expect(
-          scene.markers.map((m) => m.look),
-          plan.markers.map((m) => m.look),
-        );
-        // 구간 ID는 동선마다 새로 만들어져서 그리는 모양만 비교한다.
-        String drawn(MapLine l) =>
-            '${l.color} ${l.outline} ${l.style} ${l.points}';
-        expect(scene.lines.map(drawn), plan.lines.map(drawn));
-        expect(scene.arrows.length, plan.arrows.length);
-        expect(scene.subtitle, testL10n.tripSummaryOf(_trip));
-      });
-    }
+      // 동선의 순서와 장소가 먼저라서 방문 여부와 관계없이 모두 같은 모양이다(흐림, 체크 표시 없음).
+      expect(scene.markers.map((m) => m.look), plan.markers.map((m) => m.look));
+      // 구간 ID는 동선마다 새로 만들어져서 그리는 모양만 비교한다.
+      String drawn(MapLine l) =>
+          '${l.color} ${l.outline} ${l.style} ${l.points}';
+      expect(scene.lines.map(drawn), plan.lines.map(drawn));
+      expect(scene.arrows.length, plan.arrows.length);
+      expect(scene.subtitle, testL10n.tripSummaryOf(_trip));
+    });
   });
 
-  group('after the trip', () {
+  group('photos', () {
     final withPhotos = [
       airport.copyWith(photo: () => _photo),
       market,
@@ -176,8 +169,8 @@ void main() {
       hotel2,
     ];
 
-    test('enlarges photo markers a little', () {
-      final scene = _scene(_route(withPhotos), phase: TripPhase.after);
+    test('are enlarged a little whatever the trip phase', () {
+      final scene = _scene(_route(withPhotos));
       final large = scene.markers.where((m) => m.large).map((m) => m.name);
 
       expect(large, ['용두암', '성산']);
@@ -191,18 +184,9 @@ void main() {
       expect(scene.hasPhotos, isTrue);
     });
 
-    test('keeps photo markers at map size before the trip', () {
-      final scene = _scene(_route(withPhotos));
-
-      expect(scene.markers.where((m) => m.look.photo != null), hasLength(2));
-      expect(scene.markers.where((m) => m.large), isEmpty);
-      expect(scene.subtitle, testL10n.tripSummaryOf(_trip));
-    });
-
     test('without photos it keeps the plain route', () {
       final scene = _scene(
         _route(withPhotos),
-        phase: TripPhase.after,
         options: const ExportOptions(photos: false),
       );
 
@@ -225,10 +209,9 @@ void main() {
     });
 
     test('large photos need more room', () {
-      final plain = _scene(_route(stops), phase: TripPhase.after);
+      final plain = _scene(_route(stops));
       final photos = _scene(
         _route([airport.copyWith(photo: () => _photo), ...stops.skip(1)]),
-        phase: TripPhase.after,
       );
 
       expect(photos.headroom, greaterThan(plain.headroom));

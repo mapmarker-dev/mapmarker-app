@@ -341,7 +341,6 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
       buildExportScene(
         trip: trip,
         route: route,
-        phase: trip.phaseOn(ref.watch(todayProvider)),
         options: options,
         colors: context.appColors,
         l10n: l10n,

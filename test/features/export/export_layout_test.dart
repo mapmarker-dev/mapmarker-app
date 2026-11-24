@@ -5,7 +5,6 @@ import 'package:mapmarker_app/core/map/map_provider.dart';
 import 'package:mapmarker_app/core/map/route_arrow.dart';
 import 'package:mapmarker_app/core/theme/app_colors.dart';
 import 'package:mapmarker_app/core/theme/app_theme.dart';
-import 'package:mapmarker_app/data/models/trip.dart';
 import 'package:mapmarker_app/data/models/photo.dart';
 import 'package:mapmarker_app/data/models/trip_route.dart';
 import 'package:mapmarker_app/data/trips/route_links.dart';
@@ -81,7 +80,6 @@ void main() {
     final scene = buildExportScene(
       trip: testTrip(id: 'trip'),
       route: route,
-      phase: TripPhase.before,
       options: const ExportOptions(),
       colors: _colors,
       l10n: testL10n,
