@@ -97,6 +97,10 @@ Stop stopFromJson(Object? json) {
       null => null,
       final Object value => photoFromJson(value),
     },
+    // 사진 방향(1-5 후속) 전 서버·기기 저장(2-2)에는 없다. 모르는 방향(새 앱이 더한 값)도 기본으로 둔다.
+    photoSide:
+        PhotoSide.values.asNameMap()[_field<String?>(map, 'photoSide')] ??
+        PhotoSide.up,
   );
 }
 
@@ -157,6 +161,7 @@ Map<String, Object?> updateStopJson(Stop stop) => {
   'timeZone': stop.timeZone,
   'placeProvider': stop.placeProvider?.name,
   'placeId': stop.placeId,
+  'photoSide': stop.photoSide.name,
 };
 
 Segment segmentFromJson(Object? json) {

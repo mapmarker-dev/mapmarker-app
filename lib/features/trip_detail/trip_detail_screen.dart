@@ -23,6 +23,7 @@ import '../../data/models/candidate.dart';
 import '../../data/models/map_provider_type.dart';
 import '../../data/models/new_id.dart';
 import '../../data/models/segment.dart';
+import '../../data/models/photo.dart';
 import '../../data/models/stop.dart';
 import '../../data/models/trip.dart';
 import '../../data/models/trip_route.dart';
@@ -150,6 +151,9 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   /// 그동안 지도는 새 곡선만 흐리게 그리고(원래 곡선은 숨긴다) 핸들을 숨기며, 목록의 그 구간 줄에 진행 표시가 뜬다.
   /// 저장소가 새 동선을 내면 그 동선이 대신하고, 저장하지 못하면 지운다.
   ({String segmentId, double curvature, TripRoute route})? _savingCurve;
+
+  /// 지도 화살표로 바꾸고 저장을 기다리는 사진 방향. 저장소가 새 동선을 내기 전까지 새 방향을 흐리게 보여 준다.
+  ({String stopId, PhotoSide side, TripRoute route})? _savingPhotoSide;
 
   /// 끌어 옮기고 저장을 기다리는 장소. 목록이 그 줄을 흐리게 두고 진행 표시를 띄운다.
   String? _savingStopId;
@@ -403,6 +407,27 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       ],
     );
   }
+
+  /// 저장을 기다리는 사진 방향이 있으면 그 장소를 새 방향으로 바꾼 동선. [stored]는 저장소의 동선이고,
+  /// 저장소가 그 뒤로 새 동선을 냈으면 그대로다.
+  TripRoute _withSavingPhotoSide(TripRoute stored, TripRoute route) {
+    final saving = _savingPhotoSide;
+    if (saving == null || !identical(saving.route, stored)) return route;
+    return route.copyWith(
+      stops: [
+        for (final stop in route.stops)
+          stop.id == saving.stopId
+              ? stop.copyWith(photoSide: saving.side)
+              : stop,
+      ],
+    );
+  }
+
+  /// 사진 방향을 저장하는 중인 장소. [_withSavingPhotoSide]와 같은 때만 있다.
+  String? _savingPhotoStopIdOf(TripRoute? route) => switch (_savingPhotoSide) {
+    final saving? when identical(saving.route, route) => saving.stopId,
+    _ => null,
+  };
 
   /// 저장을 기다리는 곡선의 구간. [_withSavingCurve]와 같은 때만 있다.
   String? _savingSegmentIdOf(TripRoute? route) => switch (_savingCurve) {
@@ -774,6 +799,37 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       setState(() => _savingCurve = null);
     }
     return saved;
+  }
+
+  /// 지도의 화살표로 사진 방향을 바꿨다. 저장소의 최신 장소에 방향만 넣는다. 저장하는 동안 마커를 흐리게 두고,
+  /// 실패하면 스낵바로 알리고 원래 방향으로 돌아간다.
+  Future<void> _changePhotoSide(
+    TripRoute route,
+    String stopId,
+    PhotoSide side,
+  ) async {
+    final stored = _latestRoute(route);
+    final latest = stored.stopById(stopId);
+    if (latest == null || latest.photoSide == side) return;
+    final saving = (stopId: stopId, side: side, route: stored);
+    setState(() => _savingPhotoSide = saving);
+    final saved = await _save(
+      () => ref
+          .read(tripDetailProvider(trip.id).notifier)
+          .updateStop(latest.copyWith(photoSide: side)),
+    );
+    if (!saved && mounted && _savingPhotoSide == saving) {
+      setState(() => _savingPhotoSide = null);
+    }
+  }
+
+  /// 사진 방향 화살표를 둘 장소. 일차 보기에서 사진 있는 장소 줄을 펼친 때만이다.
+  /// 같은 자리에 여러 번 넣은 장소(연박 숙소)는 사진이 있는 장소의 방향을 바꾼다([photoStopAt]).
+  String? _photoSideStopId(RouteView view, int? day) {
+    final expanded = _selection.expanded;
+    if (day == null || expanded == null) return null;
+    final stop = view.stops.where((s) => s.id == expanded).firstOrNull;
+    return stop == null ? null : photoStopAt(view, stop)?.id;
   }
 
   /// 곡선 핸들을 둘 구간. 일차 보기에서 목록의 구간 줄을 직접 눌러 고른 때만이다
@@ -1177,7 +1233,10 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     });
     final stored = ref.watch(tripRouteProvider(trip.id));
     final savingSegmentId = _savingSegmentIdOf(stored.value);
-    final route = stored.whenData(_withSavingCurve);
+    final savingPhotoStopId = _savingPhotoStopIdOf(stored.value);
+    final route = stored.whenData(
+      (stored) => _withSavingPhotoSide(stored, _withSavingCurve(stored)),
+    );
     final view = route.value?.view(
       day: choice.day,
       showLodging: choice.showLodging,
@@ -1240,11 +1299,18 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
                       ? _curveSegmentId(view, day)
                       : null,
                   savingSegmentId: savingSegmentId,
+                  // 저장을 기다리는 동안에는 화살표가 없어 다시 바꿀 수 없다.
+                  photoSideStopId: savingPhotoStopId == null && !_readOnly
+                      ? _photoSideStopId(view, day)
+                      : null,
+                  savingPhotoStopId: savingPhotoStopId,
                   onMarkerTap: (id) => _onMarkerTap(route, view, day, id),
                   onLineTap: (id) => _onLineTap(route, day, id),
                   onMapTap: (tap) => _onMapTap(tap, hasList: hasList),
                   onCurveChanged: (id, curvature) =>
                       _changeCurvature(route, id, curvature),
+                  onPhotoSideChanged: (id, side) =>
+                      _changePhotoSide(route, id, side),
                 ),
               ),
             ),
@@ -1667,10 +1733,13 @@ class _RouteMap extends ConsumerWidget {
     required this.showCandidates,
     required this.curveSegmentId,
     required this.savingSegmentId,
+    required this.photoSideStopId,
+    required this.savingPhotoStopId,
     required this.onMarkerTap,
     required this.onLineTap,
     required this.onMapTap,
     required this.onCurveChanged,
+    required this.onPhotoSideChanged,
   });
 
   final Trip trip;
@@ -1702,10 +1771,17 @@ class _RouteMap extends ConsumerWidget {
   /// 곡선을 끌어 놓고 저장을 기다리는 구간. 흐리게 그린다.
   final String? savingSegmentId;
 
+  /// 사진 방향 화살표를 둘 장소. 없으면 null이다.
+  final String? photoSideStopId;
+
+  /// 사진 방향을 바꾸고 저장을 기다리는 장소. 그 마커를 흐리게 그린다.
+  final String? savingPhotoStopId;
+
   final ValueChanged<String> onMarkerTap;
   final ValueChanged<String> onLineTap;
   final ValueChanged<MapTap> onMapTap;
   final Future<bool> Function(String id, double curvature) onCurveChanged;
+  final void Function(String id, PhotoSide side) onPhotoSideChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1721,8 +1797,13 @@ class _RouteMap extends ConsumerWidget {
       curveSegmentId: curveSegmentId,
       savingSegmentId: savingSegmentId,
       faded: candidateView,
+      pendingStopId: savingPhotoStopId,
       photoOf: ref.watch(photoImagesProvider).thumbnailOf,
     );
+    final photoSideStop = switch (photoSideStopId) {
+      final id? when !candidateView => route.stopById(id),
+      _ => null,
+    };
     final draft = this.draft;
     final candidates = route.candidates;
     final fitted = candidateView && candidates.isNotEmpty
@@ -1743,6 +1824,17 @@ class _RouteMap extends ConsumerWidget {
         arrows: arrows,
         lineIcons: lineIcons,
         curveHandle: curveHandle,
+        photoSidePicker: photoSideStop == null
+            ? null
+            : MapPhotoSidePicker(
+                id: photoSideStop.id,
+                position: photoSideStop.position,
+                side: photoSideStop.photoSide,
+                color: photoSideStop.isLodging
+                    ? colors.routeLodging.background
+                    : colors.routePhotoFrame(photoSideStop.day),
+                outline: colors.routeHalo,
+              ),
         myLocation: myLocation,
         camera: switch ((myLocationCamera, myLocation)) {
           (final count?, final me?) => MapCameraRequest(
@@ -1761,6 +1853,7 @@ class _RouteMap extends ConsumerWidget {
       onLineTap: onLineTap,
       onMapTap: onMapTap,
       onCurveChanged: onCurveChanged,
+      onPhotoSideChanged: onPhotoSideChanged,
     );
   }
 }

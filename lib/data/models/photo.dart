@@ -33,3 +33,6 @@ class Photo {
   @override
   String toString() => 'Photo($id)';
 }
+
+/// 지도에서 사진 마커를 장소의 어느 쪽에 붙일지. 사진이 다른 장소와 선을 가리지 않게 사용자가 지도에서 고른다.
+enum PhotoSide { up, down, left, right }

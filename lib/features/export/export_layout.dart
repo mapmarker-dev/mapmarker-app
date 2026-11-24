@@ -4,6 +4,7 @@ import '../../core/map/geo.dart';
 import '../../core/map/map_provider.dart';
 import '../../core/map/route_arrow.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../data/models/photo.dart';
 import 'export_scene.dart';
 
 /// 이름표와 마커 사이, 이름표와 이미지 가장자리 사이의 틈(논리 px).
@@ -72,32 +73,40 @@ ExportLayout layoutExport({
     if (placed.marker.name.isEmpty) continue;
     final label = labelSize(placed.marker.name);
     final box = placed.rect;
-    final candidates = [
-      Rect.fromLTWH(
-        box.center.dx - label.width / 2,
-        box.bottom + _labelGap,
-        label.width,
-        label.height,
-      ),
-      Rect.fromLTWH(
-        box.right + _labelGap,
-        box.center.dy - label.height / 2,
-        label.width,
-        label.height,
-      ),
-      Rect.fromLTWH(
-        box.left - _labelGap - label.width,
-        box.center.dy - label.height / 2,
-        label.width,
-        label.height,
-      ),
-      Rect.fromLTWH(
-        box.center.dx - label.width / 2,
-        box.top - _labelGap - label.height,
-        label.width,
-        label.height,
-      ),
-    ];
+    final below = Rect.fromLTWH(
+      box.center.dx - label.width / 2,
+      box.bottom + _labelGap,
+      label.width,
+      label.height,
+    );
+    final right = Rect.fromLTWH(
+      box.right + _labelGap,
+      box.center.dy - label.height / 2,
+      label.width,
+      label.height,
+    );
+    final left = Rect.fromLTWH(
+      box.left - _labelGap - label.width,
+      box.center.dy - label.height / 2,
+      label.width,
+      label.height,
+    );
+    final above = Rect.fromLTWH(
+      box.center.dx - label.width / 2,
+      box.top - _labelGap - label.height,
+      label.width,
+      label.height,
+    );
+    // 사진 마커는 사진 반대쪽(장소 자리 쪽)부터 찾는다. 앱 지도의 이름 자리와 같다.
+    final look = placed.marker.look;
+    final candidates = look.photo == null
+        ? [below, right, left, above]
+        : switch (look.photoSide) {
+            PhotoSide.up => [below, right, left, above],
+            PhotoSide.down => [above, right, left, below],
+            PhotoSide.left => [right, below, above, left],
+            PhotoSide.right => [left, below, above, right],
+          };
     bool free(Rect rect) =>
         _contains(bounds, rect) &&
         !reserved.any(rect.overlaps) &&

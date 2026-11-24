@@ -71,6 +71,9 @@ lib/
 - 올리기: [저장]할 때 장소를 먼저 저장하고 `ServerTripRepository.setStopPhoto`(업로드 주소 → S3 PUT → 등록). S3는 따로 된 dio(`photoDioProvider`)로만 부른다(서버 토큰이 S3로 가면 안 된다). 사진만 실패하면 `PhotoSaveException`이고, 다시 저장하면 사진만 보낸다.
 - 보기: 주소는 응답마다 새로 서명되므로 이미지(`PhotoImage`)는 사진 ID와 크기로 기억한다. 403(만료)이면 보고 있는 여행을 다시 받는다(30초에 한 번).
 - 사진 마커(`MarkerLook.photo`): `NOverlayImage.fromWidget`이 이미지를 기다리지 않아서 `precacheImage`로 먼저 받고, 못 받으면 원 마커로 그린다.
+- **사진 방향**(`Stop.photoSide`, 기본 위): 사진 마커의 모양과 기준점은 `MarkerIcon.sizeOf`·`anchorOf`가 방향마다 정한다(꼬리 끝이 장소, 번호 원은 장소에서 먼 쪽 모서리, 이름은 사진 반대쪽 `naverCaptionAlignOf`). 합친 마커는 사진을 주는 장소(`photoStopAt`)의 방향이다.
+  - 바꾸기: 일차 보기에서 사진 있는 장소 줄을 펼치면 `MapScene.photoSidePicker`(화살표 4개, 그림은 네이버 마커 하나, 누르는 영역은 곡선 핸들처럼 카메라가 멈추면 Flutter로 놓는다) → `onPhotoSideChanged` → `updateStop`. 저장하는 동안 마커는 `MapMarker.pending`(흐림)이고 화살표가 없다. 장소 편집 화면에는 없다(지도를 보며 바꾼다).
+  - 앱은 장소를 고칠 때마다 `photoSide`를 보내서 이 칸이 없는 서버에는 400이다. 서버를 먼저 올린다.
 - `AndroidManifest.xml`의 `ModuleDependencies` 서비스는 시스템 사진 선택기가 없는 기기에 Google Play 서비스가 선택기를 받게 한다.
 
 ## 여행 중 (현재 위치, 방문)
@@ -107,6 +110,7 @@ lib/
 - 기기 위치는 `FakeLocationSource`(`pumpTestApp(locationSource:)`, 기본은 권한 없음): `granted`·`answer`·`serviceOff`로 권한을 정하고 `emit`으로 위치를 낸다. 낸 위치는 `pump` 두 번 뒤에 그려진다. 시각을 확인할 때는 기기 시간대와 상관없게 `zonedParts`로 서울 시각을 계산한다.
 - 사진은 `FakePhotoSource`·`FakePhotoPreparer`(원본 400×300, 고른 정사각형은 `areas`)와 1×1 그림을 주는 `fakePhotoImages`, 사진만 실패는 `FlakyTripRepository.failPhotos`. 사진을 고르면 "사진 위치" 화면에서 [확인]을 눌러야 하고, 사진 칸은 `scrollUntilVisible`로 내린다.
 - 내보내기는 가짜 지도가 다음 프레임에 1×1 그림을 찍은 것으로 넘기고(`fakeCapture`, 실패는 `pumpTestApp(mapCaptureFails:)`), 저장과 공유는 `FakeImageSharing`(`pumpTestApp(imageSharing:)`)이 받는다. 저장과 공유는 이미지를 실제로 만들어서 `runAsync`와 `pump`를 번갈아 기다린다. 사진 마커가 있으면 사진을 받는 것도 실제 시간이 걸린다.
+- 지도의 사진 방향 화살표는 `pickPhotoSide(tester, side)`로 누른다(`MapScene.photoSidePicker`가 있어야 한다).
 - 공용 도우미는 `test/helpers/`. 화면은 `pumpTestApp`(가짜 지도, 기본 로그인)이나 `testMaterialApp`, 지도에 넘긴 장면은 `mapScene(tester)`, 지도 탭은 `tapMarker`·`tapLine`·`tapMap`.
 - 기본 화면(800×600)은 가로라 동선 목록이 오른쪽 패널이다. 아래 시트는 `usePortraitPhone`. 연필·손잡이는 줄을 먼저 눌러야 뜬다.
 - 로캘이 한국어라 `tester.pageBack()` 대신 `find.byType(BackButton)`을 누른다. 칩은 `ChoiceChip`·`FilterChip` 위젯을 누른다.

@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/core/map/geo.dart';
 import 'package:mapmarker_app/core/map/map_provider.dart';
 import 'package:mapmarker_app/core/map/route_arrow.dart';
+import 'package:mapmarker_app/data/models/photo.dart';
 
 /// 지도 SDK 없이 화면을 띄우는 가짜 지도. 받은 [MapScene]과 탭 함수를 그대로 들고 있는다.
 ///
@@ -36,12 +37,14 @@ class FakeMapProvider implements MapProvider {
     ValueChanged<String>? onLineTap,
     ValueChanged<MapTap>? onMapTap,
     Future<bool> Function(String id, double curvature)? onCurveChanged,
+    void Function(String id, PhotoSide side)? onPhotoSideChanged,
   }) => FakeMap(
     scene: scene,
     onMarkerTap: onMarkerTap,
     onLineTap: onLineTap,
     onMapTap: onMapTap,
     onCurveChanged: onCurveChanged,
+    onPhotoSideChanged: onPhotoSideChanged,
   );
 }
 
@@ -53,6 +56,7 @@ class FakeMap extends StatelessWidget {
     this.onLineTap,
     this.onMapTap,
     this.onCurveChanged,
+    this.onPhotoSideChanged,
   });
 
   final MapScene scene;
@@ -60,6 +64,7 @@ class FakeMap extends StatelessWidget {
   final ValueChanged<String>? onLineTap;
   final ValueChanged<MapTap>? onMapTap;
   final Future<bool> Function(String id, double curvature)? onCurveChanged;
+  final void Function(String id, PhotoSide side)? onPhotoSideChanged;
 
   @override
   Widget build(BuildContext context) => const SizedBox.expand();
@@ -232,4 +237,13 @@ Future<bool> releaseCurveHandle(WidgetTester tester, double curvature) {
   final handle = map.scene.curveHandle;
   expect(handle, isNotNull, reason: '곡선 핸들이 없으면 끌 수 없다');
   return map.onCurveChanged!(handle!.id, curvature);
+}
+
+/// 지도의 사진 방향 화살표 중 [side]를 누른 것처럼 한다. 화살표가 있어야 누를 수 있다.
+Future<void> pickPhotoSide(WidgetTester tester, PhotoSide side) async {
+  final map = _fakeMap(tester);
+  final picker = map.scene.photoSidePicker;
+  expect(picker, isNotNull, reason: '사진 방향 화살표가 없으면 누를 수 없다');
+  map.onPhotoSideChanged!(picker!.id, side);
+  await tester.pumpAndSettle();
 }

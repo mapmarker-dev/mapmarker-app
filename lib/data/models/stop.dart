@@ -46,6 +46,7 @@ class Stop {
     this.placeProvider,
     this.placeId,
     this.photo,
+    this.photoSide = PhotoSide.up,
   }) : assert(day >= 1),
        assert(order >= 0);
 
@@ -95,6 +96,9 @@ class Stop {
   /// 사진. 없으면 null이다. 사진은 사진 API로만 바꾼다(`TripRepository.setStopPhoto`).
   final Photo? photo;
 
+  /// 지도에서 사진 마커를 붙일 쪽. 기본은 위이고, 사진을 바꾸거나 지워도 남는다(사진이 없으면 쓰지 않는다).
+  final PhotoSide photoSide;
+
   bool get isLodging => kind == StopKind.lodging;
 
   LatLng get position => LatLng(latitude, longitude);
@@ -118,6 +122,7 @@ class Stop {
     // 방문 시각을 주면 방문 여부도 따라간다(null이면 방문 취소). 서버와 같은 규칙이다.
     DateTime? Function()? visitedAt,
     Photo? Function()? photo,
+    PhotoSide? photoSide,
   }) => Stop(
     id: id,
     tripId: tripId,
@@ -137,6 +142,7 @@ class Stop {
     placeProvider: placeProvider,
     placeId: placeId,
     photo: photo == null ? this.photo : photo(),
+    photoSide: photoSide ?? this.photoSide,
   );
 
   @override

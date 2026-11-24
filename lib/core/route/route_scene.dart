@@ -40,7 +40,8 @@ IconData? kindBadge(StopKind kind) => switch (kind) {
 /// - [faded]("후보 목록" 보기): 후보가 어디쯤인지 보이게 동선 전체를 [AppOpacity.backdrop]만큼 흐리게 깐다.
 ///   마커와 선만 그리고 화살표·선 아이콘·곡선 핸들은 없다. 마커는 누를 수 있다(그 일차로 간다).
 /// - 사진([photoOf]): 사진이 있는 장소는 둥근 사각 사진 마커다([MarkerLook.photo]). 합친 마커는 그 자리 장소 중
-///   동선에서 먼저 오는 사진을 쓴다. [faded]에서는 보통 원 마커다.
+///   동선에서 먼저 오는 사진과 그 장소의 사진 방향([Stop.photoSide])을 쓴다. [faded]에서는 보통 원 마커다.
+/// - 저장을 기다리는 장소([pendingStopId], 바꾼 사진 방향): 그 자리 마커를 흐리게 그린다([MapMarker.pending]).
 ({
   List<MapMarker> markers,
   List<MapLine> lines,
@@ -56,6 +57,7 @@ routeOverlays({
   String? savingSegmentId,
   bool faded = false,
   ImageProvider Function(Photo photo)? photoOf,
+  String? pendingStopId,
 }) {
   Color backdrop(Color color) =>
       faded ? color.withValues(alpha: color.a * AppOpacity.backdrop) : color;
@@ -65,16 +67,14 @@ routeOverlays({
     if (drawn.any(stop.isSamePlaceAs)) continue;
     drawn.add(stop);
     var look = markerLookOf(route, stop, colors);
-    final photo = view.stops
-        .where(stop.isSamePlaceAs)
-        .map((s) => s.photo)
-        .nonNulls
-        .firstOrNull;
-    if (photo != null && photoOf != null) {
+    // 사진과 그 방향은 같은 자리 장소 중 사진이 있는 첫 장소의 것이다([photoStopAt]).
+    final photoStop = photoStopAt(view, stop);
+    if (photoStop?.photo case final photo? when photoOf != null) {
       // 테두리를 일차 색보다 조금 어둡게 해서 선과 붙어 보이지 않게 한다. 숙소 색은 이미 어둡다.
       look = look.withPhoto(
         photoOf(photo),
         frame: stop.isLodging ? null : colors.routePhotoFrame(stop.day),
+        side: photoStop!.photoSide,
       );
     }
     markers.add(
@@ -83,6 +83,11 @@ routeOverlays({
         position: stop.position,
         caption: stop.name,
         look: faded ? look.faded(AppOpacity.backdrop) : look,
+        pending:
+            pendingStopId != null &&
+            view.stops.any(
+              (s) => s.id == pendingStopId && s.isSamePlaceAs(stop),
+            ),
       ),
     );
   }
@@ -261,3 +266,9 @@ List<Stop> stopsAtMarker(RouteView view, String markerId) {
       if (stop.isSamePlaceAs(marked)) stop,
   ];
 }
+
+/// [stop] 자리(같은 자리에 여러 번 넣었으면 합친 마커)의 사진을 주는 장소. 동선에서 먼저 오는, 사진이 있는 장소다.
+/// 사진이 없으면 null이다. 사진 방향을 바꾸면 이 장소의 방향을 바꾼다.
+Stop? photoStopAt(RouteView view, Stop stop) => view.stops
+    .where((s) => s.isSamePlaceAs(stop) && s.photo != null)
+    .firstOrNull;

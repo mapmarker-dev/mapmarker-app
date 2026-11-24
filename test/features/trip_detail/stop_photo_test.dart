@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/app/routes.dart';
 import 'package:mapmarker_app/core/map/geo.dart';
+import 'package:mapmarker_app/core/map/map_provider.dart';
 import 'package:mapmarker_app/core/theme/app_colors.dart';
 import 'package:mapmarker_app/core/theme/app_theme.dart';
 import 'package:mapmarker_app/data/api/api_exception.dart';
@@ -11,6 +14,7 @@ import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/photos/photo_images.dart';
 import 'package:mapmarker_app/data/photos/photo_preparer.dart';
 import 'package:mapmarker_app/features/trip_detail/trip_detail_controller.dart';
+import 'package:mapmarker_app/l10n/l10n.dart';
 import 'package:mapmarker_app/features/trip_detail/widgets/itinerary_tiles.dart';
 import 'package:mapmarker_app/features/trip_detail/widgets/photo_position_screen.dart';
 import 'package:mapmarker_app/features/trip_detail/widgets/place_photo_field.dart';
@@ -437,5 +441,80 @@ void main() {
     await tester.tap(_inDialog<Dialog>(find.byTooltip('닫기')));
     await tester.pumpAndSettle();
     expect(find.byType(InteractiveViewer), findsNothing);
+  });
+
+  group('지도에서 사진 방향을', () {
+    MapMarker markerA(WidgetTester tester) =>
+        mapScene(tester).markers.singleWhere((m) => m.id == 'a');
+
+    PhotoSide savedSide(ProviderContainer container) => container
+        .read(tripRouteProvider('jeju'))
+        .value!
+        .stopById('a')!
+        .photoSide;
+
+    testWidgets('사진 있는 장소 줄을 펼치면 화살표가 뜨고, 고른 방향을 저장한다', (tester) async {
+      final container = await _openDayOne(tester, _repository(withPhoto: true));
+      expect(mapScene(tester).photoSidePicker, isNull);
+
+      await tester.tap(find.text('a'));
+      await tester.pumpAndSettle();
+
+      final picker = mapScene(tester).photoSidePicker!;
+      expect(picker.id, 'a');
+      expect(picker.side, PhotoSide.up);
+      expect(markerA(tester).look.photoSide, PhotoSide.up);
+
+      await pickPhotoSide(tester, PhotoSide.down);
+
+      expect(savedSide(container), PhotoSide.down);
+      expect(markerA(tester).look.photoSide, PhotoSide.down);
+      expect(markerA(tester).pending, isFalse);
+      expect(mapScene(tester).photoSidePicker!.side, PhotoSide.down);
+    });
+
+    testWidgets('사진 없는 장소 줄과 전체 보기에는 화살표가 없다', (tester) async {
+      await _openDayOne(tester, _repository(withPhoto: true));
+
+      await tester.tap(find.text('b'));
+      await tester.pumpAndSettle();
+      expect(mapScene(tester).photoSidePicker, isNull);
+
+      await tester.tap(find.text('a'));
+      await tester.pumpAndSettle();
+      expect(mapScene(tester).photoSidePicker, isNotNull);
+
+      await tapChip(tester, '전체');
+      expect(mapScene(tester).photoSidePicker, isNull);
+    });
+
+    testWidgets('저장하는 동안은 흐리게 두고, 저장하지 못하면 알리고 원래 방향으로 돌아간다', (tester) async {
+      final repository = _repository(withPhoto: true);
+      final container = await _openDayOne(tester, repository);
+      await tester.tap(find.text('a'));
+      await tester.pumpAndSettle();
+      final hold = Completer<void>();
+      repository.holdWrites = hold;
+
+      await pickPhotoSide(tester, PhotoSide.left);
+
+      // 새 방향을 흐리게 보여 주고, 저장될 때까지 다시 고를 수 없다.
+      expect(markerA(tester).look.photoSide, PhotoSide.left);
+      expect(markerA(tester).pending, isTrue);
+      expect(mapScene(tester).photoSidePicker, isNull);
+
+      repository.failWrites = ApiFailure.network;
+      hold.complete();
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(testL10n.saveFailureText(ApiFailure.network)),
+        findsOneWidget,
+      );
+      expect(savedSide(container), PhotoSide.up);
+      expect(markerA(tester).look.photoSide, PhotoSide.up);
+      expect(markerA(tester).pending, isFalse);
+      expect(mapScene(tester).photoSidePicker!.side, PhotoSide.up);
+    });
   });
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/models/photo.dart';
 import '../theme/app_tokens.dart';
 import 'map_provider.dart';
 
@@ -16,23 +17,36 @@ class MarkerIcon extends StatelessWidget {
   /// 작은 마커([MarkerLook.small])의 크기. 배지 없이 원(지름 [_smallCircle])만 들어간다.
   static const smallSize = Size.square(22);
 
-  /// 사진 마커의 크기. 사진(정사각형)과 꼬리, 왼쪽 위로 걸친 번호 원이 들어간다.
-  /// 좌우를 똑같이 비워 꼬리 끝이 가운데에 온다.
-  static const photoSize = Size(
-    _photoInset * 2 + _photo,
-    _photoInset + _photo + _tail,
-  );
+  /// 사진 마커의 크기. 사진(정사각형)과 꼬리, 장소에서 먼 쪽 모서리로 걸친 번호 원이 들어간다.
+  /// 꼬리 양옆을 똑같이 비워 꼬리 끝이 그 변의 가운데에 온다. 사진이 위·아래면 세로, 왼쪽·오른쪽이면 가로로 길다.
+  static Size photoSizeOf(PhotoSide side) => switch (side) {
+    PhotoSide.up || PhotoSide.down => const Size(
+      _photoInset * 2 + _photo,
+      _photoInset + _photo + _tail,
+    ),
+    PhotoSide.left || PhotoSide.right => const Size(
+      _photoInset + _photo + _tail,
+      _photoInset * 2 + _photo,
+    ),
+  };
 
   /// [look] 그림의 크기. 지도 구현이 마커 크기로 쓴다.
   static Size sizeOf(MarkerLook look) => look.photo != null
-      ? photoSize
+      ? photoSizeOf(look.photoSide)
       : look.small
       ? smallSize
       : size;
 
-  /// 장소 자리가 그림의 어디인지(가로, 세로 0~1). 원은 가운데, 사진 마커는 꼬리 끝(아래 가운데)이다.
-  static Offset anchorOf(MarkerLook look) =>
-      look.photo != null ? const Offset(0.5, 1) : const Offset(0.5, 0.5);
+  /// 장소 자리가 그림의 어디인지(가로, 세로 0~1). 원은 가운데, 사진 마커는 꼬리 끝이다
+  /// (사진이 위면 아래 가운데, 아래면 위 가운데, 왼쪽이면 오른쪽 가운데, 오른쪽이면 왼쪽 가운데).
+  static Offset anchorOf(MarkerLook look) => look.photo == null
+      ? const Offset(0.5, 0.5)
+      : switch (look.photoSide) {
+          PhotoSide.up => const Offset(0.5, 1),
+          PhotoSide.down => const Offset(0.5, 0),
+          PhotoSide.left => const Offset(1, 0.5),
+          PhotoSide.right => const Offset(0, 0.5),
+        };
 
   static const _circle = 24.0;
   static const _smallCircle = 18.0;
@@ -46,8 +60,11 @@ class MarkerIcon extends StatelessWidget {
   static const _number = 18.0;
   static const _photoHalo = 1.5;
 
-  /// 번호 원이 사진 왼쪽 위 모서리에 걸치도록 사진을 안으로 들인 거리.
+  /// 번호 원이 사진 모서리에 걸치도록 사진을 안으로 들인 거리.
   static const _photoInset = _number / 3;
+
+  /// 사진 마커가 장소 자리에서 사진 쪽으로 뻗는 길이(꼬리와 사진과 번호 원 여백). 방향과 관계없이 같다.
+  static const photoReach = _photoInset + _photo + _tail;
 
   final MarkerLook look;
 
@@ -114,23 +131,54 @@ class MarkerIcon extends StatelessWidget {
       height: 1,
     );
     final frame = look.photoFrame ?? look.fill;
-    // 꼬리: 사진 아래 가운데에서 장소 자리(그림 맨 아래)를 가리킨다.
+    final side = look.photoSide;
+    final box = photoSizeOf(side);
+    const strip = _tail + _photoBorder;
+    // 사진이 놓이는 곳, 꼬리 띠(사진 테두리에 조금 겹친다), 꼬리를 돌릴 횟수(아래를 가리키는 꼬리에서 시계 방향 90도씩),
+    // 번호 원의 자리(장소에서 먼 쪽 모서리. 장소 둘레에 모이는 선과 화살표를 가리지 않는다).
+    final (photoAt, tailRect, turns, numberAt) = switch (side) {
+      PhotoSide.up => (
+        const Offset(_photoInset, _photoInset),
+        Rect.fromLTWH(0, box.height - strip, box.width, strip),
+        0,
+        Offset.zero,
+      ),
+      PhotoSide.down => (
+        const Offset(_photoInset, _tail),
+        Rect.fromLTWH(0, 0, box.width, strip),
+        2,
+        Offset(0, box.height - _number),
+      ),
+      PhotoSide.left => (
+        const Offset(_photoInset, _photoInset),
+        Rect.fromLTWH(box.width - strip, 0, strip, box.height),
+        3,
+        Offset.zero,
+      ),
+      PhotoSide.right => (
+        const Offset(_tail, _photoInset),
+        Rect.fromLTWH(0, 0, strip, box.height),
+        1,
+        Offset(box.width - _number, 0),
+      ),
+    };
+    // 꼬리: 사진 변의 가운데에서 장소 자리를 가리킨다.
     // 흰 테두리 꼬리를 사진 아래에, 테두리 색 꼬리를 사진 위에 그려 사진과 꼬리 사이에 흰 줄이 생기지 않게 한다.
-    Widget tail(Color color, {required double inset}) => Positioned(
-      left: 0,
-      right: 0,
-      bottom: 0,
-      height: _tail + _photoBorder,
-      child: CustomPaint(painter: _TailPainter(color, inset: inset)),
+    Widget tail(Color color, {required double inset}) => Positioned.fromRect(
+      rect: tailRect,
+      child: RotatedBox(
+        quarterTurns: turns,
+        child: CustomPaint(painter: _TailPainter(color, inset: inset)),
+      ),
     );
     return SizedBox.fromSize(
-      size: photoSize,
+      size: box,
       child: Stack(
         children: [
           tail(look.halo, inset: 0),
           Positioned(
-            left: _photoInset,
-            top: _photoInset,
+            left: photoAt.dx,
+            top: photoAt.dy,
             width: _photo,
             height: _photo,
             child: Container(
@@ -151,8 +199,8 @@ class MarkerIcon extends StatelessWidget {
           tail(frame, inset: _photoHalo),
           if (look.label != null || look.icon != null)
             Positioned(
-              left: 0,
-              top: 0,
+              left: numberAt.dx,
+              top: numberAt.dy,
               child: Container(
                 width: _number,
                 height: _number,
@@ -311,4 +359,83 @@ class _ArrowPainter extends CustomPainter {
   @override
   bool shouldRepaint(_ArrowPainter old) =>
       old.color != color || old.outline != outline;
+}
+
+/// 사진 방향을 고르는 화살표 4개 그림. 그림 가운데가 장소 자리다.
+///
+/// 지금 방향([side])의 화살표는 사진 너머에 채워진 원으로, 나머지는 장소 가까이에 흰 원으로 그린다.
+/// 지도 구현은 이 그림을 장소 자리에 올리고, 같은 자리([offsetOf])에 누르는 영역을 둔다.
+class PhotoSideArrows extends StatelessWidget {
+  const PhotoSideArrows({
+    super.key,
+    required this.side,
+    required this.color,
+    required this.outline,
+  });
+
+  /// 화살표 원 지름.
+  static const arrow = 28.0;
+
+  /// 사진이 없는 쪽 화살표의 장소 자리에서 거리. 원 마커 둘레 바로 밖이다.
+  static const _near = 30.0;
+
+  /// 지금 방향 화살표의 거리. 사진 바로 너머다.
+  static const _far = MarkerIcon.photoReach + AppSpace.xs + arrow / 2;
+
+  static const size = Size.square((_far + arrow / 2) * 2);
+
+  /// [arrowSide] 화살표 가운데의 장소 자리에서 떨어진 거리(논리 px, 화면 기준). 지금 방향이 [current]다.
+  static Offset offsetOf(PhotoSide arrowSide, PhotoSide current) {
+    final d = arrowSide == current ? _far : _near;
+    return switch (arrowSide) {
+      PhotoSide.up => Offset(0, -d),
+      PhotoSide.down => Offset(0, d),
+      PhotoSide.left => Offset(-d, 0),
+      PhotoSide.right => Offset(d, 0),
+    };
+  }
+
+  final PhotoSide side;
+  final Color color;
+  final Color outline;
+
+  @override
+  Widget build(BuildContext context) {
+    final center = size.center(Offset.zero);
+    return SizedBox.fromSize(
+      size: size,
+      child: Stack(
+        children: [
+          for (final arrowSide in PhotoSide.values)
+            Positioned.fromRect(
+              rect: Rect.fromCenter(
+                center: center + offsetOf(arrowSide, side),
+                width: arrow,
+                height: arrow,
+              ),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: arrowSide == side ? color : outline,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: arrowSide == side ? outline : color,
+                    width: 1.5,
+                  ),
+                ),
+                child: Icon(
+                  switch (arrowSide) {
+                    PhotoSide.up => Icons.keyboard_arrow_up,
+                    PhotoSide.down => Icons.keyboard_arrow_down,
+                    PhotoSide.left => Icons.keyboard_arrow_left,
+                    PhotoSide.right => Icons.keyboard_arrow_right,
+                  },
+                  size: 20,
+                  color: arrowSide == side ? outline : color,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }

@@ -6,6 +6,7 @@ import 'package:mapmarker_app/core/map/route_arrow.dart';
 import 'package:mapmarker_app/core/theme/app_colors.dart';
 import 'package:mapmarker_app/core/theme/app_theme.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
+import 'package:mapmarker_app/data/models/photo.dart';
 import 'package:mapmarker_app/data/models/trip_route.dart';
 import 'package:mapmarker_app/data/trips/route_links.dart';
 import 'package:mapmarker_app/features/export/export_layout.dart';
@@ -178,5 +179,30 @@ void main() {
     // 짧은 선은 화면에서 20px, 긴 선은 240px쯤이다.
     expect(arrowMinLineLength, inInclusiveRange(21, 239));
     expect(layout.arrows.map((a) => a.$1.id), ['long']);
+  });
+
+  test('puts the name across from a photo below the place', () {
+    final marker = _marker('용두암', const LatLng(0.5, 0.5));
+    final below = ExportMarker(
+      id: marker.id,
+      position: marker.position,
+      name: marker.name,
+      look: marker.look.withPhoto(
+        const AssetImage('missing.png'),
+        side: PhotoSide.down,
+      ),
+    );
+
+    final layout = _layout(_sceneOf([below]));
+
+    final photo = layout.markers.single.rect;
+    final label = layout.labels.single.rect;
+    expect(label.bottom, lessThan(photo.top));
+    // 사진이 아래로 뻗어서 지도를 맞출 때 아래 여백이 더 크다.
+    final plain = _sceneOf([marker]).frameFor()!;
+    expect(
+      _sceneOf([below]).frameFor()!.padding.bottom,
+      greaterThan(plain.padding.bottom),
+    );
   });
 }

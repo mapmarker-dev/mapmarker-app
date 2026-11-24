@@ -25,6 +25,9 @@ const _sideRoom = AppSpace.xxl + AppSpace.sm;
 /// 아래 여백(논리 px). 왼쪽 아래 지도 로고와 오른쪽 아래 앱 이름, 장소 아래 이름표가 들어간다.
 const _bottomRoom = AppSpace.xxl * 2 + AppSpace.sm;
 
+/// 왼쪽 아래 지도 로고와 오른쪽 아래 앱 이름이 있는 줄의 높이(논리 px).
+const _logoRow = AppSpace.xxl + AppSpace.lg;
+
 /// 미리보기에서 고르는 것. 상태(전, 중, 후)는 고르지 않고 여행의 지금 상태를 쓴다.
 @immutable
 class ExportOptions {
@@ -147,18 +150,20 @@ class ExportScene {
   MapFrame? frameFor({double? titleBottom}) {
     final bounds = this.bounds;
     if (bounds == null) return null;
-    final halfWidth = markers.fold<double>(
-      0,
-      (most, marker) => math.max(most, marker.size.width / 2),
-    );
-    final side = math.max(_sideRoom, halfWidth + AppSpace.xs);
+    // 장소 자리에서 마커가 뻗는 가장 긴 길이. 사진 방향에 따라 한쪽으로 길다.
+    double reach(double Function(ExportMarker marker) of) =>
+        markers.fold(0, (most, marker) => math.max(most, of(marker)));
+    final left = reach((m) => m.anchor.dx * m.size.width);
+    final right = reach((m) => (1 - m.anchor.dx) * m.size.width);
+    final below = reach((m) => (1 - m.anchor.dy) * m.size.height);
     return MapFrame.fit(
       bounds: bounds,
       padding: EdgeInsets.fromLTRB(
-        side,
+        math.max(_sideRoom, left + AppSpace.xs),
         (titleBottom ?? 0) + AppSpace.md + headroom,
-        side,
-        _bottomRoom,
+        math.max(_sideRoom, right + AppSpace.xs),
+        // 아래로 뻗는 사진(사진 방향 아래)은 로고 줄 위에 오게 더 띄운다.
+        math.max(_bottomRoom, below + _logoRow),
       ),
     );
   }

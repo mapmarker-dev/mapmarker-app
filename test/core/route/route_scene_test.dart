@@ -5,6 +5,7 @@ import 'package:mapmarker_app/core/map/route_arrow.dart';
 import 'package:mapmarker_app/core/map/route_curve.dart';
 import 'package:mapmarker_app/core/theme/app_colors.dart';
 import 'package:mapmarker_app/core/theme/app_theme.dart';
+import 'package:mapmarker_app/data/models/photo.dart';
 import 'package:mapmarker_app/data/models/segment.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trip_route.dart';
@@ -383,6 +384,48 @@ void main() {
       expect(overlays.arrows.map((a) => a.id), [bc.id]);
       expect(overlays.lineIcons, isEmpty);
       expect(overlays.lines.map((l) => l.id), [ab.id, bc.id]);
+    });
+  });
+
+  group('photo side', () {
+    const photo = Photo(id: 'p', url: 'u', thumbnailUrl: 't');
+    // 같은 숙소에 연박했고, 사진과 방향은 둘째 밤 장소에 있다.
+    final route = _route([
+      testStop('sight'),
+      testLodging('hotel', order: 1),
+      testLodging(
+        'hotel2',
+        day: 2,
+      ).copyWith(photo: () => photo, photoSide: PhotoSide.left),
+    ]);
+
+    test('takes the side from the stop that gives the photo', () {
+      final overlays = routeOverlays(
+        route: route,
+        view: route.view(),
+        colors: _colors,
+        photoOf: (photo) => NetworkImage(photo.thumbnailUrl),
+      );
+      final hotel = overlays.markers.singleWhere((m) => m.id == 'hotel');
+
+      expect(hotel.look.photo, isNotNull);
+      expect(hotel.look.photoSide, PhotoSide.left);
+      expect(photoStopAt(route.view(), route.stopById('hotel')!)!.id, 'hotel2');
+      expect(photoStopAt(route.view(), route.stopById('sight')!), isNull);
+    });
+
+    test('fades the marker of a stop waiting to be saved', () {
+      final overlays = routeOverlays(
+        route: route,
+        view: route.view(),
+        colors: _colors,
+        pendingStopId: 'hotel2',
+      );
+
+      expect(
+        {for (final m in overlays.markers) m.id: m.pending},
+        {'sight': false, 'hotel': true},
+      );
     });
   });
 }
