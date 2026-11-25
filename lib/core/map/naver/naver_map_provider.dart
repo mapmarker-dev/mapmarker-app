@@ -6,17 +6,18 @@ import 'package:flutter/services.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 
 import '../../geometry/route_geometry.dart';
+import '../../../data/models/photo.dart';
 import '../../theme/app_tokens.dart';
 import '../geo.dart';
 import '../map_provider.dart';
 import '../marker_icon.dart';
 import '../route_arrow.dart';
 import '../route_curve.dart';
+import 'naver_capture_map.dart';
 
 /// 네이버 지도. 1단계(국내)는 이 지도만 쓴다.
 ///
-/// SDK 초기화는 `main.dart`가 한다. 이 파일 밖의 앱 코드는 `flutter_naver_map`을 쓰지 않는다
-/// (0단계 검증 화면 `dev/snapshot_lab/`만 예외).
+/// SDK 초기화는 `main.dart`가 한다. 이 폴더 밖의 앱 코드는 `flutter_naver_map`을 쓰지 않는다.
 class NaverMapProvider implements MapProvider {
   const NaverMapProvider();
 
@@ -27,13 +28,23 @@ class NaverMapProvider implements MapProvider {
     ValueChanged<String>? onLineTap,
     ValueChanged<MapTap>? onMapTap,
     Future<bool> Function(String id, double curvature)? onCurveChanged,
+    void Function(String id, PhotoSide side)? onPhotoSideChanged,
   }) => NaverMapView(
     scene: scene,
     onMarkerTap: onMarkerTap,
     onLineTap: onLineTap,
     onMapTap: onMapTap,
     onCurveChanged: onCurveChanged,
+    onPhotoSideChanged: onPhotoSideChanged,
   );
+
+  @override
+  Widget buildCaptureMap({
+    required MapFrame frame,
+    required ValueChanged<MapCapture> onCaptured,
+    required VoidCallback onFailed,
+  }) =>
+      NaverCaptureMap(frame: frame, onCaptured: onCaptured, onFailed: onFailed);
 }
 
 /// 장소가 없는 여행을 처음 열 때 보여 줄 곳: 한국 전체.
@@ -69,6 +80,7 @@ class NaverMapView extends StatefulWidget {
     this.onLineTap,
     this.onMapTap,
     this.onCurveChanged,
+    this.onPhotoSideChanged,
   });
 
   final MapScene scene;
@@ -76,6 +88,7 @@ class NaverMapView extends StatefulWidget {
   final ValueChanged<String>? onLineTap;
   final ValueChanged<MapTap>? onMapTap;
   final Future<bool> Function(String id, double curvature)? onCurveChanged;
+  final void Function(String id, PhotoSide side)? onPhotoSideChanged;
 
   @override
   State<NaverMapView> createState() => _NaverMapViewState();
@@ -83,6 +96,9 @@ class NaverMapView extends StatefulWidget {
 
 /// 곡선 핸들을 잡는 터치 영역의 크기. 핸들 그림보다 커서 손가락으로 잡기 쉽다.
 const _handleTouchSize = 48.0;
+
+/// 사진 방향 화살표를 누르는 영역의 크기. 화살표 그림보다 크다.
+const _photoSideTouchSize = 44.0;
 
 /// 곡선 핸들의 화면 위치. 카메라가 멈출 때마다 지도에 다시 묻는다.
 @immutable
@@ -140,6 +156,13 @@ class _NaverMapViewState extends State<NaverMapView> {
   final _arrowIcons = <(Color, Color), NOverlayImage>{};
   final _lineIconImages = <(IconData, Color, Color, Color), NOverlayImage>{};
   final _curveHandleIcons = <(Color, Color), NOverlayImage>{};
+  final _photoSideIcons = <(PhotoSide, Color, Color), NOverlayImage>{};
+
+  /// 사진 방향 화살표를 누르는 영역의 자리(장소 자리의 화면 위치). 카메라가 움직이는 동안은 없다.
+  Offset? _pickerAt;
+
+  /// 화살표 자리를 묻는 중에 또 물으면 앞의 답은 버린다.
+  int _pickerVersion = 0;
 
   @override
   void didUpdateWidget(NaverMapView oldWidget) {
@@ -152,10 +175,12 @@ class _NaverMapViewState extends State<NaverMapView> {
         !listEquals(old.lines, scene.lines) ||
         !listEquals(old.arrows, scene.arrows) ||
         !listEquals(old.lineIcons, scene.lineIcons) ||
-        old.curveHandle != scene.curveHandle) {
+        old.curveHandle != scene.curveHandle ||
+        old.photoSidePicker != scene.photoSidePicker) {
       _showOverlays(controller);
     }
     if (old.curveHandle != scene.curveHandle) _refreshHandle();
+    if (old.photoSidePicker != scene.photoSidePicker) _refreshPicker();
     if (old.myLocation != scene.myLocation) _showMyLocation(controller);
     _moveCamera(controller);
   }
@@ -166,6 +191,23 @@ class _NaverMapViewState extends State<NaverMapView> {
     _moveCamera(controller, animate: false);
     await _showOverlays(controller);
     await _refreshHandle();
+    await _refreshPicker();
+  }
+
+  /// 사진 방향 화살표의 화면 위치를 다시 잰다. 화살표가 없으면 누르는 영역을 치운다.
+  Future<void> _refreshPicker() async {
+    final version = ++_pickerVersion;
+    final controller = _controller;
+    final picker = widget.scene.photoSidePicker;
+    if (controller == null || picker == null) {
+      if (_pickerAt != null) setState(() => _pickerAt = null);
+      return;
+    }
+    final at = await controller.latLngToScreenLocation(
+      _nLatLng(picker.position),
+    );
+    if (!mounted || version != _pickerVersion) return;
+    setState(() => _pickerAt = Offset(at.x, at.y));
   }
 
   /// 핸들의 화면 위치를 다시 잰다. 핸들이 없으면 터치 영역을 치운다.
@@ -199,6 +241,10 @@ class _NaverMapViewState extends State<NaverMapView> {
   /// (여백이 정말 바뀌었으면 멈출 때 다시 잰다).
   void _onCameraChange(NCameraUpdateReason reason) {
     if (reason == NCameraUpdateReason.contentPadding) return;
+    if (_pickerAt != null) {
+      ++_pickerVersion;
+      setState(() => _pickerAt = null);
+    }
     if (_dragCurvature != null || _holdingHandle) {
       if (reason == NCameraUpdateReason.gesture) _cancelDrag();
       return;
@@ -226,6 +272,7 @@ class _NaverMapViewState extends State<NaverMapView> {
   }
 
   void _onCameraIdle() {
+    if (widget.scene.photoSidePicker != null) _refreshPicker();
     if (widget.scene.curveHandle != null && _dragCurvature == null) {
       _refreshHandle();
     }
@@ -334,6 +381,12 @@ class _NaverMapViewState extends State<NaverMapView> {
       if (!mounted || version != _overlayVersion) return;
       handleMarker = naverCurveHandleOf(handle, icon: icon);
     }
+    NMarker? pickerMarker;
+    if (scene.photoSidePicker case final picker?) {
+      final icon = await _photoSideIconOf(picker);
+      if (!mounted || version != _overlayVersion) return;
+      pickerMarker = naverPhotoSidePickerOf(picker, icon: icon);
+    }
     await controller.clearOverlays();
     if (!mounted || version != _overlayVersion) return;
     _handleMarker = handleMarker;
@@ -344,6 +397,7 @@ class _NaverMapViewState extends State<NaverMapView> {
       ...lineIcons,
       ?handleMarker,
       ...markers,
+      ?pickerMarker,
     });
     if (!mounted || version != _overlayVersion) return;
     // 끌어 놓은 곡선(저장을 기다리는 흐린 선이나 저장한 선)이 올라왔다. 미리보기를 지운다.
@@ -357,6 +411,21 @@ class _NaverMapViewState extends State<NaverMapView> {
       )] ??= await NOverlayImage.fromWidget(
         widget: CurveHandleIcon(color: handle.color, outline: handle.outline),
         size: CurveHandleIcon.size,
+        context: context,
+      );
+
+  Future<NOverlayImage> _photoSideIconOf(MapPhotoSidePicker picker) async =>
+      _photoSideIcons[(
+        picker.side,
+        picker.color,
+        picker.outline,
+      )] ??= await NOverlayImage.fromWidget(
+        widget: PhotoSideArrows(
+          side: picker.side,
+          color: picker.color,
+          outline: picker.outline,
+        ),
+        size: PhotoSideArrows.size,
         context: context,
       );
 
@@ -507,6 +576,27 @@ class _NaverMapViewState extends State<NaverMapView> {
                 ),
               ),
             ),
+          // 사진 방향 화살표를 누르는 영역. 화살표 그림은 지도 마커라서 지도와 함께 움직이고,
+          // 누르는 영역은 카메라가 멈추면 그 자리에 다시 놓는다(곡선 핸들과 같다).
+          if ((_pickerAt, scene.photoSidePicker) case (
+            final at?,
+            final picker?,
+          ))
+            for (final side in PhotoSide.values)
+              Positioned.fromRect(
+                key: ValueKey('photo-side-touch:${side.name}'),
+                rect: Rect.fromCenter(
+                  center: at + PhotoSideArrows.offsetOf(side, picker.side),
+                  width: _photoSideTouchSize,
+                  height: _photoSideTouchSize,
+                ),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: side == picker.side
+                      ? () {}
+                      : () => widget.onPhotoSideChanged?.call(picker.id, side),
+                ),
+              ),
         ],
       ),
     );
@@ -698,12 +788,27 @@ NMarker naverMarkerOf(
       color: captionColor,
       haloColor: marker.look.halo,
     ),
+    captionAligns: [naverCaptionAlignOf(drawn)],
     isHideCollidedCaptions: true,
   );
   if (marker.secondary) nMarker.setGlobalZIndex(_secondaryMarkerGlobalZIndex);
+  // 바꾼 것을 저장하는 중이면 흐리게 둔다(끌어 놓은 곡선과 같다).
+  if (marker.pending) nMarker.setAlpha(AppOpacity.pending);
   if (onTap != null) nMarker.setOnTapListener((_) => onTap());
   return nMarker;
 }
+
+/// 장소 이름(캡션)을 그림의 어느 쪽에 둘지. 사진 마커는 사진 반대쪽이라 이름이 장소 자리 바로 옆에 온다
+/// (캡션은 그림의 변을 기준으로 놓여서, 사진 쪽에 두면 사진 너머로 밀려난다). 원 마커는 아래다.
+@visibleForTesting
+NAlign naverCaptionAlignOf(MarkerLook look) => look.photo == null
+    ? NAlign.bottom
+    : switch (look.photoSide) {
+        PhotoSide.up => NAlign.bottom,
+        PhotoSide.down => NAlign.top,
+        PhotoSide.left => NAlign.right,
+        PhotoSide.right => NAlign.left,
+      };
 
 /// 보조 마커(후보)는 화살표(100000)보다 위, 선 아이콘(150000)과 장소 마커(200000)보다 아래에 그린다.
 /// 동선과 겹치면 동선이 보이고 눌린다.
@@ -735,6 +840,24 @@ NMarker naverArrowOf(MapArrow arrow, {required NOverlayImage? icon}) =>
       )
       ..setGlobalZIndex(_arrowGlobalZIndex)
       ..setMinZoom(arrow.minZoom);
+
+/// 사진 방향 화살표는 장소 마커(200000)보다 위에 그린다. 고르는 동안 가리면 안 된다.
+const _photoSidePickerGlobalZIndex = 250000;
+
+/// 사진 방향 화살표 4개를 장소 자리에 놓는 마커로. 화면 기준 상하좌우라서 지도를 돌려도 서 있다.
+///
+/// 터치는 지도 위 Flutter 영역이 받아서 탭 리스너를 달지 않는다(달면 아래 마커와 지도 탭을 가로챈다).
+@visibleForTesting
+NMarker naverPhotoSidePickerOf(
+  MapPhotoSidePicker picker, {
+  required NOverlayImage? icon,
+}) => NMarker(
+  id: 'photo-side:${picker.id}',
+  position: _nLatLng(picker.position),
+  icon: icon,
+  size: PhotoSideArrows.size,
+  anchor: const NPoint(0.5, 0.5),
+)..setGlobalZIndex(_photoSidePickerGlobalZIndex);
 
 /// 곡선 핸들은 선 아이콘(150000)보다 위, 장소 마커(200000)보다 아래에 그린다.
 const _curveHandleGlobalZIndex = 170000;

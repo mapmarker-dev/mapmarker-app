@@ -81,6 +81,19 @@ class TripApi {
     tripDetailFromJson,
   );
 
+  /// 그 일차의 장소 [stopIds] 전부를 새 순서로 보낸다. 그 일차의 장소와 다르면 409다.
+  Future<TripDetail> orderDay(
+    String tripId, {
+    required int day,
+    required List<String> stopIds,
+  }) => _read(
+    _client.put(
+      '/trips/$tripId/stop-order',
+      data: {'day': day, 'stopIds': stopIds},
+    ),
+    tripDetailFromJson,
+  );
+
   Future<TripDetail> deleteStop(String stopId) =>
       _read(_client.delete('/stops/$stopId'), tripDetailFromJson);
 

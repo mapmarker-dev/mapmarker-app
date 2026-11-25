@@ -68,6 +68,16 @@ abstract interface class TripRepository {
   /// 장소를 [day]일차의 [order] 자리로 옮긴다. [order]가 크면 맨 뒤로 간다.
   Future<Stop> moveStop(String stopId, {required int day, required int order});
 
+  /// [day]일차의 장소를 [stopIds] 순서로 늘어놓는다. [stopIds]는 그 일차의 장소 전부다.
+  /// 새 순서에서도 이웃인 쌍의 구간(이동 수단, 곡률)은 남고, 이웃이 바뀐 쌍의 구간만 사라진다.
+  ///
+  /// [stopIds]가 그 일차의 장소와 다르면 [StateError](서버는 409)다.
+  Future<void> orderDay(
+    String tripId, {
+    required int day,
+    required List<String> stopIds,
+  });
+
   /// 장소를 지운다. 앞뒤 장소는 새 구간으로 이어진다.
   Future<void> deleteStop(String stopId);
 

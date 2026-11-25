@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -23,6 +24,7 @@ import '../../data/models/candidate.dart';
 import '../../data/models/map_provider_type.dart';
 import '../../data/models/new_id.dart';
 import '../../data/models/segment.dart';
+import '../../data/models/photo.dart';
 import '../../data/models/stop.dart';
 import '../../data/models/trip.dart';
 import '../../data/models/trip_route.dart';
@@ -35,7 +37,7 @@ import '../../l10n/l10n.dart';
 import 'candidate_draft.dart';
 import 'day_itinerary.dart';
 import 'route_chips_collapse.dart';
-import 'route_scene.dart';
+import '../../core/route/route_scene.dart';
 import 'route_sheet_layout.dart';
 import 'stop_draft.dart';
 import 'stop_placement.dart';
@@ -46,6 +48,7 @@ import 'widgets/candidate_form_dialog.dart';
 import 'widgets/candidate_list.dart';
 import 'widgets/day_itinerary_list.dart';
 import 'widgets/dropped_transport_list.dart';
+import 'widgets/place_fields.dart';
 import 'widgets/place_finder_dialog.dart';
 import 'widgets/rename_trip_dialog.dart';
 import 'widgets/route_day_chips.dart';
@@ -151,13 +154,25 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   /// 저장소가 새 동선을 내면 그 동선이 대신하고, 저장하지 못하면 지운다.
   ({String segmentId, double curvature, TripRoute route})? _savingCurve;
 
-  /// 끌어 옮기고 저장을 기다리는 장소. 목록이 그 줄을 흐리게 두고 진행 표시를 띄운다.
-  String? _savingStopId;
+  /// 지도 화살표로 바꾸고 저장을 기다리는 사진 방향. 저장소가 새 동선을 내기 전까지 새 방향을 흐리게 보여 준다.
+  ({String stopId, PhotoSide side, TripRoute route})? _savingPhotoSide;
+
+  /// 사진 방향을 고른 펼친 장소 줄. 고르면 화살표를 숨기고(지도를 가리지 않게), 그 마커를 다시 누르거나
+  /// 펼친 줄이 바뀌면 다시 띄운다.
+  String? _photoSideDone;
+
+  /// 순서를 바꾸는 중인 일차와 그 일차의 새 장소 순서. null이면 순서를 바꾸고 있지 않다.
+  ///
+  /// [완료]에서 한 번에 저장하고(`orderDay`), [취소]하면 버린다. 그동안 목록과 지도는 이 순서로 보인다.
+  ({int day, List<String> stopIds})? _reorderDraft;
+
+  /// 바꾼 순서를 저장하는 중.
+  bool _reorderSaving = false;
 
   /// "오늘 밤도 여기서 묵기"를 눌러 저장을 기다리는 숙소. 목록이 그 버튼에 진행 표시를 띄운다.
   String? _stayingLodgingId;
 
-  /// 샘플 여행은 보기만 된다. 고칠 곳(연필·손잡이·핀·곡선 핸들·제목)을 보여 주지 않는다.
+  /// 샘플 여행은 보기만 된다. 고칠 곳(연필, 순서 바꾸기, 핀, 곡선 핸들, 제목)을 보여 주지 않는다.
   bool get _readOnly => isSampleTrip(trip.id);
 
   /// 샘플을 내 여행으로 복사하는 중.
@@ -213,6 +228,7 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
   void initState() {
     super.initState();
     _sheetController.addListener(_onSheetMoved);
+    _selection.addListener(_onSelectionChanged);
     _lifecycle = AppLifecycleListener(
       onHide: _pauseLocation,
       onShow: _resumeLocation,
@@ -324,6 +340,8 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     String markerId,
   ) async {
     if (markerId == draftMarkerId) return _addStop(route, day);
+    // 방향을 고른 뒤 숨긴 사진 방향 화살표는 그 마커를 다시 누르면 다시 뜬다.
+    if (_photoSideDone != null) setState(() => _photoSideDone = null);
     // 후보를 누르면 "후보 목록" 보기로 가서 그 줄을 펼친다. 이미 "후보 목록" 보기면 카메라는 그대로 둔다.
     if (route.candidateById(markerId) != null) {
       if (ref.read(routeChoiceProvider(trip.id)).candidateView) {
@@ -403,6 +421,27 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       ],
     );
   }
+
+  /// 저장을 기다리는 사진 방향이 있으면 그 장소를 새 방향으로 바꾼 동선. [stored]는 저장소의 동선이고,
+  /// 저장소가 그 뒤로 새 동선을 냈으면 그대로다.
+  TripRoute _withSavingPhotoSide(TripRoute stored, TripRoute route) {
+    final saving = _savingPhotoSide;
+    if (saving == null || !identical(saving.route, stored)) return route;
+    return route.copyWith(
+      stops: [
+        for (final stop in route.stops)
+          stop.id == saving.stopId
+              ? stop.copyWith(photoSide: saving.side)
+              : stop,
+      ],
+    );
+  }
+
+  /// 사진 방향을 저장하는 중인 장소. [_withSavingPhotoSide]와 같은 때만 있다.
+  String? _savingPhotoStopIdOf(TripRoute? route) => switch (_savingPhotoSide) {
+    final saving? when identical(saving.route, route) => saving.stopId,
+    _ => null,
+  };
 
   /// 저장을 기다리는 곡선의 구간. [_withSavingCurve]와 같은 때만 있다.
   String? _savingSegmentIdOf(TripRoute? route) => switch (_savingCurve) {
@@ -734,22 +773,6 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     }
   }
 
-  /// [stopId] 장소를 [day]일차의 [order] 자리로 옮기면 사라지는 구간 중, 이동 수단을 적어 둔 구간.
-  static List<Segment> _transportsDroppedByMove(
-    TripRoute route,
-    String stopId, {
-    required int day,
-    required int order,
-  }) => withTransport(
-    segmentsDroppedByMove(
-      stops: route.stops,
-      segments: route.segments,
-      stopId: stopId,
-      day: day,
-      order: order,
-    ),
-  );
-
   /// 구간의 이동 수단을 고친다. 카메라는 그대로이고, 목록의 그 줄은 고른 채로 남는다.
   /// 지도의 곡선 핸들을 끌었다 놓았다. 저장소의 최신 구간에 곡률만 넣는다(이동 수단은 그대로).
   /// 저장하지 못했으면 false다. 지도가 끄는 동안의 미리보기를 지운다.
@@ -774,6 +797,54 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       setState(() => _savingCurve = null);
     }
     return saved;
+  }
+
+  /// 펼친 줄이 바뀌면(접기 포함) 숨겨 둔 사진 방향 화살표를 다시 띄울 수 있게 한다.
+  void _onSelectionChanged() {
+    if (_photoSideDone != null && _photoSideDone != _selection.expanded) {
+      _photoSideDone = null;
+    }
+  }
+
+  /// 지도의 화살표로 사진 방향을 바꿨다. 저장소의 최신 장소에 방향만 넣는다. 저장하는 동안 마커를 흐리게 두고,
+  /// 실패하면 스낵바로 알리고 원래 방향으로 돌아간다.
+  Future<void> _changePhotoSide(
+    TripRoute route,
+    String stopId,
+    PhotoSide side,
+  ) async {
+    final stored = _latestRoute(route);
+    final latest = stored.stopById(stopId);
+    if (latest == null || latest.photoSide == side) return;
+    final saving = (stopId: stopId, side: side, route: stored);
+    setState(() {
+      _savingPhotoSide = saving;
+      // 고르면 화살표를 숨긴다. 그 마커를 다시 누르면 다시 뜬다.
+      _photoSideDone = _selection.expanded;
+    });
+    final saved = await _save(
+      () => ref
+          .read(tripDetailProvider(trip.id).notifier)
+          .updateStop(latest.copyWith(photoSide: side)),
+    );
+    if (!saved && mounted && _savingPhotoSide == saving) {
+      // 바뀌지 않았으니 화살표를 다시 띄워 다시 고르게 한다.
+      setState(() {
+        _savingPhotoSide = null;
+        _photoSideDone = null;
+      });
+    }
+  }
+
+  /// 사진 방향 화살표를 둘 장소. 일차 보기에서 사진 있는 장소 줄을 펼친 때만이다.
+  /// 같은 자리 장소(연박 숙소)는 사진과 방향을 함께 쓰므로, 그 자리 사진의 주인 장소([TripRoute.photoOwnerOf])를
+  /// 저장소의 동선([stored])에서 찾아 그 방향을 바꾼다.
+  String? _photoSideStopId(TripRoute? stored, RouteView view, int? day) {
+    final expanded = _selection.expanded;
+    if (stored == null || day == null || expanded == null) return null;
+    if (expanded == _photoSideDone) return null;
+    final stop = view.stops.where((s) => s.id == expanded).firstOrNull;
+    return stop == null ? null : stored.photoOwnerOf(stop)?.id;
   }
 
   /// 곡선 핸들을 둘 구간. 일차 보기에서 목록의 구간 줄을 직접 눌러 고른 때만이다
@@ -1067,54 +1138,138 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     ).showSnackBar(SnackBar(content: Text(context.l10n.itineraryOpenFailed)));
   }
 
-  /// 끌어서 옮긴 장소를 저장한다. 옮겼으면 true, 취소했으면 false다(목록이 옮기기 전 순서로 돌아간다).
+  /// [순서 바꾸기]를 눌렀다. 그 일차의 지금 순서로 시작하고, 목록이 보이게 시트를 올린다.
+  /// 숙소를 끈 보기에서는 숨긴 숙소 사이의 자리가 보이지 않아서 왜 안 되는지만 알린다.
+  void _startReorder(TripRoute route, int day, RouteChoice choice) {
+    if (!choice.showLodging) {
+      _showLodgingHiddenNotice(context.l10n.lodgingHiddenReorder);
+      return;
+    }
+    _selection.clear();
+    setState(() {
+      _reorderDraft = (
+        day: day,
+        stopIds: [for (final stop in dayStopsOf(route, day)) stop.id],
+      );
+      _draftPlace = null;
+    });
+    if (_layout == RouteSheetLayout.bottom) _sheetKey.currentState?.reveal();
+  }
+
+  void _cancelReorder() {
+    if (_reorderSaving) return;
+    setState(() => _reorderDraft = null);
+  }
+
+  /// 순서를 바꾸다가 뒤로 가기를 눌렀다. 바꾼 것이 있으면 버릴지 묻는다.
+  Future<void> _leaveReorder(TripRoute? stored) async {
+    final draft = _reorderDraft;
+    if (draft == null || _reorderSaving) return;
+    if (stored != null && _reorderChanged(stored, draft)) {
+      final discard = await confirmDiscardChanges(context);
+      if (!discard || !mounted) return;
+    }
+    _cancelReorder();
+  }
+
+  static bool _reorderChanged(
+    TripRoute stored,
+    ({int day, List<String> stopIds}) draft,
+  ) => !listEquals(draft.stopIds, [
+    for (final stop in dayStopsOf(stored, draft.day)) stop.id,
+  ]);
+
+  /// [완료]를 눌렀다. 바꾼 순서를 한 번에 저장한다(`orderDay`).
   ///
-  /// 이웃이 바뀌어 사라질 구간에 적어 둔 이동 수단이 있으면 먼저 묻는다.
-  Future<bool> _reorder(
-    TripRoute route,
-    int day,
-    List<String> visibleIds,
-    int oldIndex,
-    int newIndex,
-  ) async {
-    // 제자리에 놓았다.
-    if (newIndex == oldIndex) return true;
+  /// 새 순서에서 이웃이 끊기는 구간에 적어 둔 이동 수단이 있으면 먼저 묻는다. 새 순서에서도 이웃인 쌍은
+  /// 남는다(장소를 하나씩 옮겨 저장하면 중간에 끊겨 지워질 수 있다). 저장하지 못하면 순서 바꾸기를 이어 간다.
+  Future<void> _doneReorder(TripRoute route) async {
+    final draft = _reorderDraft;
+    if (draft == null || _reorderSaving) return;
     final latest = _latestRoute(route);
-    final stopId = visibleIds[oldIndex];
-    final order = reorderedStopOrder(
-      visibleIds: visibleIds,
-      dayStops: dayStopsOf(latest, day),
-      oldIndex: oldIndex,
-      newIndex: newIndex,
+    final current = [for (final stop in dayStopsOf(latest, draft.day)) stop.id];
+    if (listEquals(draft.stopIds, current)) {
+      setState(() => _reorderDraft = null);
+      return;
+    }
+    // 그사이 다른 기기에서 장소가 바뀌었다. 지금 장소로 다시 시작한다.
+    if (!setEquals(draft.stopIds.toSet(), current.toSet()) ||
+        draft.stopIds.length != current.length) {
+      setState(() => _reorderDraft = (day: draft.day, stopIds: current));
+      return;
+    }
+    final dropped = withTransport(
+      segmentsDroppedByOrder(
+        stops: latest.stops,
+        segments: latest.segments,
+        day: draft.day,
+        stopIds: draft.stopIds,
+      ),
     );
-    final dropped = _transportsDroppedByMove(
-      latest,
-      stopId,
-      day: day,
-      order: order,
-    );
-    final stop = latest.stopById(stopId);
-    if (dropped.isNotEmpty && stop != null) {
+    if (dropped.isNotEmpty) {
       final l10n = context.l10n;
-      final move = await _confirmDropTransport(
+      final save = await _confirmDropTransport(
         latest,
-        message: l10n.moveStopDropsTransportMessage(stop.name),
-        confirmLabel: l10n.moveStopConfirm,
+        message: l10n.reorderDropsTransportMessage,
+        confirmLabel: l10n.reorderSaveConfirm,
         dropped: dropped,
       );
-      if (!move || !mounted) return false;
+      if (!save || !mounted || _reorderDraft != draft) return;
     }
-    setState(() => _savingStopId = stopId);
-    // 옮기지 못했으면 목록이 옮기기 전 순서로 돌아간다.
+    setState(() => _reorderSaving = true);
     final saved = await _save(
       () => ref
           .read(tripDetailProvider(trip.id).notifier)
-          .moveStop(stopId, day: day, order: order),
+          .orderDay(day: draft.day, stopIds: draft.stopIds),
     );
-    if (mounted && _savingStopId == stopId) {
-      setState(() => _savingStopId = null);
+    if (!mounted) return;
+    setState(() {
+      _reorderSaving = false;
+      if (saved) _reorderDraft = null;
+    });
+  }
+
+  /// 순서를 바꾸는 중이면 그 일차를 바꾼 순서로 늘어놓은 동선. 지도와 목록이 이것을 그린다.
+  ///
+  /// 이웃이 그대로인 쌍의 구간은 남기고, 새로 이웃한 쌍에는 빈 구간(직선)을 둔다. 저장했을 때의 모습이다.
+  /// 그사이 장소가 바뀌어 순서가 맞지 않으면 그대로다.
+  TripRoute _withReorderDraft(TripRoute route) {
+    final draft = _reorderDraft;
+    if (draft == null) return route;
+    final dayStops = {
+      for (final stop in dayStopsOf(route, draft.day)) stop.id: stop,
+    };
+    if (draft.stopIds.length != dayStops.length ||
+        !draft.stopIds.every(dayStops.containsKey)) {
+      return route;
     }
-    return saved;
+    final order = {for (final (index, id) in draft.stopIds.indexed) id: index};
+    final stops = TripRoute(
+      stops: [
+        for (final stop in route.stops)
+          if (order[stop.id] case final index?)
+            stop.copyWith(order: index)
+          else
+            stop,
+      ],
+    ).stops;
+    final byPair = {
+      for (final segment in route.segments)
+        (segment.fromStopId, segment.toStopId): segment,
+    };
+    return route.copyWith(
+      stops: stops,
+      segments: [
+        for (var i = 0; i + 1 < stops.length; i++)
+          byPair[(stops[i].id, stops[i + 1].id)] ??
+              Segment(
+                id: 'reorder:${stops[i].id}>${stops[i + 1].id}',
+                tripId: trip.id,
+                fromStopId: stops[i].id,
+                toStopId: stops[i + 1].id,
+              ),
+      ],
+    );
   }
 
   /// [dropped] 구간의 이동 수단이 지워진다고 알리고([message]), 그래도 할지 묻는다. 하면 true다.
@@ -1172,12 +1327,22 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
       if (!next.$2) _sheetLift = 0;
       // 다른 보기로 가면 꽂아 둔 임시 핀은 버린다.
       if (_draftPlace != null) setState(() => _draftPlace = null);
+      // 다른 보기로 가면 순서 바꾸기도 버린다(일차 칩은 그동안 막혀 있다).
+      if (!_reorderSaving) _reorderDraft = null;
       // 펼친 장소와 고른 줄도 비운다. 지도에서 눌러 들어온 것이면 목록이 그 줄을 다시 고른다.
       _selection.clear();
     });
     final stored = ref.watch(tripRouteProvider(trip.id));
     final savingSegmentId = _savingSegmentIdOf(stored.value);
-    final route = stored.whenData(_withSavingCurve);
+    final savingPhotoStopId = _savingPhotoStopIdOf(stored.value);
+    final reordering = _reorderDraft != null;
+    final route = stored.whenData(
+      // 같은 자리 장소(연박 숙소)는 사진과 방향을 함께 쓴다. 저장을 기다리는 방향도 그 자리 전체에 보인다.
+      // 순서를 바꾸는 중이면 바꾼 순서로 그린다.
+      (stored) => _withReorderDraft(
+        _withSavingPhotoSide(stored, _withSavingCurve(stored)),
+      ).withSharedPhotos,
+    );
     final view = route.value?.view(
       day: choice.day,
       showLodging: choice.showLodging,
@@ -1207,204 +1372,240 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
         : insets.bottom + _sheetHeaderHeight;
     final hasCandidates = route.value?.candidates.isNotEmpty ?? false;
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          if (route case AsyncData(
-            value: final route,
-          ) when view != null && overlayHeight != null)
-            Positioned.fill(
-              // 목록에서 구간 줄을 고르면 곡선 핸들이 생긴다.
-              child: ListenableBuilder(
-                listenable: _selection,
-                builder: (context, _) => _RouteMap(
-                  trip: trip,
-                  route: route,
-                  view: view,
-                  cameraKey: choice.fitCount,
-                  myLocation: _myLocation,
-                  // 내 위치로 옮긴 카메라. 일차를 고르거나 맞추기를 누르면 동선 맞춤으로 돌아간다.
-                  myLocationCamera: _cameraOnMe ? _locateCount : null,
-                  padding: insets.copyWith(
-                    top: overlayHeight,
-                    right: right,
-                    bottom: bottom,
+    // 순서를 바꾸는 동안 뒤로 가기는 순서 바꾸기를 끝낸다(바꾼 것이 있으면 버릴지 묻는다).
+    return PopScope(
+      canPop: !reordering,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _leaveReorder(stored.value);
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            if (route case AsyncData(
+              value: final route,
+            ) when view != null && overlayHeight != null)
+              Positioned.fill(
+                // 목록에서 구간 줄을 고르면 곡선 핸들이 생긴다.
+                child: ListenableBuilder(
+                  listenable: _selection,
+                  builder: (context, _) => _RouteMap(
+                    trip: trip,
+                    route: route,
+                    view: view,
+                    cameraKey: choice.fitCount,
+                    myLocation: _myLocation,
+                    // 내 위치로 옮긴 카메라. 일차를 고르거나 맞추기를 누르면 동선 맞춤으로 돌아간다.
+                    myLocationCamera: _cameraOnMe ? _locateCount : null,
+                    padding: insets.copyWith(
+                      top: overlayHeight,
+                      right: right,
+                      bottom: bottom,
+                    ),
+                    // 로고는 왼쪽 아래라서 오른쪽 패널에는 가리지 않는다.
+                    logoLift: !hasList || isSide ? 0 : _sheetLift,
+                    draft: _draftPlace,
+                    candidateView: choice.candidateView,
+                    showCandidates:
+                        choice.candidateView || choice.showCandidates,
+                    // 저장을 기다리는 동안에는 핸들이 없어 다시 끌 수 없다. 순서를 바꾸는 동안에도 없다.
+                    curveSegmentId:
+                        savingSegmentId == null && !_readOnly && !reordering
+                        ? _curveSegmentId(view, day)
+                        : null,
+                    savingSegmentId: savingSegmentId,
+                    // 저장을 기다리는 동안에는 화살표가 없어 다시 바꿀 수 없다.
+                    photoSideStopId:
+                        savingPhotoStopId == null && !_readOnly && !reordering
+                        ? _photoSideStopId(stored.value, view, day)
+                        : null,
+                    savingPhotoStopId: savingPhotoStopId,
+                    // 순서를 바꾸는 동안 지도는 보기만 한다(누르면 고르거나 일차를 바꾸거나 핀을 꽂는다).
+                    onMarkerTap: (id) {
+                      if (!reordering) _onMarkerTap(route, view, day, id);
+                    },
+                    onLineTap: (id) {
+                      if (!reordering) _onLineTap(route, day, id);
+                    },
+                    onMapTap: (tap) {
+                      if (!reordering) _onMapTap(tap, hasList: hasList);
+                    },
+                    onCurveChanged: (id, curvature) =>
+                        _changeCurvature(route, id, curvature),
+                    onPhotoSideChanged: (id, side) =>
+                        _changePhotoSide(route, id, side),
                   ),
-                  // 로고는 왼쪽 아래라서 오른쪽 패널에는 가리지 않는다.
-                  logoLift: !hasList || isSide ? 0 : _sheetLift,
-                  draft: _draftPlace,
-                  candidateView: choice.candidateView,
-                  showCandidates: choice.candidateView || choice.showCandidates,
-                  // 저장을 기다리는 동안에는 핸들이 없어 다시 끌 수 없다.
-                  curveSegmentId: savingSegmentId == null && !_readOnly
-                      ? _curveSegmentId(view, day)
-                      : null,
-                  savingSegmentId: savingSegmentId,
-                  onMarkerTap: (id) => _onMarkerTap(route, view, day, id),
-                  onLineTap: (id) => _onLineTap(route, day, id),
-                  onMapTap: (tap) => _onMapTap(tap, hasList: hasList),
-                  onCurveChanged: (id, curvature) =>
-                      _changeCurvature(route, id, curvature),
                 ),
               ),
-            ),
-          if (overlayHeight != null)
-            if (_messageOf(route, view, choice) case final message?)
-              Positioned.fill(
-                top: overlayHeight,
-                right: right - insets.right,
-                bottom: bottom,
-                child: Center(child: _MessageCard(message)),
-              ),
-          if (view != null)
-            // 아래 시트를 올리면 버튼도 시트 윗변을 따라 올라간다. 버튼만 옮기고 지도는 다시 그리지 않는다.
-            // 가운데 높이보다 더 올리면(지도가 띠만 남음) 숨긴다.
-            ListenableBuilder(
-              listenable: _sheetMoved,
-              builder: (context, buttons) {
-                final sheet = !hasList || isSide || !_sheetController.isAttached
-                    ? null
-                    : _sheetController;
-                final hidden =
-                    sheet != null &&
-                    sheet.size > RouteDaySheet.midSize + _fabHideMargin;
-                return Positioned(
-                  right: right + AppSpace.lg,
-                  bottom: math.max(bottom, sheet?.pixels ?? 0) + AppSpace.lg,
-                  child: IgnorePointer(
-                    ignoring: hidden,
-                    child: AnimatedOpacity(
-                      opacity: hidden ? 0 : 1,
-                      duration: _fabFadeDuration,
-                      child: buttons,
+            if (overlayHeight != null)
+              if (_messageOf(route, view, choice) case final message?)
+                Positioned.fill(
+                  top: overlayHeight,
+                  right: right - insets.right,
+                  bottom: bottom,
+                  child: Center(child: _MessageCard(message)),
+                ),
+            if (view != null)
+              // 아래 시트를 올리면 버튼도 시트 윗변을 따라 올라간다. 버튼만 옮기고 지도는 다시 그리지 않는다.
+              // 가운데 높이보다 더 올리면(지도가 띠만 남음) 숨긴다.
+              ListenableBuilder(
+                listenable: _sheetMoved,
+                builder: (context, buttons) {
+                  final sheet =
+                      !hasList || isSide || !_sheetController.isAttached
+                      ? null
+                      : _sheetController;
+                  final hidden =
+                      sheet != null &&
+                      sheet.size > RouteDaySheet.midSize + _fabHideMargin;
+                  return Positioned(
+                    right: right + AppSpace.lg,
+                    bottom: math.max(bottom, sheet?.pixels ?? 0) + AppSpace.lg,
+                    child: IgnorePointer(
+                      ignoring: hidden,
+                      child: AnimatedOpacity(
+                        opacity: hidden ? 0 : 1,
+                        duration: _fabFadeDuration,
+                        child: buttons,
+                      ),
                     ),
-                  ),
-                );
-              },
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // 현재 위치는 파란색으로만 보여 준다(주 색 코랄과 나눈다).
-                  FloatingActionButton.small(
-                    heroTag: null,
-                    tooltip: l10n.myLocationTooltip,
-                    backgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerLowest,
-                    foregroundColor: _myLocation == null
-                        ? Theme.of(context).colorScheme.onSurface
-                        : context.appColors.myLocation,
-                    onPressed: _locate,
-                    child: Icon(
-                      _myLocation == null
-                          ? Icons.location_searching
-                          : Icons.my_location,
-                    ),
-                  ),
-                  if (view.stops.isNotEmpty ||
-                      (choice.candidateView && hasCandidates)) ...[
-                    const SizedBox(height: AppSpace.sm),
+                  );
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 현재 위치는 파란색으로만 보여 준다(주 색 코랄과 나눈다).
                     FloatingActionButton.small(
                       heroTag: null,
-                      tooltip: l10n.routeFitTooltip,
+                      tooltip: l10n.myLocationTooltip,
                       backgroundColor: Theme.of(
                         context,
                       ).colorScheme.surfaceContainerLowest,
-                      foregroundColor: Theme.of(context).colorScheme.onSurface,
-                      onPressed: _choices.fitCamera,
-                      child: const Icon(Icons.fit_screen_outlined),
+                      foregroundColor: _myLocation == null
+                          ? Theme.of(context).colorScheme.onSurface
+                          : context.appColors.myLocation,
+                      onPressed: _locate,
+                      child: Icon(
+                        _myLocation == null
+                            ? Icons.location_searching
+                            : Icons.my_location,
+                      ),
                     ),
+                    if (view.stops.isNotEmpty ||
+                        (choice.candidateView && hasCandidates)) ...[
+                      const SizedBox(height: AppSpace.sm),
+                      FloatingActionButton.small(
+                        heroTag: null,
+                        tooltip: l10n.routeFitTooltip,
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerLowest,
+                        foregroundColor: Theme.of(
+                          context,
+                        ).colorScheme.onSurface,
+                        onPressed: _choices.fitCamera,
+                        child: const Icon(Icons.fit_screen_outlined),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-            ),
-          if (route case AsyncData(value: final route))
-            if (_draftPlace case final place?)
-              Positioned(
-                left: insets.left + AppSpace.md,
-                // 오른쪽의 맞추기 버튼을 가리지 않는다.
-                right: right + AppSpace.lg + _smallFabSize + AppSpace.sm,
-                bottom: bottom + AppSpace.lg,
-                child: _DraftCard(
-                  place: place,
-                  onAddStop: () => _addStop(route, day),
-                  onSaveCandidate: _saveCandidate,
-                  onCancel: () => setState(() => _draftPlace = null),
                 ),
               ),
-          if (route case AsyncData(
-            value: final route,
-          ) when hasList && overlayHeight != null)
-            if (isSide)
-              // 닫혀도 그려 둔다. 다시 열 때 넘긴 자리와 펼친 줄이 그대로다.
-              AnimatedPositioned(
-                duration: _panelDuration,
-                curve: Curves.easeOutCubic,
-                top: 0,
-                bottom: 0,
-                width: panelWidth + insets.right,
-                right: choice.panelOpen ? 0 : -(panelWidth + insets.right),
-                child: switch (_listParts(
-                  route,
-                  itinerary,
-                  choice,
-                  side: true,
-                  savingSegmentId: savingSegmentId,
-                )) {
-                  (:final header, :final list) => RouteDayPanel(
-                    header: header,
-                    list: list,
+            if (route case AsyncData(value: final route))
+              if (_draftPlace case final place?)
+                Positioned(
+                  left: insets.left + AppSpace.md,
+                  // 오른쪽의 맞추기 버튼을 가리지 않는다.
+                  right: right + AppSpace.lg + _smallFabSize + AppSpace.sm,
+                  bottom: bottom + AppSpace.lg,
+                  child: _DraftCard(
+                    place: place,
+                    onAddStop: () => _addStop(route, day),
+                    onSaveCandidate: _saveCandidate,
+                    onCancel: () => setState(() => _draftPlace = null),
                   ),
-                },
-              )
-            else
-              Positioned.fill(
-                top: overlayHeight,
-                child: switch (_listParts(
-                  route,
-                  itinerary,
-                  choice,
-                  side: false,
-                  savingSegmentId: savingSegmentId,
-                )) {
-                  (:final header, :final list) => RouteDaySheet(
-                    key: _sheetKey,
-                    controller: _sheetController,
-                    headerHeight: _sheetHeaderHeight,
-                    header: header,
-                    list: list,
-                    onHeaderSize: _onSheetHeaderSize,
-                    onLift: _onSheetLift,
+                ),
+            if (route case AsyncData(
+              value: final route,
+            ) when hasList && overlayHeight != null)
+              if (isSide)
+                // 닫혀도 그려 둔다. 다시 열 때 넘긴 자리와 펼친 줄이 그대로다.
+                AnimatedPositioned(
+                  duration: _panelDuration,
+                  curve: Curves.easeOutCubic,
+                  top: 0,
+                  bottom: 0,
+                  width: panelWidth + insets.right,
+                  right: choice.panelOpen ? 0 : -(panelWidth + insets.right),
+                  child: switch (_listParts(
+                    route,
+                    itinerary,
+                    choice,
+                    side: true,
+                    savingSegmentId: savingSegmentId,
+                  )) {
+                    (:final header, :final list) => RouteDayPanel(
+                      header: header,
+                      list: list,
+                    ),
+                  },
+                )
+              else
+                Positioned.fill(
+                  top: overlayHeight,
+                  child: switch (_listParts(
+                    route,
+                    itinerary,
+                    choice,
+                    side: false,
+                    savingSegmentId: savingSegmentId,
+                  )) {
+                    (:final header, :final list) => RouteDaySheet(
+                      key: _sheetKey,
+                      controller: _sheetController,
+                      headerHeight: _sheetHeaderHeight,
+                      header: header,
+                      list: list,
+                      onHeaderSize: _onSheetHeaderSize,
+                      onLift: _onSheetLift,
+                    ),
+                  },
+                ),
+            Positioned(
+              top: 0,
+              left: 0,
+              // 오른쪽 패널을 열면 제목 카드와 일차 칩은 지도 영역 안에 둔다.
+              right: panelShown ? right : 0,
+              // 앱 바가 없어서 상태 표시줄 아이콘 색을 직접 정한다. 지도 바탕이 밝아서 어둡게 둔다.
+              child: AnnotatedRegion<SystemUiOverlayStyle>(
+                value: const SystemUiOverlayStyle(
+                  statusBarColor: Colors.transparent,
+                  statusBarIconBrightness: Brightness.dark,
+                  statusBarBrightness: Brightness.light,
+                ),
+                child: SizeReporter(
+                  onSize: _onOverlaySize,
+                  // 순서를 바꾸는 동안은 제목 카드와 일차 칩을 막는다(일차를 바꾸면 바꾼 순서가 어디 있는지 흐려진다).
+                  // 끝내기는 시트 제목 줄의 [취소], [완료]나 뒤로 가기다.
+                  child: IgnorePointer(
+                    ignoring: reordering,
+                    child: AnimatedOpacity(
+                      opacity: reordering ? AppOpacity.disabled : 1,
+                      duration: _fabFadeDuration,
+                      child: _TopOverlay(
+                        trip: trip,
+                        choice: choice,
+                        onRename: _readOnly ? null : _rename,
+                        onUseSample: _readOnly ? _useSample : null,
+                        usingSample: _usingSample,
+                        // 패널이 오른쪽 시스템 여백을 덮으면 따로 띄울 필요가 없다.
+                        rightInset: panelShown ? 0 : insets.right,
+                      ),
+                    ),
                   ),
-                },
-              ),
-          Positioned(
-            top: 0,
-            left: 0,
-            // 오른쪽 패널을 열면 제목 카드와 일차 칩은 지도 영역 안에 둔다.
-            right: panelShown ? right : 0,
-            // 앱 바가 없어서 상태 표시줄 아이콘 색을 직접 정한다. 지도 바탕이 밝아서 어둡게 둔다.
-            child: AnnotatedRegion<SystemUiOverlayStyle>(
-              value: const SystemUiOverlayStyle(
-                statusBarColor: Colors.transparent,
-                statusBarIconBrightness: Brightness.dark,
-                statusBarBrightness: Brightness.light,
-              ),
-              child: SizeReporter(
-                onSize: _onOverlaySize,
-                child: _TopOverlay(
-                  trip: trip,
-                  choice: choice,
-                  onRename: _readOnly ? null : _rename,
-                  onUseSample: _readOnly ? _useSample : null,
-                  usingSample: _usingSample,
-                  // 패널이 오른쪽 시스템 여백을 덮으면 따로 띄울 필요가 없다.
-                  rightInset: panelShown ? 0 : insets.right,
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1463,6 +1664,15 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
         itinerary: itinerary,
         showHandle: !side,
         onClose: onClose,
+        // 출발 장소는 앞 일차의 장소라 세지 않는다. 옮길 장소가 둘은 있어야 한다.
+        onReorder: _readOnly || itinerary.stops.length < 2
+            ? null
+            : () => _startReorder(_latestRoute(route), itinerary.day, choice),
+        reorderLocked: !choice.showLodging,
+        reordering: _reorderDraft?.day == itinerary.day,
+        reorderSaving: _reorderSaving,
+        onCancelReorder: _cancelReorder,
+        onDoneReorder: () => _doneReorder(route),
       ),
       list: _itineraryList(
         route,
@@ -1485,7 +1695,6 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     required String? savingSegmentId,
   }) => DayItineraryList(
     savingSegmentId: savingSegmentId,
-    savingStopId: _savingStopId,
     stayingLodgingId: _stayingLodgingId,
     readOnly: _readOnly,
     route: route,
@@ -1503,11 +1712,11 @@ class _TripRoutePageState extends ConsumerState<_TripRoutePage> {
     onVisit: showsVisitButtons(trip, ref.watch(todayProvider))
         ? (stop) => _toggleVisit(route, stop)
         : null,
-    onReorder: (visibleIds, oldIndex, newIndex) =>
-        _reorder(route, itinerary.day, visibleIds, oldIndex, newIndex),
-    reorderLocked: !choice.showLodging,
-    onReorderLocked: () =>
-        _showLodgingHiddenNotice(context.l10n.lodgingHiddenReorder),
+    reordering: _reorderDraft?.day == itinerary.day,
+    reorderSaving: _reorderSaving,
+    onReorderChanged: (stopIds) =>
+        setState(() => _reorderDraft = (day: itinerary.day, stopIds: stopIds)),
+    lodgingHidden: !choice.showLodging,
     onViaTap: () => _showLodgingHiddenNotice(context.l10n.lodgingHiddenVia),
     onInsertBefore: (stop) =>
         _findStop(route, day: itinerary.day, before: stop),
@@ -1596,6 +1805,14 @@ class _TopOverlay extends ConsumerWidget {
                 l10n.tripSummaryOf(trip),
               ),
               onRename: onRename,
+              // 보던 일차와 숙소 켜짐 그대로 연다. "후보 목록" 보기는 day가 null이라 전체다.
+              onExport: () => context.go(
+                Routes.tripExport(
+                  trip.id,
+                  day: choice.day,
+                  lodging: choice.showLodging,
+                ),
+              ),
             ),
           ),
           if (onUseSample case final onUse?) ...[
@@ -1659,10 +1876,13 @@ class _RouteMap extends ConsumerWidget {
     required this.showCandidates,
     required this.curveSegmentId,
     required this.savingSegmentId,
+    required this.photoSideStopId,
+    required this.savingPhotoStopId,
     required this.onMarkerTap,
     required this.onLineTap,
     required this.onMapTap,
     required this.onCurveChanged,
+    required this.onPhotoSideChanged,
   });
 
   final Trip trip;
@@ -1694,10 +1914,17 @@ class _RouteMap extends ConsumerWidget {
   /// 곡선을 끌어 놓고 저장을 기다리는 구간. 흐리게 그린다.
   final String? savingSegmentId;
 
+  /// 사진 방향 화살표를 둘 장소. 없으면 null이다.
+  final String? photoSideStopId;
+
+  /// 사진 방향을 바꾸고 저장을 기다리는 장소. 그 마커를 흐리게 그린다.
+  final String? savingPhotoStopId;
+
   final ValueChanged<String> onMarkerTap;
   final ValueChanged<String> onLineTap;
   final ValueChanged<MapTap> onMapTap;
   final Future<bool> Function(String id, double curvature) onCurveChanged;
+  final void Function(String id, PhotoSide side) onPhotoSideChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1713,8 +1940,13 @@ class _RouteMap extends ConsumerWidget {
       curveSegmentId: curveSegmentId,
       savingSegmentId: savingSegmentId,
       faded: candidateView,
+      pendingStopId: savingPhotoStopId,
       photoOf: ref.watch(photoImagesProvider).thumbnailOf,
     );
+    final photoSideStop = switch (photoSideStopId) {
+      final id? when !candidateView => route.stopById(id),
+      _ => null,
+    };
     final draft = this.draft;
     final candidates = route.candidates;
     final fitted = candidateView && candidates.isNotEmpty
@@ -1735,6 +1967,17 @@ class _RouteMap extends ConsumerWidget {
         arrows: arrows,
         lineIcons: lineIcons,
         curveHandle: curveHandle,
+        photoSidePicker: photoSideStop == null
+            ? null
+            : MapPhotoSidePicker(
+                id: photoSideStop.id,
+                position: photoSideStop.position,
+                side: photoSideStop.photoSide,
+                color: photoSideStop.isLodging
+                    ? colors.routeLodging.background
+                    : colors.routePhotoFrame(photoSideStop.day),
+                outline: colors.routeHalo,
+              ),
         myLocation: myLocation,
         camera: switch ((myLocationCamera, myLocation)) {
           (final count?, final me?) => MapCameraRequest(
@@ -1753,6 +1996,7 @@ class _RouteMap extends ConsumerWidget {
       onLineTap: onLineTap,
       onMapTap: onMapTap,
       onCurveChanged: onCurveChanged,
+      onPhotoSideChanged: onPhotoSideChanged,
     );
   }
 }

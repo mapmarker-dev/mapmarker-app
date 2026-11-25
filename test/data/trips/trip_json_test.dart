@@ -227,6 +227,28 @@ void main() {
       expect(stopFromJson({...serverStop()}..remove('photo')).photo, isNull);
     });
 
+    test('reads the photo side, defaulting to up when missing or unknown', () {
+      expect(
+        stopFromJson({...serverStop(), 'photoSide': 'left'}).photoSide,
+        PhotoSide.left,
+      );
+      // 사진 방향(1-5 후속) 전 서버나 기기 저장(2-2), 또는 앱이 모르는 새 방향.
+      expect(stopFromJson(serverStop()).photoSide, PhotoSide.up);
+      expect(
+        stopFromJson({...serverStop(), 'photoSide': 'diagonal'}).photoSide,
+        PhotoSide.up,
+      );
+    });
+
+    test('sends the photo side', () {
+      expect(
+        updateStopJson(
+          _stop().copyWith(photoSide: PhotoSide.down),
+        )['photoSide'],
+        'down',
+      );
+    });
+
     test('rejects a photo without its addresses', () {
       expect(
         () => stopFromJson(serverStop(photo: {'id': 'p'})),
@@ -271,6 +293,7 @@ void main() {
         'timeZone': 'Asia/Seoul',
         'placeProvider': null,
         'placeId': null,
+        'photoSide': 'up',
       });
     });
 

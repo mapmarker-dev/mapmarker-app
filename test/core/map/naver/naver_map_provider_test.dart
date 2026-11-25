@@ -8,6 +8,7 @@ import 'package:mapmarker_app/core/map/map_provider.dart';
 import 'package:mapmarker_app/core/map/marker_icon.dart';
 import 'package:mapmarker_app/core/map/naver/naver_map_provider.dart';
 import 'package:mapmarker_app/core/map/route_arrow.dart';
+import 'package:mapmarker_app/data/models/photo.dart';
 
 // SDK는 오버레이를 메시지(payload)로 바꿔 네이티브 지도에 보낸다. 바꿀 수 없는 값이 있으면
 // 그 묶음의 오버레이가 모두 빠지고 지도에는 아무것도 안 보인다(로그에만 남는다).
@@ -116,7 +117,7 @@ void main() {
     );
 
     expect(() => marker.payload, returnsNormally);
-    expect(marker.size, MarkerIcon.photoSize);
+    expect(marker.size, MarkerIcon.photoSizeOf(PhotoSide.up));
     expect(marker.anchor, const NPoint(0.5, 1));
   });
 
@@ -381,4 +382,55 @@ void main() {
       expect(payload['hasOnTapListener'], isFalse);
     },
   );
+
+  test('puts the place name across from the photo', () {
+    MarkerLook look(PhotoSide side) => MarkerLook(
+      fill: Colors.orange,
+      foreground: Colors.black,
+      halo: Colors.white,
+      photo: MemoryImage(Uint8List.fromList(const [0])),
+      photoSide: side,
+    );
+
+    expect(naverCaptionAlignOf(look(PhotoSide.up)), NAlign.bottom);
+    expect(naverCaptionAlignOf(look(PhotoSide.down)), NAlign.top);
+    expect(naverCaptionAlignOf(look(PhotoSide.left)), NAlign.right);
+    expect(naverCaptionAlignOf(look(PhotoSide.right)), NAlign.left);
+    expect(
+      naverCaptionAlignOf(look(PhotoSide.down).withoutPhoto()),
+      NAlign.bottom,
+    );
+
+    final marker = naverMarkerOf(
+      MapMarker(
+        id: 'stop',
+        position: const LatLng(33.5, 126.5),
+        caption: '성산일출봉',
+        look: look(PhotoSide.left),
+        pending: true,
+      ),
+      icon: null,
+      captionColor: Colors.black,
+    );
+    expect(() => marker.payload, returnsNormally);
+    expect(marker.anchor, const NPoint(1, 0.5));
+  });
+
+  test('sends the photo side arrows as one marker on the place', () {
+    final marker = naverPhotoSidePickerOf(
+      const MapPhotoSidePicker(
+        id: 'stop',
+        position: LatLng(33.5, 126.5),
+        side: PhotoSide.right,
+        color: Colors.orange,
+        outline: Colors.white,
+      ),
+      icon: null,
+    );
+
+    expect(() => marker.payload, returnsNormally);
+    expect(marker.info.id, 'photo-side:stop');
+    expect(marker.size, PhotoSideArrows.size);
+    expect(marker.anchor, const NPoint(0.5, 0.5));
+  });
 }

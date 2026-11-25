@@ -1,9 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../data/auth/auth_session.dart';
-import '../dev/snapshot_lab/snapshot_lab_screen.dart';
+import '../features/export/export_screen.dart';
 import '../features/login/login_screen.dart';
 import '../features/trash/trash_screen.dart';
 import '../features/trip_detail/trip_detail_screen.dart';
@@ -39,16 +38,24 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: 'trips/:tripId',
             builder: (context, state) =>
                 TripDetailScreen(tripId: state.pathParameters['tripId']!),
+            routes: [
+              GoRoute(
+                path: 'export',
+                builder: (context, state) {
+                  final query = state.uri.queryParameters;
+                  return ExportScreen(
+                    tripId: state.pathParameters['tripId']!,
+                    initialDay: int.tryParse(query['day'] ?? ''),
+                    initialLodging: query['lodging'] != '0',
+                  );
+                },
+              ),
+            ],
           ),
           GoRoute(
             path: 'trash',
             builder: (context, state) => const TrashScreen(),
           ),
-          if (kDebugMode)
-            GoRoute(
-              path: 'dev/snapshot-lab',
-              builder: (context, state) => const SnapshotLabScreen(),
-            ),
         ],
       ),
     ],

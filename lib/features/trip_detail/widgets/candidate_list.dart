@@ -9,7 +9,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../data/models/candidate.dart';
 import '../../../data/models/trip_route.dart';
 import '../../../l10n/l10n.dart';
-import '../route_scene.dart';
+import '../../../core/route/route_scene.dart';
 import 'day_itinerary_list.dart';
 import 'itinerary_tiles.dart';
 

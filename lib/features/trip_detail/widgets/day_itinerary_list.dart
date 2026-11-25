@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
@@ -11,7 +10,7 @@ import '../../../data/models/trip.dart';
 import '../../../data/models/trip_route.dart';
 import '../../../l10n/l10n.dart';
 import '../day_itinerary.dart';
-import '../route_scene.dart';
+import '../../../core/route/route_scene.dart';
 import 'itinerary_tiles.dart';
 
 /// 일차 동선 목록에서 펼친 장소와 고른 장소·구간.
@@ -29,7 +28,7 @@ class ItinerarySelection extends ChangeNotifier {
   /// 마지막으로 보여 준 지도 탭(`RouteChoice.focusCount`). 틀이 바뀌어 목록을 새로 만들어도 같은 탭을 다시 보여 주지 않는다.
   int shownFocusCount = 0;
 
-  /// 목록에서 직접 누른 줄. 이 줄에만 연필 아이콘(고치기·지우기)과 순서 바꾸기 손잡이가 보인다.
+  /// 목록에서 직접 누른 줄. 이 줄에만 연필 아이콘(고치기·지우기)이 보인다.
   ///
   /// 지도에서 눌러 고른 줄에는 보이지 않는다. 목록을 늘 깔끔하게 두고, 고칠 줄을 한 번 더 눌러야
   /// 손댈 수 있게 하려는 것이다.
@@ -37,7 +36,7 @@ class ItinerarySelection extends ChangeNotifier {
 
   /// 장소 줄을 눌렀다.
   ///
-  /// - 연필이 없는 줄([active]가 아님): 그 줄을 고르고 펼친다. 이미 펼쳐져 있으면(지도에서 눌러 연 줄, 저장 뒤 보여 준 줄) 접지 않고 연필·손잡이만 더한다.
+  /// - 연필이 없는 줄([active]가 아님): 그 줄을 고르고 펼친다. 이미 펼쳐져 있으면(지도에서 눌러 연 줄, 저장 뒤 보여 준 줄) 접지 않고 연필만 더한다.
   /// - 연필이 떠 있는 줄: 펼침과 접힘을 오간다. 고른 것은 그대로 둔다.
   void tapStop(String id) {
     final wasActive = active == id;
@@ -65,7 +64,7 @@ class ItinerarySelection extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 지도에서 누른 것을 고른다. [stopId]가 있으면 그 장소를 펼친다. 연필·손잡이는 숨긴다.
+  /// 지도에서 누른 것을 고른다. [stopId]가 있으면 그 장소를 펼친다. 연필은 숨긴다.
   void focus(Iterable<String> ids, {String? stopId, required int count}) {
     highlighted = ids.toSet();
     active = null;
@@ -77,8 +76,8 @@ class ItinerarySelection extends ChangeNotifier {
 
 /// 그날의 장소와 구간 목록. 아래 시트와 오른쪽 패널이 함께 쓴다.
 ///
-/// 장소 줄을 누르면 고르고 펼치며, 손잡이로 끌어 순서를 바꾼다. 구간 줄을 누르면 고른다.
-/// 목록에서 누른 줄에만 오른쪽 연필 아이콘(고치기·지우기)과, 장소면 순서 바꾸기 손잡이가 뜬다.
+/// 장소 줄을 누르면 고르고 펼친다. 구간 줄을 누르면 고른다. 목록에서 누른 줄에만 오른쪽 연필 아이콘(고치기·지우기)이 뜬다.
+/// 순서 바꾸기([reordering])는 제목 줄의 버튼으로 들어가고, 그동안은 모든 장소가 한 줄 모양이며 손잡이로 끈다.
 /// 지도에서 누른 장소·구간([focus])은 [onReveal]로 틀을 연 뒤 그 줄로 넘긴다.
 class DayItineraryList extends StatefulWidget {
   const DayItineraryList({
@@ -93,13 +92,13 @@ class DayItineraryList extends StatefulWidget {
     required this.onEdit,
     required this.onEditSegment,
     required this.onStayAgain,
-    required this.onReorder,
-    this.reorderLocked = false,
-    this.onReorderLocked,
+    this.reordering = false,
+    this.reorderSaving = false,
+    this.onReorderChanged,
+    this.lodgingHidden = false,
     this.onViaTap,
     this.onInsertBefore,
     this.onAddPlace,
-    this.savingStopId,
     this.stayingLodgingId,
     this.readOnly = false,
     this.savingSegmentId,
@@ -130,34 +129,31 @@ class DayItineraryList extends StatefulWidget {
   /// "오늘 밤도 여기서 묵기"를 누른 전날 밤 숙소.
   final ValueChanged<Stop> onStayAgain;
 
-  /// 끌어서 옮긴 장소. [visibleIds]는 옮기기 전 순서다(출발 장소 제외). [newIndex]는 옮긴 뒤 자리다.
-  /// 옮겼으면 true, 취소했으면(이동 수단이 지워져서 묻고 취소) false다. false면 옮기기 전 순서로 돌아간다.
-  final Future<bool> Function(
-    List<String> visibleIds,
-    int oldIndex,
-    int newIndex,
-  )
-  onReorder;
+  /// 순서를 바꾸는 중이다. 모든 장소 줄이 접힌 한 줄 모양이고, 구간 줄, "숙소를 거침" 줄, 버튼은 숨는다.
+  /// 손잡이(☰)를 잡으면 바로, 줄을 길게 누르면 끈다. 줄을 눌러 고르거나 펼치지 않는다.
+  ///
+  /// 놓을 자리는 손가락이 아니라 끄는 카드의 위아래 끝으로 정해진다(`SliverReorderableList`).
+  /// 카드가 한 줄 크기라야 끝과 손가락이 거의 같아 노린 두 줄 사이에 놓인다. 그래서 펼친 줄과 구간 줄을 모두 접는다.
+  final bool reordering;
 
-  /// 끌어 옮기기를 막는다(숙소를 끈 보기). 숨긴 숙소가 사이에 섞여 있어 놓은 자리가 숨긴 숙소 앞인지 뒤인지 보이지 않아서다.
-  /// 고른 줄에는 끌리지 않는 흐린 손잡이가 뜨고, 누르면 [onReorderLocked]를 부른다(왜 안 되는지 알린다).
-  /// 손잡이를 숨기지 않는 것은 "있는데 지금은 안 된다"를 보여 주려는 것이다.
-  final bool reorderLocked;
-  final VoidCallback? onReorderLocked;
+  /// 바꾼 순서를 저장하는 중이다. 손잡이가 없어 더 끌 수 없다.
+  final bool reorderSaving;
+
+  /// 순서를 바꾸는 동안 끌어 놓았다. 새 순서(출발 장소 제외)다. 저장은 [완료]에서 한다.
+  final ValueChanged<List<String>>? onReorderChanged;
+
+  /// 숙소를 끈 보기다. ⊕를 숨긴다(숨긴 숙소 때문에 자리가 분명하지 않다).
+  final bool lodgingHidden;
 
   /// "숙소를 거쳐 감" 줄을 눌렀다. 그 사이 구간은 숨긴 숙소에 닿아 있어서 고를 수 없고, 왜인지 알린다.
   final VoidCallback? onViaTap;
 
   /// 구간 줄의 ⊕를 눌렀다. 그 구간의 도착 장소([Stop]) 앞에 넣을 곳을 찾는다.
-  /// 숙소를 끈 보기([reorderLocked])에서는 ⊕를 숨긴다(숨긴 숙소 때문에 자리가 분명하지 않다). 보기 전용이면 없다.
+  /// 숙소를 끈 보기([lodgingHidden])에서는 ⊕를 숨긴다(숨긴 숙소 때문에 자리가 분명하지 않다). 보기 전용이면 없다.
   final ValueChanged<Stop>? onInsertBefore;
 
   /// 목록 끝 "장소 넣기" 줄을 눌렀다. 그 일차의 기본 자리(맨 뒤, 그날 밤 숙소 앞)로 넣을 곳을 찾는다.
   final VoidCallback? onAddPlace;
-
-  /// 끌어 옮기고 저장을 기다리는 장소. 그 줄이 흐려지고 연필·손잡이 자리에 진행 표시가 뜬다(다시 끌 수 없다).
-  /// 이동 수단이 지워진다고 묻는 동안은 아직 저장하지 않으니 null이다.
-  final String? savingStopId;
 
   /// "오늘 밤도 여기서 묵기"를 눌러 저장을 기다리는 숙소. 그 버튼에 진행 표시가 돌고 누를 수 없다.
   final String? stayingLodgingId;
@@ -180,9 +176,6 @@ class DayItineraryList extends StatefulWidget {
 }
 
 class _DayItineraryListState extends State<DayItineraryList> {
-  /// 끌어서 옮긴 순서. 저장소가 새 순서를 낼 때까지 한 프레임이라도 예전 자리로 튀지 않게 먼저 보여 준다.
-  List<String>? _movedOrder;
-
   final _keys = <String, GlobalKey>{};
 
   /// 보여 주려고 예약한 지도 탭. 한 프레임에 여러 번 다시 그려져도 한 번만 보여 준다.
@@ -204,9 +197,6 @@ class _DayItineraryListState extends State<DayItineraryList> {
       oldWidget.selection.removeListener(_onSelection);
       widget.selection.addListener(_onSelection);
     }
-    if (!listEquals(_ids(oldWidget.itinerary), _ids(widget.itinerary))) {
-      _movedOrder = null;
-    }
     _showFocusIfNew();
   }
 
@@ -217,10 +207,6 @@ class _DayItineraryListState extends State<DayItineraryList> {
   }
 
   void _onSelection() => setState(() {});
-
-  static List<String> _ids(DayItinerary itinerary) => [
-    for (final s in itinerary.stops) s.stop.id,
-  ];
 
   /// 지도에서 새로 누른 것이 있으면 고르고, 틀을 연 뒤 그 줄로 넘긴다.
   void _showFocusIfNew() {
@@ -265,8 +251,10 @@ class _DayItineraryListState extends State<DayItineraryList> {
     final colors = context.appColors;
     final selection = widget.selection;
     final itinerary = widget.itinerary;
-    final stops = _ordered(itinerary.stops);
+    final stops = itinerary.stops;
     final visibleIds = [for (final s in stops) s.stop.id];
+    final reordering = widget.reordering;
+    final canDrag = reordering && !widget.reorderSaving;
     final side = EdgeInsets.only(
       left: widget.padding.left + AppSpace.sm,
       right: widget.padding.right + AppSpace.sm,
@@ -278,44 +266,28 @@ class _DayItineraryListState extends State<DayItineraryList> {
       bool fixed = false,
       int? index,
     }) {
-      final active = selection.active == stop.id;
+      final active = !reordering && selection.active == stop.id;
       return ItineraryStopTile(
         key: _keyOf(stop.id),
         stop: stop,
         look: markerLookOf(widget.route, stop, colors),
         caption: caption,
-        expanded: selection.expanded == stop.id,
-        highlighted: selection.highlighted.contains(stop.id),
-        saving: stop.id == widget.savingStopId,
-        onToggle: () => selection.tapStop(stop.id),
+        expanded: !reordering && selection.expanded == stop.id,
+        compact: reordering,
+        highlighted: !reordering && selection.highlighted.contains(stop.id),
+        onToggle: reordering ? null : () => selection.tapStop(stop.id),
         onOpenMap: () => widget.onOpenMap(stop),
         onVisit: switch (widget.onVisit) {
-          final onVisit? when !fixed && !widget.readOnly => () => onVisit(stop),
+          final onVisit? when !fixed && !widget.readOnly && !reordering =>
+            () => onVisit(stop),
           _ => null,
         },
-        // 목록에서 누른 줄에만 연필과 손잡이가 보인다.
+        // 목록에서 누른 줄에만 연필이 보인다.
         onEdit: active && !widget.readOnly
             ? () => widget.onEdit(stop, canDelete: !fixed)
             : null,
-        reorderHandle:
-            !active || widget.readOnly || index == null || stops.length < 2
-            ? null
-            : widget.reorderLocked
-            ? Tooltip(
-                message: l10n.itineraryReorder,
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: widget.onReorderLocked,
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpace.sm),
-                    child: Icon(
-                      Icons.drag_handle,
-                      color: scheme.outlineVariant,
-                    ),
-                  ),
-                ),
-              )
-            : ReorderableDragStartListener(
+        reorderHandle: canDrag && index != null
+            ? ReorderableDragStartListener(
                 index: index,
                 child: Tooltip(
                   message: l10n.itineraryReorder,
@@ -327,7 +299,8 @@ class _DayItineraryListState extends State<DayItineraryList> {
                     ),
                   ),
                 ),
-              ),
+              )
+            : null,
       );
     }
 
@@ -354,22 +327,12 @@ class _DayItineraryListState extends State<DayItineraryList> {
           padding: side,
           sliver: SliverReorderableList(
             itemCount: stops.length,
-            onReorderItem: (oldIndex, newIndex) async {
-              // 제자리에 놓았다. 옮긴 순서를 남기면 구간 줄이 숨은 채로 남는다.
+            onReorderItem: (oldIndex, newIndex) {
               if (oldIndex == newIndex) return;
               final moved = [...visibleIds];
               final id = moved.removeAt(oldIndex);
               moved.insert(newIndex, id);
-              setState(() => _movedOrder = moved);
-              final saved = await widget.onReorder(
-                visibleIds,
-                oldIndex,
-                newIndex,
-              );
-              // 묻고 취소했거나 저장하지 못했으면 옮기기 전 순서로 돌려 놓는다.
-              if (!saved && mounted && _movedOrder == moved) {
-                setState(() => _movedOrder = null);
-              }
+              widget.onReorderChanged?.call(moved);
             },
             proxyDecorator: (child, _, _) => Material(
               color: scheme.surfaceContainerLowest,
@@ -380,11 +343,20 @@ class _DayItineraryListState extends State<DayItineraryList> {
             itemBuilder: (context, index) {
               final entry = stops[index];
               final arrival = entry.arrival;
+              if (reordering) {
+                // 줄을 길게 눌러도 끈다. 손잡이는 바로 끈다.
+                return ReorderableDelayedDragStartListener(
+                  key: ValueKey(entry.stop.id),
+                  index: index,
+                  enabled: canDrag,
+                  child: stopTile(entry.stop, index: index),
+                );
+              }
               return Column(
                 key: ValueKey(entry.stop.id),
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (arrival != null && _movedOrder == null)
+                  if (arrival != null)
                     ItinerarySegmentTile(
                       key: _keyOf(arrival.id),
                       segment: arrival,
@@ -398,13 +370,13 @@ class _DayItineraryListState extends State<DayItineraryList> {
                           : null,
                       onInsert: switch (widget.onInsertBefore) {
                         final insert?
-                            when !widget.readOnly && !widget.reorderLocked =>
+                            when !widget.readOnly && !widget.lodgingHidden =>
                           () => insert(entry.stop),
                         _ => null,
                       },
                     ),
                   // 숙소를 끈 보기에서 낮에 들른 숙소를 건너왔다. 지도의 흐린 선과 같다.
-                  if (entry.via != null && _movedOrder == null)
+                  if (entry.via != null)
                     ItineraryViaTile(
                       color: colors.routeVia(entry.stop.day),
                       onTap: widget.onViaTap,
@@ -415,7 +387,8 @@ class _DayItineraryListState extends State<DayItineraryList> {
             },
           ),
         ),
-        if (widget.onAddPlace case final onAddPlace? when !widget.readOnly)
+        if (widget.onAddPlace case final onAddPlace?
+            when !widget.readOnly && !reordering)
           SliverPadding(
             padding: side.add(const EdgeInsets.only(top: AppSpace.xs)),
             sliver: SliverToBoxAdapter(
@@ -430,7 +403,7 @@ class _DayItineraryListState extends State<DayItineraryList> {
             ),
           ),
         // 그날 밤 숙소를 아직 넣지 않았으면, 그날 들른 숙소나 전날 숙소(연박)를 한 번에 다시 넣는다.
-        if (!widget.readOnly)
+        if (!widget.readOnly && !reordering)
           for (final lodging in itinerary.lodgingsToStayAgain)
             SliverPadding(
               padding: side.add(
@@ -462,20 +435,13 @@ class _DayItineraryListState extends State<DayItineraryList> {
       ],
     );
   }
-
-  /// 끌어서 옮긴 직후에는 옮긴 순서로 보여 준다.
-  List<ItineraryStop> _ordered(List<ItineraryStop> stops) {
-    final order = _movedOrder;
-    if (order == null || order.length != stops.length) return stops;
-    final byId = {for (final s in stops) s.stop.id: s};
-    if (!order.every(byId.containsKey)) return stops;
-    return [for (final id in order) byId[id]!];
-  }
 }
 
-/// 목록의 제목 줄: 일차(와 날짜), 장소 수.
+/// 목록의 제목 줄: 일차(와 날짜), 장소 수, 순서 바꾸기 버튼.
 ///
 /// 아래 시트는 위에 끌기 손잡이를([showHandle]), 오른쪽 패널은 끝에 닫기 버튼을([onClose]) 단다.
+/// 순서를 바꾸는 동안([reordering])은 장소 수와 닫기 버튼 대신 [취소]와 [완료]를 둔다.
+/// 접힌 시트에서도 보이는 줄이라, 순서를 바꾸다 시트를 내려도 끝낼 수 있다.
 class ItineraryHeader extends StatelessWidget {
   const ItineraryHeader({
     super.key,
@@ -483,12 +449,32 @@ class ItineraryHeader extends StatelessWidget {
     required this.itinerary,
     this.showHandle = false,
     this.onClose,
+    this.onReorder,
+    this.reorderLocked = false,
+    this.reordering = false,
+    this.reorderSaving = false,
+    this.onCancelReorder,
+    this.onDoneReorder,
   });
 
   final Trip trip;
   final DayItinerary itinerary;
   final bool showHandle;
   final VoidCallback? onClose;
+
+  /// [순서 바꾸기]를 눌렀다. null이면 버튼이 없다(보기 전용, 장소가 2곳 미만).
+  final VoidCallback? onReorder;
+
+  /// 숙소를 끈 보기라 순서를 바꿀 수 없다. 버튼은 흐리게 두고, 누르면 [onReorder]가 왜인지 알린다.
+  /// 버튼을 숨기지 않는 것은 "있는데 지금은 안 된다"를 보여 주려는 것이다.
+  final bool reorderLocked;
+
+  final bool reordering;
+
+  /// 바꾼 순서를 저장하는 중이다. [완료] 자리에 진행 표시가 돌고 두 버튼을 누를 수 없다.
+  final bool reorderSaving;
+  final VoidCallback? onCancelReorder;
+  final VoidCallback? onDoneReorder;
 
   @override
   Widget build(BuildContext context) {
@@ -497,13 +483,22 @@ class ItineraryHeader extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final day = itinerary.day;
     final dates = trip.dates;
-    final onClose = this.onClose;
+    final onClose = reordering ? null : this.onClose;
+    final onReorder = this.onReorder;
+    final trailing = reordering || onClose != null || onReorder != null;
+    // 버튼은 작게 그려 제목 줄 높이를 늘리지 않는다(접힌 시트가 지도를 더 가리지 않게).
+    // 글자만 있는 줄보다 버튼이 높아서, 버튼이 있으면 아래 여백을 줄여 같은 높이로 맞춘다.
+    final small = TextButton.styleFrom(
+      visualDensity: VisualDensity.compact,
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
+    );
     return Padding(
       padding: EdgeInsets.fromLTRB(
         AppSpace.lg,
         AppSpace.sm,
-        onClose == null ? AppSpace.lg : AppSpace.xs,
-        onClose == null ? AppSpace.md : AppSpace.xs,
+        trailing ? AppSpace.xs : AppSpace.lg,
+        trailing ? AppSpace.xs : AppSpace.md,
       ),
       child: Column(
         children: [
@@ -542,12 +537,48 @@ class ItineraryHeader extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Text(
-                l10n.itineraryStopCount(itinerary.stops.length),
-                style: textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
+              if (reordering) ...[
+                TextButton(
+                  style: small,
+                  onPressed: reorderSaving ? null : onCancelReorder,
+                  child: Text(
+                    MaterialLocalizations.of(context).cancelButtonLabel,
+                  ),
                 ),
-              ),
+                const SizedBox(width: AppSpace.xs),
+                FilledButton.tonal(
+                  style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpace.lg,
+                    ),
+                  ),
+                  onPressed: reorderSaving ? null : onDoneReorder,
+                  child: reorderSaving
+                      ? SavingIndicator(label: l10n.saving, padded: false)
+                      : Text(l10n.itineraryReorderDone),
+                ),
+              ] else ...[
+                Text(
+                  l10n.itineraryStopCount(itinerary.stops.length),
+                  style: textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                if (onReorder != null)
+                  TextButton(
+                    style: reorderLocked
+                        ? small.merge(
+                            TextButton.styleFrom(
+                              foregroundColor: scheme.outline,
+                            ),
+                          )
+                        : small,
+                    onPressed: onReorder,
+                    child: Text(l10n.itineraryReorderStart),
+                  ),
+              ],
               if (onClose != null)
                 IconButton(
                   tooltip: MaterialLocalizations.of(context).closeButtonTooltip,

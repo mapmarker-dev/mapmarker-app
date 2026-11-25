@@ -175,6 +175,16 @@ void main() {
     expect(http.requests.single.data, {'day': 2, 'order': 3});
   });
 
+  test('orders the stops of a day', () async {
+    await api.orderDay('trip-1', day: 2, stopIds: ['b', 'a']);
+
+    expect(call(), 'PUT /v1/trips/trip-1/stop-order');
+    expect(http.requests.single.data, {
+      'day': 2,
+      'stopIds': ['b', 'a'],
+    });
+  });
+
   test('deletes a stop and gets the new route', () async {
     final detail = await api.deleteStop('stop-1');
 

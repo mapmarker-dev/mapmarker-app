@@ -1,26 +1,44 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+import '../../data/models/photo.dart';
 import 'geo.dart';
+import 'map_capture.dart';
+
+export 'map_capture.dart';
 
 /// 지도. 지도 종류(네이버, 구글)마다 구현이 하나씩 있고, 화면은 이 인터페이스만 쓴다.
 ///
 /// 화면은 무엇을 그릴지([MapScene])와, 사용자가 누를 때 부를 함수를 넘긴다.
 ///
-/// 아직 열지 않은 것: 스냅샷과 좌표→화면 위치(1-5단계 내보내기). 곡선 핸들은 화면 좌표가 필요하지만 지도 구현 안에서 끝낸다.
+/// 내보내기 이미지의 바탕은 [buildCaptureMap]이 찍는다. 곡선 핸들은 화면 좌표가 필요하지만 지도 구현 안에서 끝낸다.
 abstract interface class MapProvider {
+  /// 내보내기 이미지의 바탕 지도. 오버레이 없이 [frame]에 맞추고, 지도를 다 받아 카메라가 멈추면 찍어서 [onCaptured]로 넘긴다.
+  ///
+  /// - 지도는 부모가 준 크기로 그린다. 다른 위젯에 가려져 있어도 찍힌다(0단계 검증).
+  /// - [frame]이 바뀌면 다시 맞추고 다시 찍는다. 늦게 받은 지도 조각이 있을 수 있어서 같은 [frame]을 한 번 더 찍기도 한다.
+  /// - 손으로 움직일 수 없고, 로고는 왼쪽 아래에 있다([MapCapture.logo]).
+  /// - 지도를 받지 못하면(인터넷 끊김) [onFailed]를 부른다.
+  Widget buildCaptureMap({
+    required MapFrame frame,
+    required ValueChanged<MapCapture> onCaptured,
+    required VoidCallback onFailed,
+  });
+
   /// - [onMarkerTap]: 마커를 누르면 [MapMarker.id]로 부른다.
   /// - [onLineTap]: 선이나 선 아이콘을 누르면 [MapLine.id]([MapLineIcon.id])로 부른다. 화살표는 누를 수 없다.
   /// - [onMapTap]: 마커와 선이 아닌 곳을 누르면 부른다.
   /// - [onCurveChanged]: [MapScene.curveHandle]을 끌었다 놓으면 그 구간 ID와 새 곡률로 부른다.
   ///   앱은 저장을 기다리는 동안 새 곡선을 흐리게 그린 장면을 바로 넘기고, 지도 구현은 장면이 바뀌면 미리보기를 지운다.
   ///   저장하지 못했으면 false를 돌려준다. 그러면 지도 구현은 끄는 동안의 미리보기를 지운다.
+  /// - [onPhotoSideChanged]: [MapScene.photoSidePicker]의 화살표를 누르면 그 장소 ID([MapPhotoSidePicker.id])와 고른 방향으로 부른다.
   Widget buildMap(
     MapScene scene, {
     ValueChanged<String>? onMarkerTap,
     ValueChanged<String>? onLineTap,
     ValueChanged<MapTap>? onMapTap,
     Future<bool> Function(String id, double curvature)? onCurveChanged,
+    void Function(String id, PhotoSide side)? onPhotoSideChanged,
   });
 }
 
@@ -56,6 +74,7 @@ class MapScene {
     this.arrows = const [],
     this.lineIcons = const [],
     this.curveHandle,
+    this.photoSidePicker,
     this.myLocation,
     required this.camera,
     this.padding = EdgeInsets.zero,
@@ -69,6 +88,9 @@ class MapScene {
 
   /// 곡률을 고치는 핸들. 한 번에 한 구간에만 있다. 없으면 null이다.
   final MapCurveHandle? curveHandle;
+
+  /// 사진 방향을 고르는 화살표 4개. 한 번에 한 장소에만 있다. 없으면 null이다.
+  final MapPhotoSidePicker? photoSidePicker;
 
   /// 기기의 현재 위치. 지도 구현은 지도 SDK의 현재 위치 표시(파란 점)로 그리고, 누를 수 없다.
   /// null이면 숨긴다. 파란색은 현재 위치에만 쓴다(OVERVIEW "앱 화면과 디자인").
@@ -110,6 +132,7 @@ class MapMarker {
     required this.caption,
     required this.look,
     this.secondary = false,
+    this.pending = false,
   });
 
   final String id;
@@ -121,6 +144,9 @@ class MapMarker {
   /// 겹치면 동선의 마커가 눌린다.
   final bool secondary;
 
+  /// 바꾼 것을 저장하는 중이다(예: 사진 방향). 저장될 때까지 흐리게 그린다.
+  final bool pending;
+
   @override
   bool operator ==(Object other) =>
       other is MapMarker &&
@@ -128,10 +154,12 @@ class MapMarker {
       other.position == position &&
       other.caption == caption &&
       other.look == look &&
-      other.secondary == secondary;
+      other.secondary == secondary &&
+      other.pending == pending;
 
   @override
-  int get hashCode => Object.hash(id, position, caption, look, secondary);
+  int get hashCode =>
+      Object.hash(id, position, caption, look, secondary, pending);
 }
 
 /// 마커 그림. 테두리 있는 원 가운데에 번호나 아이콘이 있고, 오른쪽 위에 작은 배지가 붙을 수 있다.
@@ -152,6 +180,7 @@ class MarkerLook {
     this.small = false,
     this.photo,
     this.photoFrame,
+    this.photoSide = PhotoSide.up,
   });
 
   /// 원 바탕색.
@@ -183,6 +212,9 @@ class MarkerLook {
   /// 사진 마커의 테두리와 꼬리 색. 없으면 [fill]이다. 번호 원은 [fill] 그대로다(원 마커와 같게).
   final Color? photoFrame;
 
+  /// 사진 마커를 장소의 어느 쪽에 붙일지. 사진이 없으면 쓰지 않는다.
+  final PhotoSide photoSide;
+
   /// 사진 없는 그림. 사진을 받지 못했을 때 쓴다.
   MarkerLook withoutPhoto() => MarkerLook(
     fill: fill,
@@ -195,8 +227,12 @@ class MarkerLook {
     small: small,
   );
 
-  /// [photo]를 넣은 그림. [frame]은 테두리와 꼬리 색이다.
-  MarkerLook withPhoto(ImageProvider photo, {Color? frame}) => MarkerLook(
+  /// [photo]를 넣은 그림. [frame]은 테두리와 꼬리 색, [side]는 사진을 붙일 쪽이다.
+  MarkerLook withPhoto(
+    ImageProvider photo, {
+    Color? frame,
+    PhotoSide side = PhotoSide.up,
+  }) => MarkerLook(
     fill: fill,
     foreground: foreground,
     halo: halo,
@@ -207,6 +243,7 @@ class MarkerLook {
     small: small,
     photo: photo,
     photoFrame: frame,
+    photoSide: side,
   );
 
   /// 모든 색을 [opacity]만큼 흐리게 한 그림. 다른 것을 보려고 뒤로 물린 동선에 쓴다.
@@ -237,7 +274,8 @@ class MarkerLook {
       other.badge == badge &&
       other.small == small &&
       other.photo == photo &&
-      other.photoFrame == photoFrame;
+      other.photoFrame == photoFrame &&
+      other.photoSide == photoSide;
 
   @override
   int get hashCode => Object.hash(
@@ -251,6 +289,7 @@ class MarkerLook {
     small,
     photo,
     photoFrame,
+    photoSide,
   );
 }
 
@@ -426,4 +465,45 @@ class MapArrow {
   @override
   int get hashCode =>
       Object.hash(id, position, bearing, color, outline, minZoom);
+}
+
+/// 사진 방향을 고르는 화살표 4개. 사진 마커 둘레(위, 아래, 왼쪽, 오른쪽)에 뜨고, 지금 방향의 화살표는 채워져 있다.
+///
+/// 지도 구현이 그리고 누르기를 받아 `onPhotoSideChanged`로 알린다. 지도를 돌려도 화면 기준 상하좌우다.
+@immutable
+class MapPhotoSidePicker {
+  const MapPhotoSidePicker({
+    required this.id,
+    required this.position,
+    required this.side,
+    required this.color,
+    required this.outline,
+  });
+
+  /// 방향을 바꿀 장소의 ID. 같은 자리에 여러 번 넣은 장소면 사진이 있는 장소다.
+  final String id;
+
+  /// 장소 자리(사진 마커의 꼬리 끝).
+  final LatLng position;
+
+  /// 지금 방향.
+  final PhotoSide side;
+
+  /// 지금 방향 화살표의 바탕색이고, 나머지 화살표의 테두리와 아이콘 색이다.
+  final Color color;
+
+  /// 나머지 화살표의 바탕색이고, 지금 방향 화살표의 아이콘 색이다.
+  final Color outline;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MapPhotoSidePicker &&
+      other.id == id &&
+      other.position == position &&
+      other.side == side &&
+      other.color == color &&
+      other.outline == outline;
+
+  @override
+  int get hashCode => Object.hash(id, position, side, color, outline);
 }

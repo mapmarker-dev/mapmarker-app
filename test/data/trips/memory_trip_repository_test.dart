@@ -1,5 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/data/models/candidate.dart';
+import 'package:mapmarker_app/data/models/photo.dart';
+import 'package:mapmarker_app/data/photos/photo_upload.dart';
 import 'package:mapmarker_app/data/models/segment.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/models/trip.dart';
@@ -309,6 +313,48 @@ void main() {
       expect(repository.moveStop('a', day: 4, order: 0), throwsRangeError);
     });
 
+    test(
+      'orders a day and keeps segments whose stops stay neighbors',
+      () async {
+        for (final (i, id) in ['a', 'b', 'c', 'd'].indexed) {
+          await repository.addStop(testStop(id, order: i));
+        }
+        await repository.addStop(testStop('e', day: 2));
+        final before = await repository.watchRoute('trip').first;
+        String idOf(String from, String to) => before.segments
+            .firstWhere((s) => s.fromStopId == from && s.toStopId == to)
+            .id;
+
+        await repository.orderDay(
+          'trip',
+          day: 1,
+          stopIds: ['c', 'd', 'a', 'b'],
+        );
+
+        expect(await days(), ['1: c d a b', '2: e']);
+        expect(await orders(), [0, 1, 2, 3, 0]);
+        expect(await lines(), ['c>d', 'd>a', 'a>b', 'b>e']);
+        final after = await repository.watchRoute('trip').first;
+        final kept = {for (final s in after.segments) s.id};
+        expect(kept, containsAll([idOf('a', 'b'), idOf('c', 'd')]));
+
+        // 그 일차의 장소와 다르면 거절하고 그대로 둔다.
+        expect(
+          repository.orderDay('trip', day: 1, stopIds: ['a', 'b', 'c']),
+          throwsStateError,
+        );
+        expect(
+          repository.orderDay('trip', day: 1, stopIds: ['a', 'b', 'c', 'e']),
+          throwsStateError,
+        );
+        expect(
+          repository.orderDay('trip', day: 4, stopIds: const []),
+          throwsRangeError,
+        );
+        expect(await days(), ['1: c d a b', '2: e']);
+      },
+    );
+
     test('links the neighbors again after a stop is deleted', () async {
       for (final (i, id) in ['a', 'b', 'c'].indexed) {
         await repository.addStop(testStop(id, order: i));
@@ -529,5 +575,55 @@ void main() {
         expect(await candidateIds(), isEmpty);
       },
     );
+  });
+
+  group('photo of the same place', () {
+    // 같은 숙소에 두 밤 묵었다. 사진과 방향은 첫 밤에 있다.
+    PreparedPhoto prepared(String id) => PreparedPhoto(
+      id: id,
+      original: Uint8List(1),
+      originalWidth: 1,
+      originalHeight: 1,
+      thumbnail: Uint8List(1),
+    );
+
+    setUp(() async {
+      await repository.createTrip(_trip('a'));
+      await repository.addStop(testLodging('night1', tripId: 'a'));
+      await repository.addStop(testStop('sight', tripId: 'a', day: 2));
+      await repository.addStop(
+        testLodging('night2', tripId: 'a', day: 2, order: 1),
+      );
+      await repository.setStopPhoto('night1', prepared('p'));
+      final night1 = (await repository.watchRoute('a').first).stopById(
+        'night1',
+      )!;
+      await repository.updateStop(night1.copyWith(photoSide: PhotoSide.left));
+    });
+
+    Future<Stop?> stop(String id) async =>
+        (await repository.watchRoute('a').first).stopById(id);
+
+    test('hands the photo and its side to the night left', () async {
+      await repository.deleteStop('night1');
+
+      final night2 = (await stop('night2'))!;
+      expect(night2.photo?.id, 'p');
+      expect(night2.photoSide, PhotoSide.left);
+    });
+
+    test('hands it over when the night becomes a candidate too', () async {
+      await repository.demoteStop('night1');
+
+      expect((await stop('night2'))!.photo?.id, 'p');
+    });
+
+    test('keeps the photo the other night already has', () async {
+      await repository.setStopPhoto('night2', prepared('q'));
+
+      await repository.deleteStop('night1');
+
+      expect((await stop('night2'))!.photo?.id, 'q');
+    });
   });
 }

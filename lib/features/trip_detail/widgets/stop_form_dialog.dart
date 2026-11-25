@@ -7,6 +7,7 @@ import '../../../core/time/zoned_time.dart';
 import '../../../core/widgets/form_saving.dart';
 import '../../../core/widgets/saving.dart';
 import '../../../data/models/segment.dart';
+import '../../../data/models/photo.dart';
 import '../../../data/models/stop.dart';
 import '../../../data/models/trip.dart';
 import '../../../data/models/trip_route.dart';
@@ -133,11 +134,22 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
   bool _preparingPhoto = false;
 
   /// 후보로 빼면 함께 사라질 사진의 썸네일. 화면에 보이는 사진(새로 고른 것이 먼저)이고, 없으면 null이다.
-  Widget? get _demotedPhoto => switch ((_draft.newPhoto, widget.stop?.photo)) {
+  Widget? get _demotedPhoto => switch ((_draft.newPhoto, _losablePhoto)) {
     (final picked?, _) => Image.memory(picked.thumbnail, fit: BoxFit.cover),
     (null, final saved?) when !_draft.removePhoto => StopPhotoImage(saved),
     _ => null,
   };
+
+  /// 이 장소를 지우거나 후보로 빼면 사라지는 저장된 사진. 같은 자리 장소(연박 숙소)가 남아 있으면
+  /// 사진은 그 장소로 넘어가서(서버 규칙) 사라지지 않는다.
+  Photo? get _losablePhoto {
+    final stop = widget.stop;
+    if (stop == null) return null;
+    final shared = widget.route.stops.any(
+      (other) => other.id != stop.id && other.isSamePlaceAs(stop),
+    );
+    return shared ? null : stop.photo;
+  }
 
   @override
   void initState() {
@@ -181,11 +193,12 @@ class _StopFormDialogState extends State<StopFormDialog> with FormSaving {
     final confirmed = await confirmDelete(
       context,
       title: l10n.deleteStopTitle(widget.stop?.name ?? _draft.name),
-      message: widget.stop?.photo != null
+      message: _losablePhoto != null
           ? l10n.deleteStopMessageWithPhoto
           : l10n.deleteStopMessage,
       // 장소를 지우면 저장된 사진이 사라진다(입력 화면에서 고친 것은 함께 버린다).
-      detail: switch (widget.stop?.photo) {
+      // 같은 자리 장소가 남으면 사진은 그 장소로 넘어가서 알리지 않는다.
+      detail: switch (_losablePhoto) {
         final photo? => LostPhotoLine(image: StopPhotoImage(photo)),
         null => null,
       },

@@ -25,8 +25,6 @@ void main() {
     await tester.pumpWidget(_app());
 
     expect(find.byType(TripListScreen), findsOneWidget);
-    // 테스트는 디버그 모드로 돌아서 검증 화면 진입 버튼이 보인다.
-    expect(find.byTooltip('스냅샷 검증'), findsOneWidget);
   });
 
   testWidgets('builds screens as Material pages', (tester) async {
@@ -38,17 +36,23 @@ void main() {
     expect(route?.settings, isA<MaterialPage<void>>());
   });
 
-  test('snapshot lab sits under the trip list in debug builds', () {
+  test('image export sits under its trip page', () {
     final container = ProviderContainer.test(overrides: authOverrides());
     final router = container.read(routerProvider);
 
-    final match = router.configuration.findMatch(Uri.parse(Routes.snapshotLab));
+    final match = router.configuration.findMatch(
+      Uri.parse(Routes.tripExport('abc', day: 2, lodging: false)),
+    );
 
-    // 여행 목록 위에 검증 화면이 쌓인다. 뒤로가기를 누르면 여행 목록으로 간다.
+    // 동선 화면 위에 쌓인다. 뒤로가기를 누르면 동선 화면으로 간다.
     expect(match.matches.map((m) => m.matchedLocation), [
       Routes.tripList,
-      Routes.snapshotLab,
+      '/trips/abc',
+      '/trips/abc/export',
     ]);
+    expect(match.pathParameters, {'tripId': 'abc'});
+    expect(match.uri.queryParameters, {'day': '2', 'lodging': '0'});
+    expect(Routes.tripExport('abc'), '/trips/abc/export');
   });
 
   test('trip creation and trip pages sit under the trip list', () {

@@ -317,6 +317,26 @@ void main() {
       },
     );
 
+    test('orderDay takes the route the server returns', () async {
+      await loadTrip();
+      final routes = _collect(repository.watchRoute('trip-1'));
+      final two = [serverStop(id: 'stop-2'), serverStop(order: 1)];
+      server.replies['PUT /trips/trip-1/stop-order'] = (_) =>
+          FakeReply.json(200, _detail(stops: two, segments: []));
+
+      await repository.orderDay(
+        'trip-1',
+        day: 1,
+        stopIds: ['stop-2', 'stop-1'],
+      );
+      await pumpEventQueue();
+
+      expect(
+        [for (final stop in (routes.last! as TripRoute).stops) stop.id],
+        ['stop-2', 'stop-1'],
+      );
+    });
+
     test(
       'updateStop replaces the stop and marks the trip changed now',
       () async {

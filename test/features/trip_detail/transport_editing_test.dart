@@ -566,16 +566,16 @@ void main() {
   });
 
   group('moving a stop', () {
-    /// 1일차 목록에서 b를 누르고, 뜬 손잡이로 a 위로 끈다(a > b > 숙소 → b > a > 숙소).
+    /// 1일차 목록에서 [순서 바꾸기]를 누르고, b를 손잡이로 a 위로 끈다(a > b > 숙소 → b > a > 숙소).
+    /// [완료]는 누르지 않는다.
     Future<void> dragBAboveA(WidgetTester tester) async {
-      await tester.tap(find.text('b'));
+      await tester.tap(find.text('순서 바꾸기'));
       await tester.pumpAndSettle();
       final handle = find.descendant(
         of: find.byKey(const ValueKey('b')),
         matching: find.byIcon(Icons.drag_handle),
       );
-      // 끄는 줄의 가운데가 a의 가운데를 넘어야 자리가 바뀐다.
-      // 누른 b는 펼쳐져서(외부 지도 칸, 아래 구간 줄) 접힌 a보다 훨씬 길다.
+      // 끄는 줄의 가운데가 a의 가운데를 넘어야 자리가 바뀐다. 줄은 모두 한 줄 모양이다.
       final distance =
           tester.getCenter(find.byKey(const ValueKey('b'))).dy -
           tester.getCenter(find.byKey(const ValueKey('a'))).dy;
@@ -587,6 +587,16 @@ void main() {
       await drag.up();
       await tester.pumpAndSettle();
     }
+
+    Future<void> tapDone(WidgetTester tester) async {
+      await tester.tap(find.text('완료'));
+      await tester.pumpAndSettle();
+    }
+
+    Finder inDialog(String text) => find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.text(text),
+    );
 
     List<String> savedOrder(ProviderContainer container) => [
       for (final stop in container.read(tripRouteProvider('jeju')).value!.stops)
@@ -605,25 +615,39 @@ void main() {
     testWidgets('asks before dropping a chosen transport', (tester) async {
       await _pumpJeju(tester, firstLegs: legs);
       await _openDay1(tester);
-
       await dragBAboveA(tester);
+
+      // 끌어 놓을 때는 묻지 않고, [완료]에서 묻는다.
+      expect(find.byType(AlertDialog), findsNothing);
+
+      await tapDone(tester);
 
       expect(find.text('이동 수단이 사라집니다'), findsOneWidget);
       expect(find.text('1일차 a → b'), findsOneWidget);
       expect(find.text('지하철 2정류장'), findsWidgets);
     });
 
-    testWidgets('puts the stop back when cancelled', (tester) async {
+    testWidgets('keeps the new order unsaved when cancelled', (tester) async {
       final (_, container) = await _pumpJeju(tester, firstLegs: legs);
       await _openDay1(tester);
       await dragBAboveA(tester);
+      await tapDone(tester);
 
+      await tester.tap(inDialog('취소'));
+      await tester.pumpAndSettle();
+
+      // 저장하지 않고 순서 바꾸기를 이어 간다.
+      expect(savedOrder(container), ['a', 'b', 'hotel']);
+      expect(listedOrder(tester), ['b', 'a', 'hotel']);
+      expect(find.text('완료'), findsOneWidget);
+      expect(_savedLegs(container), legs);
+
+      // 제목 줄의 [취소]는 바꾼 순서를 버린다.
       await tester.tap(find.text('취소'));
       await tester.pumpAndSettle();
 
-      expect(savedOrder(container), ['a', 'b', 'hotel']);
       expect(listedOrder(tester), ['a', 'b', 'hotel']);
-      expect(_savedLegs(container), legs);
+      expect(find.text('완료'), findsNothing);
     });
 
     testWidgets('moves the stop and drops the transport when confirmed', (
@@ -632,12 +656,14 @@ void main() {
       final (_, container) = await _pumpJeju(tester, firstLegs: legs);
       await _openDay1(tester);
       await dragBAboveA(tester);
+      await tapDone(tester);
 
-      await tester.tap(find.text('옮기기'));
+      await tester.tap(inDialog('저장'));
       await tester.pumpAndSettle();
 
       expect(savedOrder(container), ['b', 'a', 'hotel']);
       expect(listedOrder(tester), ['b', 'a', 'hotel']);
+      expect(find.text('완료'), findsNothing);
       final segments = container
           .read(tripRouteProvider('jeju'))
           .value!
@@ -650,11 +676,41 @@ void main() {
     ) async {
       final (_, container) = await _pumpJeju(tester);
       await _openDay1(tester);
-
       await dragBAboveA(tester);
+      await tapDone(tester);
 
       expect(find.byType(AlertDialog), findsNothing);
       expect(savedOrder(container), ['b', 'a', 'hotel']);
+    });
+
+    testWidgets('saves nothing when the order ends up the same', (
+      tester,
+    ) async {
+      // a > b > 숙소에서 b를 맨 앞으로 옮겼다가 다시 a 뒤로 되돌린다.
+      final (_, container) = await _pumpJeju(tester, firstLegs: legs);
+      await _openDay1(tester);
+      await dragBAboveA(tester);
+      final handle = find.descendant(
+        of: find.byKey(const ValueKey('b')),
+        matching: find.byIcon(Icons.drag_handle),
+      );
+      final distance =
+          tester.getCenter(find.byKey(const ValueKey('a'))).dy -
+          tester.getCenter(find.byKey(const ValueKey('b'))).dy;
+      final drag = await tester.startGesture(tester.getCenter(handle));
+      await drag.moveBy(Offset(0, distance / 2));
+      await tester.pump();
+      await drag.moveBy(Offset(0, distance / 2 + 4));
+      await tester.pump();
+      await drag.up();
+      await tester.pumpAndSettle();
+      expect(listedOrder(tester), ['a', 'b', 'hotel']);
+
+      await tapDone(tester);
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text('완료'), findsNothing);
+      expect(_savedLegs(container), legs);
     });
   });
 

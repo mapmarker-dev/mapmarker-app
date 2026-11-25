@@ -1,11 +1,34 @@
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/core/map/geo.dart';
 import 'package:mapmarker_app/core/map/map_provider.dart';
+import 'package:mapmarker_app/core/map/route_arrow.dart';
+import 'package:mapmarker_app/data/models/photo.dart';
 
 /// 지도 SDK 없이 화면을 띄우는 가짜 지도. 받은 [MapScene]과 탭 함수를 그대로 들고 있는다.
+///
+/// 내보내기 지도([buildCaptureMap])는 그린 다음 프레임에 1×1 그림을 찍은 것으로 넘긴다.
+/// 범위에 맞출 때는 여백 안쪽 가운데에 가로세로 같은 배율로 맞추고, 한 곳에 둘 때는 그곳이 가운데다([fakeCapture]).
+/// [captureFails]면 찍지 않고 실패를 알린다.
 class FakeMapProvider implements MapProvider {
-  const FakeMapProvider();
+  const FakeMapProvider({this.captureFails = false});
+
+  final bool captureFails;
+
+  @override
+  Widget buildCaptureMap({
+    required MapFrame frame,
+    required ValueChanged<MapCapture> onCaptured,
+    required VoidCallback onFailed,
+  }) => FakeCaptureMap(
+    frame: frame,
+    onCaptured: onCaptured,
+    onFailed: onFailed,
+    fails: captureFails,
+  );
 
   @override
   Widget buildMap(
@@ -14,12 +37,14 @@ class FakeMapProvider implements MapProvider {
     ValueChanged<String>? onLineTap,
     ValueChanged<MapTap>? onMapTap,
     Future<bool> Function(String id, double curvature)? onCurveChanged,
+    void Function(String id, PhotoSide side)? onPhotoSideChanged,
   }) => FakeMap(
     scene: scene,
     onMarkerTap: onMarkerTap,
     onLineTap: onLineTap,
     onMapTap: onMapTap,
     onCurveChanged: onCurveChanged,
+    onPhotoSideChanged: onPhotoSideChanged,
   );
 }
 
@@ -31,6 +56,7 @@ class FakeMap extends StatelessWidget {
     this.onLineTap,
     this.onMapTap,
     this.onCurveChanged,
+    this.onPhotoSideChanged,
   });
 
   final MapScene scene;
@@ -38,9 +64,106 @@ class FakeMap extends StatelessWidget {
   final ValueChanged<String>? onLineTap;
   final ValueChanged<MapTap>? onMapTap;
   final Future<bool> Function(String id, double curvature)? onCurveChanged;
+  final void Function(String id, PhotoSide side)? onPhotoSideChanged;
 
   @override
   Widget build(BuildContext context) => const SizedBox.expand();
+}
+
+/// 가짜 내보내기 지도. 범위가 바뀔 때마다 한 번 찍는다.
+class FakeCaptureMap extends StatefulWidget {
+  const FakeCaptureMap({
+    super.key,
+    required this.frame,
+    required this.onCaptured,
+    required this.onFailed,
+    this.fails = false,
+  });
+
+  final MapFrame frame;
+  final ValueChanged<MapCapture> onCaptured;
+  final VoidCallback onFailed;
+  final bool fails;
+
+  @override
+  State<FakeCaptureMap> createState() => _FakeCaptureMapState();
+}
+
+class _FakeCaptureMapState extends State<FakeCaptureMap> {
+  @override
+  void initState() {
+    super.initState();
+    _schedule();
+  }
+
+  @override
+  void didUpdateWidget(FakeCaptureMap old) {
+    super.didUpdateWidget(old);
+    if (old.frame != widget.frame) _schedule();
+  }
+
+  void _schedule() {
+    final frame = widget.frame;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || frame != widget.frame) return;
+      if (widget.fails) {
+        widget.onFailed();
+        return;
+      }
+      widget.onCaptured(fakeCapture(frame, context.size!));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.expand();
+}
+
+/// [size] 지도에 [frame]을 맞춰 찍은 것 같은 가짜 그림.
+MapCapture fakeCapture(MapFrame frame, Size size) {
+  final recorder = ui.PictureRecorder();
+  ui.Canvas(recorder).drawRect(
+    const ui.Rect.fromLTWH(0, 0, 1, 1),
+    ui.Paint()..color = const ui.Color(0xFFEDEAE3),
+  );
+  final image = recorder.endRecording().toImageSync(1, 1);
+  final (projection, zoom) = switch (frame) {
+    MapFrame(:final bounds?) => _fitted(bounds, frame.padding, size),
+    MapFrame(:final center, :final zoom) => (
+      MapProjection.centered(center!, zoom!, size),
+      zoom,
+    ),
+  };
+  return MapCapture(
+    image: image,
+    frame: frame,
+    projection: projection,
+    zoom: zoom,
+    logo: Rect.fromLTWH(0, size.height - 48, 112, 48),
+  );
+}
+
+/// 실제 지도처럼 [bounds]를 [padding] 안쪽 가운데에 가로세로 같은 배율로 맞춘다.
+(MapProjection, double) _fitted(
+  LatLngBounds bounds,
+  EdgeInsets padding,
+  Size size,
+) {
+  final sw = mercatorOf(bounds.southWest);
+  final ne = mercatorOf(bounds.northEast);
+  final inner = padding.deflateRect(Offset.zero & size);
+  final world = math.min(
+    inner.width / (ne.dx - sw.dx),
+    inner.height / (sw.dy - ne.dy),
+  );
+  final middle = (sw + ne) / 2;
+  Offset at(Offset m) => inner.center + (m - middle) * world;
+  return (
+    MapProjection.fromPairs(
+      (bounds.southWest, at(sw)),
+      (bounds.northEast, at(ne)),
+    ),
+    math.log(world / 256) / math.ln2,
+  );
 }
 
 FakeMap _fakeMap(WidgetTester tester) =>
@@ -114,4 +237,13 @@ Future<bool> releaseCurveHandle(WidgetTester tester, double curvature) {
   final handle = map.scene.curveHandle;
   expect(handle, isNotNull, reason: '곡선 핸들이 없으면 끌 수 없다');
   return map.onCurveChanged!(handle!.id, curvature);
+}
+
+/// 지도의 사진 방향 화살표 중 [side]를 누른 것처럼 한다. 화살표가 있어야 누를 수 있다.
+Future<void> pickPhotoSide(WidgetTester tester, PhotoSide side) async {
+  final map = _fakeMap(tester);
+  final picker = map.scene.photoSidePicker;
+  expect(picker, isNotNull, reason: '사진 방향 화살표가 없으면 누를 수 없다');
+  map.onPhotoSideChanged!(picker!.id, side);
+  await tester.pumpAndSettle();
 }

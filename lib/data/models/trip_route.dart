@@ -61,6 +61,37 @@ class TripRoute {
 
   Stop? stopById(String id) => _stopsById[id];
 
+  /// [stop] 자리의 사진 주인. 같은 자리(좌표가 같은) 장소 중 동선에서 먼저 오는, 사진이 있는 장소다. 없으면 null이다.
+  ///
+  /// 같은 자리 장소(밤마다 넣은 연박 숙소, 처음과 끝이 같은 공항)는 사진 하나와 사진 방향을 함께 쓴다.
+  /// 사진과 방향을 바꿀 때는 이 장소의 것을 바꾼다.
+  Stop? photoOwnerOf(Stop stop) => stops
+      .where((other) => other.photo != null && other.isSamePlaceAs(stop))
+      .firstOrNull;
+
+  /// 같은 자리 장소가 모두 그 자리 사진 주인([photoOwnerOf])의 사진과 사진 방향을 갖는 동선.
+  /// 화면은 이 동선을 그려서, 어느 일차의 어느 줄에서도 같은 사진이 같은 방향으로 보인다.
+  late final TripRoute withSharedPhotos = () {
+    var changed = false;
+    final shared = [
+      for (final stop in stops)
+        switch (photoOwnerOf(stop)) {
+          final owner?
+              when owner.photo != stop.photo ||
+                  owner.photoSide != stop.photoSide =>
+            () {
+              changed = true;
+              return stop.copyWith(
+                photo: () => owner.photo,
+                photoSide: owner.photoSide,
+              );
+            }(),
+          _ => stop,
+        },
+    ];
+    return changed ? copyWith(stops: shared) : this;
+  }();
+
   /// 지도에 보여 줄 번호. 숙소가 아닌 장소에 일차마다 1부터 붙인다. 숙소는 null이다.
   ///
   /// 숙소를 끄고 켜도 번호가 바뀌지 않게, 보이는 장소가 아니라 동선 전체로 센다.

@@ -180,6 +180,17 @@ class ServerTripRepository implements TripRepository {
   });
 
   @override
+  Future<void> orderDay(
+    String tripId, {
+    required int day,
+    required List<String> stopIds,
+  }) => _write(tripId, () async {
+    final detail = await _api.orderDay(tripId, day: day, stopIds: stopIds);
+    _cache.putTrip(detail.trip, route: detail.route);
+    _changed();
+  });
+
+  @override
   Future<void> deleteStop(String stopId) =>
       _write(_cache.tripOfStop(stopId) ?? stopId, () async {
         final detail = await _api.deleteStop(stopId);

@@ -1,8 +1,12 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mapmarker_app/app/routes.dart';
 import 'package:mapmarker_app/core/map/geo.dart';
+import 'package:mapmarker_app/core/map/map_provider.dart';
 import 'package:mapmarker_app/core/theme/app_colors.dart';
 import 'package:mapmarker_app/core/theme/app_theme.dart';
 import 'package:mapmarker_app/data/api/api_exception.dart';
@@ -10,7 +14,9 @@ import 'package:mapmarker_app/data/models/photo.dart';
 import 'package:mapmarker_app/data/models/stop.dart';
 import 'package:mapmarker_app/data/photos/photo_images.dart';
 import 'package:mapmarker_app/data/photos/photo_preparer.dart';
+import 'package:mapmarker_app/data/photos/photo_upload.dart';
 import 'package:mapmarker_app/features/trip_detail/trip_detail_controller.dart';
+import 'package:mapmarker_app/l10n/l10n.dart';
 import 'package:mapmarker_app/features/trip_detail/widgets/itinerary_tiles.dart';
 import 'package:mapmarker_app/features/trip_detail/widgets/photo_position_screen.dart';
 import 'package:mapmarker_app/features/trip_detail/widgets/place_photo_field.dart';
@@ -437,5 +443,197 @@ void main() {
     await tester.tap(_inDialog<Dialog>(find.byTooltip('닫기')));
     await tester.pumpAndSettle();
     expect(find.byType(InteractiveViewer), findsNothing);
+  });
+
+  group('지도에서 사진 방향을', () {
+    MapMarker markerA(WidgetTester tester) =>
+        mapScene(tester).markers.singleWhere((m) => m.id == 'a');
+
+    PhotoSide savedSide(ProviderContainer container) => container
+        .read(tripRouteProvider('jeju'))
+        .value!
+        .stopById('a')!
+        .photoSide;
+
+    testWidgets('사진 있는 장소 줄을 펼치면 화살표가 뜨고, 고른 방향을 저장한다', (tester) async {
+      final container = await _openDayOne(tester, _repository(withPhoto: true));
+      expect(mapScene(tester).photoSidePicker, isNull);
+
+      await tester.tap(find.text('a'));
+      await tester.pumpAndSettle();
+
+      final picker = mapScene(tester).photoSidePicker!;
+      expect(picker.id, 'a');
+      expect(picker.side, PhotoSide.up);
+      expect(markerA(tester).look.photoSide, PhotoSide.up);
+
+      await pickPhotoSide(tester, PhotoSide.down);
+
+      expect(savedSide(container), PhotoSide.down);
+      expect(markerA(tester).look.photoSide, PhotoSide.down);
+      expect(markerA(tester).pending, isFalse);
+      // 고르면 화살표가 사라져 지도를 가리지 않는다. 그 마커를 다시 누르면 다시 뜬다.
+      expect(mapScene(tester).photoSidePicker, isNull);
+
+      await tapMarker(tester, 'a');
+
+      expect(mapScene(tester).photoSidePicker!.side, PhotoSide.down);
+    });
+
+    testWidgets('고른 뒤 줄을 접었다 펴도 화살표가 다시 뜬다', (tester) async {
+      await _openDayOne(tester, _repository(withPhoto: true));
+      await tester.tap(find.text('a'));
+      await tester.pumpAndSettle();
+      await pickPhotoSide(tester, PhotoSide.right);
+
+      await tester.tap(find.text('a'));
+      await tester.pumpAndSettle();
+      expect(mapScene(tester).photoSidePicker, isNull);
+      await tester.tap(find.text('a'));
+      await tester.pumpAndSettle();
+
+      expect(mapScene(tester).photoSidePicker!.side, PhotoSide.right);
+    });
+
+    testWidgets('사진 없는 장소 줄과 전체 보기에는 화살표가 없다', (tester) async {
+      await _openDayOne(tester, _repository(withPhoto: true));
+
+      await tester.tap(find.text('b'));
+      await tester.pumpAndSettle();
+      expect(mapScene(tester).photoSidePicker, isNull);
+
+      await tester.tap(find.text('a'));
+      await tester.pumpAndSettle();
+      expect(mapScene(tester).photoSidePicker, isNotNull);
+
+      await tapChip(tester, '전체');
+      expect(mapScene(tester).photoSidePicker, isNull);
+    });
+
+    testWidgets('저장하는 동안은 흐리게 두고, 저장하지 못하면 알리고 원래 방향으로 돌아간다', (tester) async {
+      final repository = _repository(withPhoto: true);
+      final container = await _openDayOne(tester, repository);
+      await tester.tap(find.text('a'));
+      await tester.pumpAndSettle();
+      final hold = Completer<void>();
+      repository.holdWrites = hold;
+
+      await pickPhotoSide(tester, PhotoSide.left);
+
+      // 새 방향을 흐리게 보여 주고, 저장될 때까지 다시 고를 수 없다.
+      expect(markerA(tester).look.photoSide, PhotoSide.left);
+      expect(markerA(tester).pending, isTrue);
+      expect(mapScene(tester).photoSidePicker, isNull);
+
+      repository.failWrites = ApiFailure.network;
+      hold.complete();
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(testL10n.saveFailureText(ApiFailure.network)),
+        findsOneWidget,
+      );
+      expect(savedSide(container), PhotoSide.up);
+      expect(markerA(tester).look.photoSide, PhotoSide.up);
+      expect(markerA(tester).pending, isFalse);
+      // 바뀌지 않았으니 화살표를 다시 띄워 다시 고르게 한다.
+      expect(mapScene(tester).photoSidePicker!.side, PhotoSide.up);
+    });
+
+    testWidgets('연박한 숙소는 어느 밤에서나 같은 사진을 보이고, 어느 일차에서 바꿔도 함께 바뀐다', (
+      tester,
+    ) async {
+      // 1일차와 2일차에 같은 숙소. 사진과 방향은 2일차 밤에만 있다.
+      final repository = FlakyTripRepository(
+        testRepository(
+          [testTrip(id: 'jeju', region: '제주', nights: 2)],
+          [
+            testStop('a', tripId: 'jeju'),
+            testLodging('hotel1', tripId: 'jeju', order: 1),
+            testStop('b', tripId: 'jeju', day: 2),
+            testLodging(
+              'hotel2',
+              tripId: 'jeju',
+              day: 2,
+              order: 1,
+            ).copyWith(photo: () => _savedPhoto),
+          ],
+        ),
+      );
+      final container = await _openDayOne(tester, repository);
+
+      // 1일차 지도와 줄에도 2일차 밤의 사진이 보인다.
+      MapMarker hotel() =>
+          mapScene(tester).markers.singleWhere((m) => m.id == 'hotel1');
+      expect(hotel().look.photo, isNotNull);
+      expect(
+        _inStopTile('hotel1', find.byType(StopPhotoImage)),
+        findsOneWidget,
+      );
+
+      // 1일차 줄에서 바꾸면 사진 주인(2일차 밤)의 방향이 바뀐다.
+      await tester.tap(find.text('hotel1'));
+      await tester.pumpAndSettle();
+      expect(mapScene(tester).photoSidePicker!.id, 'hotel2');
+      await pickPhotoSide(tester, PhotoSide.down);
+
+      expect(
+        container
+            .read(tripRouteProvider('jeju'))
+            .value!
+            .stopById('hotel2')!
+            .photoSide,
+        PhotoSide.down,
+      );
+      expect(hotel().look.photoSide, PhotoSide.down);
+    });
+
+    testWidgets('같은 자리 사진은 하나로 맞춘다: 어느 밤에서 넣어도 주인 장소에, 지우면 모두 지운다', (
+      tester,
+    ) async {
+      // 이 규칙 전에 두 밤에 따로 넣은 사진. 보이는 것은 먼저 오는 밤(1일차)의 사진이다.
+      const other = Photo(id: 'photo-b', url: 'u', thumbnailUrl: 't');
+      final repository = FlakyTripRepository(
+        testRepository(
+          [testTrip(id: 'jeju', region: '제주', nights: 1)],
+          [
+            testLodging(
+              'hotel1',
+              tripId: 'jeju',
+            ).copyWith(photo: () => _savedPhoto),
+            testLodging(
+              'hotel2',
+              tripId: 'jeju',
+              day: 2,
+            ).copyWith(photo: () => other),
+          ],
+        ),
+      );
+      final container = await _openDayOne(tester, repository);
+      final controller = container.read(tripDetailProvider('jeju').notifier);
+      Photo? photoOf(String id) =>
+          container.read(tripRouteProvider('jeju')).value!.stopById(id)!.photo;
+
+      await controller.setStopPhoto(
+        'hotel2',
+        PreparedPhoto(
+          id: 'photo-new',
+          original: Uint8List(1),
+          originalWidth: 1,
+          originalHeight: 1,
+          thumbnail: Uint8List(1),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(photoOf('hotel1')?.id, 'photo-new');
+      expect(photoOf('hotel2'), isNull);
+
+      await controller.deleteStopPhoto('hotel2');
+      await tester.pumpAndSettle();
+
+      expect(photoOf('hotel1'), isNull);
+      expect(photoOf('hotel2'), isNull);
+    });
   });
 }
